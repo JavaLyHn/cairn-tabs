@@ -8,7 +8,7 @@ interface Props {
   context: Context;
   tabs: TabRecord[]; // 已按 tabOrder 排好
   variant: 'active' | 'inbox' | 'archived';
-  duplicateIds: Set<string>;
+  dupMarks: Map<string, 'keeper' | 'redundant'>;
   portMap: Record<number, string>;
   viewTransitionName?: string;
   editing: boolean;
@@ -16,6 +16,7 @@ interface Props {
   onCommitName: (name: string) => void; // 回车/失焦:确认命名(空草稿会被放弃)
   onCancelEdit: () => void; // Esc:取消(空草稿会被删除)
   onArchive: () => void;
+  onArchiveAll: () => void; // 未分类:收纳全部零散标签
   onRestore: () => void;
   onDelete: () => void;
   onDropTab: (tabRecordId: string) => void;
@@ -27,7 +28,7 @@ export function ContextGroup({
   context,
   tabs,
   variant,
-  duplicateIds,
+  dupMarks,
   portMap,
   viewTransitionName,
   editing,
@@ -35,6 +36,7 @@ export function ContextGroup({
   onCommitName,
   onCancelEdit,
   onArchive,
+  onArchiveAll,
   onRestore,
   onDelete,
   onDropTab,
@@ -155,6 +157,15 @@ export function ContextGroup({
             </>
           ) : (
             <>
+              {isInbox && tabs.length > 0 && (
+                <button
+                  onClick={onArchiveAll}
+                  className="text-[11px] opacity-60 hover:opacity-100"
+                  title="收纳全部零散标签(存为一个暂存任务)"
+                >
+                  收纳全部
+                </button>
+              )}
               {!isInbox && (
                 <button
                   onClick={onStartEdit}
@@ -204,7 +215,7 @@ export function ContextGroup({
               <TabRow
                 key={t.id}
                 tab={t}
-                isDuplicate={duplicateIds.has(t.id)}
+                dupState={dupMarks.get(t.id)}
                 portMap={portMap}
                 onActivate={() => onActivateTab(t.id)}
                 onClose={() => onCloseTab(t.id)}

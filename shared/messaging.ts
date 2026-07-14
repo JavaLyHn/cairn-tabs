@@ -9,6 +9,7 @@ export type Command =
   | { type: 'DELETE_CONTEXT'; contextId: string }
   | { type: 'MOVE_TAB'; tabRecordId: string; toContextId: string }
   | { type: 'ARCHIVE_CONTEXT'; contextId: string }
+  | { type: 'ARCHIVE_INBOX' }
   | { type: 'RESTORE_CONTEXT'; contextId: string }
   | { type: 'MERGE_DUPLICATES' }
   | { type: 'SET_PORT_MAPPING'; port: number; project: string }
@@ -43,6 +44,7 @@ export const COMMAND_TYPES = new Set<Command['type']>([
   'DELETE_CONTEXT',
   'MOVE_TAB',
   'ARCHIVE_CONTEXT',
+  'ARCHIVE_INBOX',
   'RESTORE_CONTEXT',
   'MERGE_DUPLICATES',
   'SET_PORT_MAPPING',

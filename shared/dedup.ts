@@ -3,30 +3,19 @@
 import type { TabRecord } from './types';
 
 /**
- * 去重键归一化(见 PRD §9):
- * - 普通站点:origin + pathname + search,忽略 hash(#a 与 #b 视为同一页)
- * - localhost / 环回地址:用完整 URL(dev 页面的 hash/query 往往有意义)
+ * 去重键:网址「完全一致」才算重复(区分 hash、query 等一切差异)。
  */
 export function dedupKey(url: string): string {
-  try {
-    const u = new URL(url);
-    const host = u.hostname;
-    if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]') {
-      return u.href;
-    }
-    return u.origin + u.pathname + u.search;
-  } catch {
-    return url;
-  }
+  return url.trim();
 }
 
 export interface DuplicateGroup {
   key: string;
-  keeper: TabRecord; // lastActiveAt 最新的那个,合并时保留
+  keeper: TabRecord; // 最新打开的那个(firstOpenedAt 最大),合并时保留
   redundant: TabRecord[]; // 其余,合并时关闭
 }
 
-/** 在「打开中的标签」里找同 URL 的重复组(归档标签不参与)。 */
+/** 在「打开中的标签」里找同一网址的重复组(归档标签不参与)。 */
 export function findDuplicateGroups(tabs: TabRecord[]): DuplicateGroup[] {
   const open = tabs.filter((t) => t.chromeTabId != null);
   const byKey = new Map<string, TabRecord[]>();
@@ -39,22 +28,24 @@ export function findDuplicateGroups(tabs: TabRecord[]): DuplicateGroup[] {
   const groups: DuplicateGroup[] = [];
   for (const [key, arr] of byKey) {
     if (arr.length < 2) continue;
-    const sorted = [...arr].sort((a, b) => b.lastActiveAt - a.lastActiveAt);
+    // 保留最新打开的(firstOpenedAt 最大)
+    const sorted = [...arr].sort((a, b) => b.firstOpenedAt - a.firstOpenedAt);
     groups.push({ key, keeper: sorted[0]!, redundant: sorted.slice(1) });
   }
   return groups;
 }
 
-/** 冗余标签(非 keeper)的 record id 集合,供 UI 打「重复」徽章。 */
-export function redundantIds(tabs: TabRecord[]): Set<string> {
-  const s = new Set<string>();
+/** 每个标签的重复角色:keeper=合并后保留,redundant=会被关闭。供 UI 标注。 */
+export function duplicateMarks(tabs: TabRecord[]): Map<string, 'keeper' | 'redundant'> {
+  const marks = new Map<string, 'keeper' | 'redundant'>();
   for (const g of findDuplicateGroups(tabs)) {
-    for (const r of g.redundant) s.add(r.id);
+    marks.set(g.keeper.id, 'keeper');
+    for (const r of g.redundant) marks.set(r.id, 'redundant');
   }
-  return s;
+  return marks;
 }
 
-/** 冗余标签总数(= 可被合并关闭的数量)。 */
+/** 冗余标签总数(= 合并时会被关闭的数量)。 */
 export function redundantCount(tabs: TabRecord[]): number {
   return findDuplicateGroups(tabs).reduce((n, g) => n + g.redundant.length, 0);
 }

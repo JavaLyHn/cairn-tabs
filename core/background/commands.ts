@@ -32,6 +32,24 @@ const UNDO_TTL_MS = 5000;
 
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+/** 「暂存 · MM-DD HH:mm」—— 未分类整批收纳时的默认任务名。 */
+function stashName(now: number): string {
+  const d = new Date(now);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `暂存 · ${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** 收纳一个 Context 的活跃标签(持锁关闭,避免脱组/关闭事件回灌幻影)。 */
+async function archiveAndClose(contextId: string, repo: Repository, now: number): Promise<void> {
+  const closedTabIds = await repo.archiveContext(contextId, now);
+  pauseSync();
+  try {
+    await Promise.all(closedTabIds.map((id) => chrome.tabs.remove(id).catch(() => {})));
+  } finally {
+    resumeSync();
+  }
+}
+
 export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<Event | void> {
   const { repo, search, undo, onChange, recordNegative, ports, flags } = ctx;
   const now = Date.now();
@@ -79,17 +97,24 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
 
     case 'ARCHIVE_CONTEXT': {
       if (cmd.contextId === INBOX_ID) return;
-      const closedTabIds = await repo.archiveContext(cmd.contextId, now);
-      // 必须持锁关闭:关闭已分组标签会并发触发 onUpdated(脱组)+ onRemoved,
-      // 不持锁会让 onUpdated 回填出未分类幻影记录(见 sync.integration.test)。
-      pauseSync();
-      try {
-        await Promise.all(closedTabIds.map((id) => chrome.tabs.remove(id).catch(() => {})));
-      } finally {
-        resumeSync();
-      }
+      await archiveAndClose(cmd.contextId, repo, now);
       onChange();
       const { token, ttlMs } = undo.register('archive', cmd.contextId, UNDO_TTL_MS);
+      return { type: 'UNDOABLE', action: 'archive', token, ttlMs };
+    }
+
+    case 'ARCHIVE_INBOX': {
+      // 未分类不可整体归档(它是常驻收件箱),但可把当前零散标签整批「收纳」:
+      // 移入一个新「暂存」任务再归档,未分类清空但仍保留。
+      const inbox = await repo.getContext(INBOX_ID);
+      if (!inbox || inbox.tabOrder.length === 0) return;
+      const ctx = await repo.createContext(stashName(now), now);
+      for (const tabId of [...inbox.tabOrder]) {
+        await repo.moveTab(tabId, ctx.id, now);
+      }
+      await archiveAndClose(ctx.id, repo, now);
+      onChange();
+      const { token, ttlMs } = undo.register('archive', ctx.id, UNDO_TTL_MS);
       return { type: 'UNDOABLE', action: 'archive', token, ttlMs };
     }
 

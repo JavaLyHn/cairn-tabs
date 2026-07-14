@@ -4,13 +4,13 @@ import { localhostPort, projectFor } from '@/shared/localhost';
 
 interface Props {
   tab: TabRecord;
-  isDuplicate?: boolean;
+  dupState?: 'keeper' | 'redundant';
   portMap: Record<number, string>;
   onActivate: () => void;
   onClose: () => void;
 }
 
-export function TabRow({ tab, isDuplicate, portMap, onActivate, onClose }: Props) {
+export function TabRow({ tab, dupState, portMap, onActivate, onClose }: Props) {
   const port = localhostPort(tab.url);
   const project = port != null ? projectFor(tab.url, portMap) : null;
   const displayTitle = project ?? tab.title;
@@ -37,12 +37,20 @@ export function TabRow({ tab, isDuplicate, portMap, onActivate, onClose }: Props
           :{port}
         </span>
       )}
-      {isDuplicate && (
+      {dupState === 'redundant' && (
         <span
           className="shrink-0 text-[10px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-500"
           title="重复标签(合并时会被关闭)"
         >
           重复
+        </span>
+      )}
+      {dupState === 'keeper' && (
+        <span
+          className="shrink-0 text-[10px] px-1 py-0.5 rounded bg-accent/15 text-accent"
+          title="重复组中最新打开的,合并时保留这个"
+        >
+          重复·留
         </span>
       )}
       <span className="hidden group-hover/row:inline font-mono text-[11px] opacity-40 shrink-0">

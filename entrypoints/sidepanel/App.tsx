@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { INBOX_ID, type Context, type TabRecord } from '@/shared/types';
 import type { Event } from '@/shared/messaging';
-import { redundantIds } from '@/shared/dedup';
+import { duplicateMarks, redundantCount } from '@/shared/dedup';
 import { buildPortMap, localhostPort, suggestProjectName } from '@/shared/localhost';
 import { usePanelStore, dispatch } from './store';
 import { StatsBar } from './components/StatsBar';
@@ -124,7 +124,8 @@ export default function App() {
   const archivedTabCount = archivedContexts.reduce((n, c) => n + c.tabOrder.length, 0);
   // 完全空:无标签、无命名簇、无归档 → 展示空状态插画
   const isEmpty = tabs.length === 0 && activeContexts.length === 0 && archivedContexts.length === 0;
-  const duplicateIds = useMemo(() => redundantIds(tabs), [tabs]);
+  const dupMarks = useMemo(() => duplicateMarks(tabs), [tabs]);
+  const redundant = useMemo(() => redundantCount(tabs), [tabs]);
   const portMap = useMemo(() => buildPortMap(portMappings), [portMappings]);
   // 打开中、未绑定、未忽略的 localhost 端口 → 建议绑定(每端口取首个标签标题做建议名)
   const portSuggestions = useMemo(() => {
@@ -141,6 +142,10 @@ export default function App() {
   // ---- 命令 ----
   const archive = async (contextId: string) => {
     const ev = await dispatch({ type: 'ARCHIVE_CONTEXT', contextId });
+    if (ev?.type === 'UNDOABLE') setUndo({ action: ev.action, token: ev.token, ttlMs: ev.ttlMs });
+  };
+  const archiveInbox = async () => {
+    const ev = await dispatch({ type: 'ARCHIVE_INBOX' });
     if (ev?.type === 'UNDOABLE') setUndo({ action: ev.action, token: ev.token, ttlMs: ev.ttlMs });
   };
   const restore = (contextId: string) => dispatch({ type: 'RESTORE_CONTEXT', contextId });
@@ -196,7 +201,7 @@ export default function App() {
   const groupProps = (ctx: Context) => ({
     context: ctx,
     tabs: tabsOf(ctx),
-    duplicateIds,
+    dupMarks,
     portMap,
     viewTransitionName: `ctx-${ctx.id}`,
     editing: editingId === ctx.id,
@@ -204,6 +209,7 @@ export default function App() {
     onCommitName: (name: string) => commitName(ctx, name),
     onCancelEdit: () => cancelEdit(ctx),
     onArchive: () => archive(ctx.id),
+    onArchiveAll: archiveInbox,
     onRestore: () => restore(ctx.id),
     onDelete: () => del(ctx.id),
     onDropTab: (tabId: string) => moveTab(tabId, ctx.id),
@@ -271,7 +277,7 @@ export default function App() {
       <StatsBar
         openTabs={openTabCount}
         activeContexts={activeContexts.length}
-        redundant={duplicateIds.size}
+        redundant={redundant}
         onMerge={mergeDuplicates}
       />
 

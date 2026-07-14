@@ -88,6 +88,24 @@ describe('archive → restore 全链路(回归:不产生未分类幻影)', () =>
   });
 });
 
+describe('未分类收纳全部(ARCHIVE_INBOX)', () => {
+  it('把零散标签存为一个暂存归档任务,未分类清空、标签关闭', async () => {
+    await fake.userOpenTab('https://a.com/1', { title: 'A' });
+    await fake.userOpenTab('https://b.com/2', { title: 'B' });
+    expect((await inboxTabIds()).length).toBe(2);
+
+    const ev = await handleCommand({ type: 'ARCHIVE_INBOX' }, ctx);
+    expect(ev?.type).toBe('UNDOABLE');
+
+    expect(await inboxTabIds()).toEqual([]); // 未分类清空(盒子仍在)
+    expect(fake.tabsById.size).toBe(0); // 浏览器标签已关
+    const archived = (await snapshot()).contexts.filter((c) => c.status === 'archived');
+    expect(archived).toHaveLength(1);
+    expect(archived[0]!.tabOrder).toHaveLength(2);
+    expect(archived[0]!.name.startsWith('暂存')).toBe(true);
+  });
+});
+
 describe('CREATE_CONTEXT 草稿去重', () => {
   it('重复点新建不会生成多个「新任务」,返回同一 id', async () => {
     const e1 = await handleCommand({ type: 'CREATE_CONTEXT', name: '新任务' }, ctx);
@@ -112,15 +130,15 @@ describe('CREATE_CONTEXT 草稿去重', () => {
 });
 
 describe('MERGE_DUPLICATES(F-05)', () => {
-  it('关闭冗余标签、每组保留最近活跃的,记录同步清除', async () => {
+  it('关闭冗余标签、保留最新打开的,记录同步清除', async () => {
     await fake.userOpenTab('https://x.com/a', { title: 'A#1' });
     const keeperTabId = await fake.userOpenTab('https://x.com/a', { title: 'A#2' });
     await fake.userOpenTab('https://x.com/a', { title: 'A#3' });
     await fake.userOpenTab('https://x.com/unique', { title: 'U' });
 
-    // 让第二个 a 成为最近活跃 → keeper
+    // 明确指定 keeper = A#2(firstOpenedAt 设为最大 → "最新打开")
     const keeperRec = (await snapshot()).tabs.find((t) => t.chromeTabId === keeperTabId)!;
-    await repo.updateTab(keeperRec.id, { lastActiveAt: Date.now() + 10_000 });
+    await repo.updateTab(keeperRec.id, { firstOpenedAt: Date.now() + 10_000 });
 
     await handleCommand({ type: 'MERGE_DUPLICATES' }, ctx);
 

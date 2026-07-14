@@ -1,40 +1,41 @@
 import { describe, it, expect } from 'vitest';
-import { dedupKey, findDuplicateGroups, redundantIds, redundantCount } from '@/shared/dedup';
+import { dedupKey, findDuplicateGroups, duplicateMarks, redundantCount } from '@/shared/dedup';
 import type { TabRecord } from '@/shared/types';
 
 const NOW = 1_700_000_000_000;
 
-function tab(id: string, url: string, opts: { chromeTabId?: number; lastActiveAt?: number } = {}): TabRecord {
+function tab(
+  id: string,
+  url: string,
+  opts: { chromeTabId?: number; firstOpenedAt?: number } = {},
+): TabRecord {
   return {
     id,
     contextId: 'c1',
     url,
     title: url,
-    chromeTabId: 'chromeTabId' in opts ? opts.chromeTabId : 1, // 允许显式 undefined(归档态)
-    firstOpenedAt: NOW,
-    lastActiveAt: opts.lastActiveAt ?? NOW,
+    chromeTabId: 'chromeTabId' in opts ? opts.chromeTabId : 1,
+    firstOpenedAt: opts.firstOpenedAt ?? NOW,
+    lastActiveAt: NOW,
   };
 }
 
 describe('dedupKey', () => {
-  it('忽略 hash,但区分 query', () => {
-    expect(dedupKey('https://x.com/a#top')).toBe(dedupKey('https://x.com/a#bottom'));
+  it('网址完全一致才相等:hash/query 任何差异都算不同', () => {
+    expect(dedupKey('https://x.com/a')).toBe(dedupKey('https://x.com/a'));
+    expect(dedupKey('https://x.com/a#top')).not.toBe(dedupKey('https://x.com/a#bottom'));
+    expect(dedupKey('https://x.com/a')).not.toBe(dedupKey('https://x.com/a#x'));
     expect(dedupKey('https://x.com/a?p=1')).not.toBe(dedupKey('https://x.com/a?p=2'));
-  });
-
-  it('localhost 用完整 URL(含 hash)', () => {
-    expect(dedupKey('http://localhost:3000/#/a')).not.toBe(dedupKey('http://localhost:3000/#/b'));
-    expect(dedupKey('http://127.0.0.1:5173/x#1')).not.toBe(dedupKey('http://127.0.0.1:5173/x#2'));
   });
 });
 
 describe('findDuplicateGroups', () => {
-  it('同 URL(忽略 hash)归为一组,保留最近活跃的为 keeper', () => {
+  it('同一网址归为一组,保留最新打开的(firstOpenedAt 最大)为 keeper', () => {
     const tabs = [
-      tab('t1', 'https://x.com/a#one', { lastActiveAt: NOW + 100 }),
-      tab('t2', 'https://x.com/a#two', { lastActiveAt: NOW + 300 }), // 最新 → keeper
-      tab('t3', 'https://x.com/a', { lastActiveAt: NOW + 200 }),
-      tab('t4', 'https://x.com/other', { lastActiveAt: NOW }),
+      tab('t1', 'https://x.com/a', { firstOpenedAt: NOW + 100 }),
+      tab('t2', 'https://x.com/a', { firstOpenedAt: NOW + 300 }), // 最新打开 → keeper
+      tab('t3', 'https://x.com/a', { firstOpenedAt: NOW + 200 }),
+      tab('t4', 'https://x.com/a#x'), // hash 不同 → 不算重复
     ];
     const groups = findDuplicateGroups(tabs);
     expect(groups).toHaveLength(1);
@@ -42,8 +43,8 @@ describe('findDuplicateGroups', () => {
     expect(groups[0]!.redundant.map((r) => r.id).sort()).toEqual(['t1', 't3']);
   });
 
-  it('跨 Context 的同 URL 也算重复', () => {
-    const a = tab('a', 'https://x.com/p', { lastActiveAt: NOW + 1 });
+  it('跨 Context 的同一网址也算重复', () => {
+    const a = tab('a', 'https://x.com/p', { firstOpenedAt: NOW + 1 });
     const b = { ...tab('b', 'https://x.com/p'), contextId: 'c2' };
     expect(findDuplicateGroups([a, b])).toHaveLength(1);
   });
@@ -54,13 +55,16 @@ describe('findDuplicateGroups', () => {
     expect(findDuplicateGroups([open, archived])).toEqual([]);
   });
 
-  it('redundantIds / redundantCount', () => {
+  it('duplicateMarks 标出 keeper 与 redundant;redundantCount 只数冗余', () => {
     const tabs = [
-      tab('t1', 'https://x.com/a', { lastActiveAt: NOW + 3 }),
-      tab('t2', 'https://x.com/a', { lastActiveAt: NOW + 1 }),
-      tab('t3', 'https://x.com/a', { lastActiveAt: NOW + 2 }),
+      tab('t1', 'https://x.com/a', { firstOpenedAt: NOW + 3 }), // keeper
+      tab('t2', 'https://x.com/a', { firstOpenedAt: NOW + 1 }),
+      tab('t3', 'https://x.com/a', { firstOpenedAt: NOW + 2 }),
     ];
+    const marks = duplicateMarks(tabs);
+    expect(marks.get('t1')).toBe('keeper');
+    expect(marks.get('t2')).toBe('redundant');
+    expect(marks.get('t3')).toBe('redundant');
     expect(redundantCount(tabs)).toBe(2);
-    expect(redundantIds(tabs)).toEqual(new Set(['t2', 't3'])); // 保留最新 t1
   });
 });
