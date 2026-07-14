@@ -45,6 +45,7 @@ describe('AI_ORGANIZE_INBOX (F-13)', () => {
         configured: () => true,
         complete: async () => '', // 下面按需覆盖
         set: async () => {},
+        test: async () => ({ ok: true, detail: 'ok' }),
       },
     };
     await fake.userOpenTab('https://react.dev/x', { title: 'React' });
@@ -69,6 +70,7 @@ describe('AI_ORGANIZE_INBOX (F-13)', () => {
           throw new Error('boom');
         },
         set: async () => {},
+        test: async () => ({ ok: true, detail: 'ok' }),
       },
     };
     await fake.userOpenTab('https://a.com', { title: 'A' });
@@ -84,6 +86,7 @@ describe('AI_ORGANIZE_INBOX (F-13)', () => {
         configured: () => true,
         complete: async () => '{"newGroups":[],"assign":[]}',
         set: async () => {},
+        test: async () => ({ ok: true, detail: 'ok' }),
       },
     };
     // 未开任何标签,未分类为空
@@ -99,6 +102,7 @@ describe('AI_ORGANIZE_INBOX (F-13)', () => {
         configured: () => true,
         complete: async () => 'not json at all',
         set: async () => {},
+        test: async () => ({ ok: true, detail: 'ok' }),
       },
     };
     await fake.userOpenTab('https://a.com', { title: 'A' });
@@ -106,6 +110,45 @@ describe('AI_ORGANIZE_INBOX (F-13)', () => {
     expect(ev).toEqual({ type: 'AI_ERROR', reason: 'parse' });
     // 数据未变:标签仍在未分类
     expect((await looseTabIds()).length).toBe(1);
+  });
+});
+
+describe('TEST_AI_CONNECTION (自定义中转站)', () => {
+  it('未配置 → ok:false', async () => {
+    const ev = await handleCommand({ type: 'TEST_AI_CONNECTION' }, ctx);
+    expect(ev?.type).toBe('AI_TEST_RESULT');
+    expect(ev).toMatchObject({ ok: false });
+  });
+
+  it('配置且连通 → ok:true 并带 detail', async () => {
+    const aiCtx: CommandContext = {
+      ...ctx,
+      ai: {
+        status: () => ({ provider: 'custom', hasKey: true, model: 'gpt-4o', baseUrl: 'https://x/v1' }),
+        configured: () => true,
+        complete: async () => 'OK',
+        set: async () => {},
+        test: async () => ({ ok: true, detail: '连接成功 · gpt-4o · 12ms' }),
+      },
+    };
+    const ev = await handleCommand({ type: 'TEST_AI_CONNECTION' }, aiCtx);
+    expect(ev).toEqual({ type: 'AI_TEST_RESULT', ok: true, detail: '连接成功 · gpt-4o · 12ms' });
+  });
+
+  it('配置但连不通 → ok:false 带人话 detail', async () => {
+    const aiCtx: CommandContext = {
+      ...ctx,
+      ai: {
+        status: () => ({ provider: 'custom', hasKey: true, model: 'gpt-4o', baseUrl: 'https://x/v1' }),
+        configured: () => true,
+        complete: async () => 'OK',
+        set: async () => {},
+        test: async () => ({ ok: false, detail: '认证失败(401)—— 检查 API key' }),
+      },
+    };
+    const ev = await handleCommand({ type: 'TEST_AI_CONNECTION' }, aiCtx);
+    expect(ev).toMatchObject({ type: 'AI_TEST_RESULT', ok: false });
+    expect((ev as { detail: string }).detail).toContain('认证失败');
   });
 });
 

@@ -37,7 +37,8 @@ export interface CommandContext {
     status: () => AIStatus;
     configured: () => boolean;
     complete: (system: string, user: string) => Promise<string>;
-    set: (provider: AIProviderId, key?: string, model?: string) => Promise<void>;
+    set: (provider: AIProviderId, key?: string, model?: string, baseUrl?: string) => Promise<void>;
+    test: () => Promise<{ ok: boolean; detail: string }>;
   };
 }
 
@@ -264,9 +265,17 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       return;
 
     case 'SET_AI_SETTINGS':
-      await ctx.ai?.set(cmd.provider, cmd.key, cmd.model);
+      await ctx.ai?.set(cmd.provider, cmd.key, cmd.model, cmd.baseUrl);
       onChange();
       return;
+
+    case 'TEST_AI_CONNECTION': {
+      if (!ctx.ai || !ctx.ai.configured()) {
+        return { type: 'AI_TEST_RESULT', ok: false, detail: '未配置 —— 请先填 key' };
+      }
+      const r = await ctx.ai.test();
+      return { type: 'AI_TEST_RESULT', ok: r.ok, detail: r.detail };
+    }
 
     case 'AI_ORGANIZE_INBOX': {
       if (!ctx.ai || !ctx.ai.configured()) return { type: 'AI_ERROR', reason: 'no_key' };

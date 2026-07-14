@@ -11,6 +11,7 @@ import { PortMappingStore, FlagsStore, MemoryStore, AISettingsStore } from './se
 import { PROVIDERS } from '../ai/provider';
 import { runDiscardScan } from './discard-scan';
 import { COMMAND_TYPES, type Command } from '@/shared/messaging';
+import { friendlyAIError } from '@/shared/ai';
 
 const search = new SearchIndex();
 const undo = new UndoManager();
@@ -95,12 +96,47 @@ const cmdCtx: CommandContext = {
       const timer = setTimeout(() => ctrl.abort(), 30_000);
       return PROVIDERS[p]
         .complete(
-          { system, user, model: aiSettings.effectiveModel(), maxTokens: 1024, signal: ctrl.signal },
+          {
+            system,
+            user,
+            model: aiSettings.effectiveModel(),
+            maxTokens: 1024,
+            baseUrl: aiSettings.baseUrlFor(),
+            signal: ctrl.signal,
+          },
           key,
         )
         .finally(() => clearTimeout(timer));
     },
-    set: (provider, key, model) => aiSettings.set(provider, key, model),
+    set: (provider, key, model, baseUrl) => aiSettings.set(provider, key, model, baseUrl),
+    test: async () => {
+      const p = aiSettings.provider();
+      const key = aiSettings.keyFor();
+      if (!key) return { ok: false, detail: '未配置 key' };
+      const model = aiSettings.effectiveModel();
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 15_000);
+      const t0 = Date.now();
+      try {
+        // 极小请求验证连通(auth + model + endpoint 一次跑通即算成功)
+        await PROVIDERS[p].complete(
+          {
+            system: '你是连接测试。',
+            user: '仅回复 OK。',
+            model,
+            maxTokens: 8,
+            baseUrl: aiSettings.baseUrlFor(),
+            signal: ctrl.signal,
+          },
+          key,
+        );
+        return { ok: true, detail: `连接成功 · ${model} · ${Date.now() - t0}ms` };
+      } catch (e) {
+        return { ok: false, detail: friendlyAIError(e instanceof Error ? e.message : String(e)) };
+      } finally {
+        clearTimeout(timer);
+      }
+    },
   },
 };
 
