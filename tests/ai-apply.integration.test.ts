@@ -7,7 +7,7 @@ import { UndoManager } from '@/core/background/undo';
 import { registerTabListeners } from '@/core/background/tab-sync';
 import { registerGroupListeners } from '@/core/background/group-sync';
 import { handleCommand, type CommandContext } from '@/core/background/commands';
-import { INBOX_ID } from '@/shared/types';
+import { INBOX_ID, DEFAULT_FLAGS, type Flags } from '@/shared/types';
 
 let fake: FakeChrome;
 let repo: Repository;
@@ -168,6 +168,47 @@ describe('APPLY_AI_PLAN (F-13)', () => {
     const created = contexts.find((c) => c.name === '前端');
     expect(created).toBeTruthy();
     expect(created!.tabOrder.length).toBe(2);
+  });
+
+  it('PROMOTE_SAME_DOMAIN:建同域簇 + 移入 + 成组,标签离开未分类', async () => {
+    await fake.userOpenTab('https://stripe.com/docs', { title: 'Docs' });
+    await fake.userOpenTab('https://dashboard.stripe.com/x', { title: 'Dash' });
+    await fake.userOpenTab('https://stripe.com/pricing', { title: 'Pricing' });
+    const ids = await looseTabIds();
+
+    await handleCommand({ type: 'PROMOTE_SAME_DOMAIN', domain: 'stripe.com', tabIds: ids }, ctx);
+
+    expect(await looseTabIds()).toEqual([]);
+    const created = (await repo.getSnapshot()).contexts.find((c) => c.name === 'stripe.com');
+    expect(created).toBeTruthy();
+    expect(created!.tabOrder).toHaveLength(3);
+    expect(created!.nativeGroupId).toBeGreaterThanOrEqual(0); // 已建原生分组
+  });
+
+  it('PROMOTE_SAME_DOMAIN:空 tabIds 不建簇', async () => {
+    await handleCommand({ type: 'PROMOTE_SAME_DOMAIN', domain: 'x.com', tabIds: [] }, ctx);
+    expect((await repo.getSnapshot()).contexts.filter((c) => c.id !== INBOX_ID)).toEqual([]);
+  });
+
+  it('SET_SAME_DOMAIN_PROMOTE_SIZE:clamp 到 [2,20]', async () => {
+    const patches: Partial<Flags>[] = [];
+    const fctx: CommandContext = {
+      ...ctx,
+      flags: {
+        get: () => DEFAULT_FLAGS,
+        patch: async (p) => {
+          patches.push(p);
+        },
+      },
+    };
+    await handleCommand({ type: 'SET_SAME_DOMAIN_PROMOTE_SIZE', size: 99 }, fctx);
+    await handleCommand({ type: 'SET_SAME_DOMAIN_PROMOTE_SIZE', size: 1 }, fctx);
+    await handleCommand({ type: 'SET_SAME_DOMAIN_PROMOTE_SIZE', size: 5 }, fctx);
+    expect(patches).toEqual([
+      { sameDomainPromoteSize: 20 },
+      { sameDomainPromoteSize: 2 },
+      { sameDomainPromoteSize: 5 },
+    ]);
   });
 
   it('并入已有任务;忽略非法 tabId 与不存在任务', async () => {

@@ -108,6 +108,18 @@ async function assignTab(
   if (after?.chromeTabId != null) await ensureTabInContextGroup(repo, toContextId, after.chromeTabId);
 }
 
+/** 新建一个命名簇,把给定标签移入并锁定 + 同步原生分组标题(AI 建组 / 同域升格共用)。 */
+async function createClusterFromTabs(
+  name: string,
+  tabIds: string[],
+  repo: Repository,
+  now: number,
+): Promise<void> {
+  const created = await repo.createContext(name, now);
+  for (const tabId of tabIds) await assignTab(tabId, created.id, repo, now);
+  await syncGroupTitle(repo, created.id, name);
+}
+
 export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<Event | void> {
   const { repo, search, undo, onChange, recordNegative, ports, flags } = ctx;
   const now = Date.now();
@@ -279,6 +291,18 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       onChange();
       return;
 
+    case 'SET_SAME_DOMAIN_PROMOTE_SIZE':
+      await flags?.patch({ sameDomainPromoteSize: Math.max(2, Math.min(20, Math.round(cmd.size))) });
+      onChange();
+      return;
+
+    case 'PROMOTE_SAME_DOMAIN': {
+      if (cmd.tabIds.length === 0) return;
+      await createClusterFromTabs(cmd.domain, cmd.tabIds, repo, now);
+      onChange();
+      return;
+    }
+
     case 'SET_AI_SETTINGS':
       await ctx.ai?.set(cmd.provider, cmd.key, cmd.model, cmd.baseUrl);
       onChange();
@@ -319,9 +343,7 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
 
     case 'APPLY_AI_PLAN': {
       for (const g of cmd.plan.newGroups) {
-        const created = await repo.createContext(g.name, now);
-        for (const tabId of g.tabIds) await assignTab(tabId, created.id, repo, now);
-        await syncGroupTitle(repo, created.id, g.name);
+        await createClusterFromTabs(g.name, g.tabIds, repo, now);
       }
       for (const a of cmd.plan.assign) {
         const target = await repo.getContext(a.taskId);

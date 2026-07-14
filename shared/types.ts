@@ -72,6 +72,7 @@ export interface Flags {
   discardSkipsLocalhost: boolean; // localhost 永不挂起(护 dev server)
   staleDays: number; // 超过多少天未访问算陈旧
   discardAfterMinutes: number; // 空闲多少分钟后挂起
+  sameDomainPromoteSize: number; // 未分类里同域标签达到多少个给「成簇」建议(F-07 同域升格)
 }
 
 export const DEFAULT_FLAGS: Flags = {
@@ -81,6 +82,7 @@ export const DEFAULT_FLAGS: Flags = {
   discardSkipsLocalhost: true,
   staleDays: 7,
   discardAfterMinutes: 30,
+  sameDomainPromoteSize: 4,
 };
 
 /** 搜索结果:一条命中的标签 + 其所属簇信息 */

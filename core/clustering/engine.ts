@@ -152,6 +152,42 @@ export function findPromotableCluster(inboxTabs: TabRecord[], _now: number): Pro
   return { name: clusterName(byId.get(rootId)!), memberIds };
 }
 
+export interface DomainSuggestion {
+  domain: string;
+  tabIds: string[];
+}
+
+/**
+ * 未分类里同一注册域(eTLD+1)的「活、未锁定」标签达到 threshold 的成簇建议(F-07 同域升格)。
+ * - existingNames:已有活跃命名簇的 name 集合;域名已是某簇名则跳过(避免重复建簇)。
+ * - 不做通用域黑名单(设计决策):任何域够数都给建议。
+ * - threshold 至少视作 2;按候选数降序返回。
+ */
+export function sameDomainSuggestions(
+  inboxTabs: TabRecord[],
+  existingNames: Set<string>,
+  threshold: number,
+): DomainSuggestion[] {
+  const min = Math.max(2, threshold);
+  const byDomain = new Map<string, string[]>();
+  for (const t of inboxTabs) {
+    if (t.pinned || t.chromeTabId == null) continue; // 只看未锁定的活标签
+    const d = registrableDomain(hostnameOf(t.url));
+    if (!d) continue;
+    const arr = byDomain.get(d);
+    if (arr) arr.push(t.id);
+    else byDomain.set(d, [t.id]);
+  }
+  const out: DomainSuggestion[] = [];
+  for (const [domain, tabIds] of byDomain) {
+    if (tabIds.length < min) continue;
+    if (existingNames.has(domain)) continue; // 已有同名簇 → 不重复建议
+    out.push({ domain, tabIds });
+  }
+  out.sort((a, b) => b.tabIds.length - a.tabIds.length);
+  return out;
+}
+
 function clusterName(root: TabRecord): string {
   const title = (root.title || '').trim();
   if (title && title !== '(无标题)') return title.length > 24 ? title.slice(0, 24) + '…' : title;
