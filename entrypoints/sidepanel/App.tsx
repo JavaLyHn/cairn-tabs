@@ -271,7 +271,12 @@ export default function App() {
     setSettingsOpen(false);
     showFlash('已导出全部数据 (JSON)');
   };
-  const saveAi = async (provider: AIProviderId, key: string, model: string, baseUrl?: string) => {
+  const saveAi = async (
+    provider: AIProviderId,
+    key: string | undefined,
+    model: string,
+    baseUrl?: string,
+  ) => {
     // custom 的授权域名由所填 baseUrl 的 origin 派生;官方两档用固定 host(见 permissionOriginFor)
     const origin = permissionOriginFor(provider, baseUrl);
     const granted = await chrome.permissions.request({ origins: [origin] });

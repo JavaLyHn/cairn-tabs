@@ -9,7 +9,12 @@ interface Props {
   onToggleStaleHints: (enabled: boolean) => void;
   onToggleAutoDiscard: (enabled: boolean) => void;
   onToggleDiscardSkipsLocalhost: (enabled: boolean) => void;
-  onSaveAi: (provider: AIProviderId, key: string, model: string, baseUrl?: string) => Promise<void>;
+  onSaveAi: (
+    provider: AIProviderId,
+    key: string | undefined,
+    model: string,
+    baseUrl?: string,
+  ) => Promise<void>;
   onTestAi: () => Promise<{ ok: boolean; detail: string }>;
   onExportAll: () => void;
   onClose: () => void;
@@ -146,7 +151,12 @@ function AISection({
   onTest,
 }: {
   ai: AIStatus;
-  onSave: (provider: AIProviderId, key: string, model: string, baseUrl?: string) => Promise<void>;
+  onSave: (
+    provider: AIProviderId,
+    key: string | undefined,
+    model: string,
+    baseUrl?: string,
+  ) => Promise<void>;
   onTest: () => Promise<{ ok: boolean; detail: string }>;
 }) {
   const [provider, setProvider] = useState<AIProviderId>(ai.provider);
@@ -160,18 +170,23 @@ function AISection({
 
   const isCustom = provider === 'custom';
   const needsUrl = isCustom && !baseUrl.trim();
-  // 有可保存的表单(有 key,custom 还需 URL)
-  const canSave = !!key.trim() && !needsUrl;
-  // 可测:表单可保存(会先存再测),或当前查看的正是已配置的那一档(直接测已存配置)。
-  // 不能在切到另一档、未填任何内容时直接测——否则测的是「已保存的那一档」,结果会误导。
-  const canTest = canSave || (ai.hasKey && ai.provider === provider);
+  // 当前查看的这一档已存有可用配置(key 已存;custom 还需已存 baseUrl)
+  const savedHere = ai.hasKey && ai.provider === provider;
+  // 可保存:已填 key(首次配置),或本档已保存过(改模型/地址时 key 留空即不改);custom 需有 URL
+  const canSave = !needsUrl && (!!key.trim() || savedHere);
+  // 可测:能保存(先存再测),或本档已保存(直接测已存配置)。
+  // 不能在切到另一档、什么都没填时直接测——否则测的是「已保存的那一档」,结果会误导。
+  const canTest = canSave || savedHere;
+
+  // key 留空 → 传 undefined 表示「不改动已存的 key」(避免误删);填了才发新值。
+  const keyArg = () => (key.trim() ? key : undefined);
 
   const save = async () => {
     setSaving(true);
     setMsg('');
     setResult(null);
     try {
-      await onSave(provider, key, model, isCustom ? baseUrl : undefined);
+      await onSave(provider, keyArg(), model, isCustom ? baseUrl : undefined);
       setKey('');
       setMsg('已保存');
     } catch (e) {
@@ -185,9 +200,9 @@ function AISection({
     setMsg('');
     setResult(null);
     try {
-      // 表单有新 key/URL → 先保存(含权限申请),再测已保存的配置
-      if (key.trim()) {
-        await onSave(provider, key, model, isCustom ? baseUrl : undefined);
+      // 先把当前表单存下(key 留空则保留已存的),再测——含权限申请
+      if (canSave) {
+        await onSave(provider, keyArg(), model, isCustom ? baseUrl : undefined);
         setKey('');
       }
       setResult(await onTest());
@@ -243,7 +258,7 @@ function AISection({
         type="password"
         value={key}
         onChange={(e) => setKey(e.target.value)}
-        placeholder={`${PROVIDER_LABELS[provider]} API key`}
+        placeholder={savedHere ? '•••••••••••• · 已保存(留空则不改)' : `${PROVIDER_LABELS[provider]} API key`}
         className="w-full mb-1.5 px-2 py-1 text-[12px] rounded border border-black/15 dark:border-white/15
                    bg-transparent outline-none focus:border-accent"
       />
