@@ -10,6 +10,7 @@ interface Props {
   variant: 'active' | 'inbox' | 'archived';
   duplicateIds: Set<string>;
   portMap: Record<number, string>;
+  viewTransitionName?: string;
   editing: boolean;
   onStartEdit: () => void;
   onCommitName: (name: string) => void; // 回车/失焦:确认命名(空草稿会被放弃)
@@ -28,6 +29,7 @@ export function ContextGroup({
   variant,
   duplicateIds,
   portMap,
+  viewTransitionName,
   editing,
   onStartEdit,
   onCommitName,
@@ -49,6 +51,7 @@ export function ContextGroup({
   return (
     <div
       className={`mb-1 rounded-md ${dragOver ? 'ring-2 ring-accent/60' : ''}`}
+      style={viewTransitionName ? { viewTransitionName } : undefined}
       onDragOver={
         canDrop
           ? (e) => {

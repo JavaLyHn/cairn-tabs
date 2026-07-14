@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { INBOX_ID, type Context, type TabRecord } from '@/shared/types';
 import type { Event } from '@/shared/messaging';
 import { redundantIds } from '@/shared/dedup';
@@ -10,6 +11,18 @@ import { SearchOverlay } from './components/SearchOverlay';
 import { UndoToast } from './components/UndoToast';
 import { PortBindSuggestions } from './components/PortBindSuggestions';
 import { EmptyState } from './components/EmptyState';
+
+/** 活跃任务的排序签名(用于判断顺序是否变化,决定是否播放过渡)。 */
+function activeOrderSig(contexts: Context[]): string {
+  return contexts
+    .filter((c) => c.status === 'active' && c.id !== INBOX_ID)
+    .sort((a, b) => b.lastActiveAt - a.lastActiveAt)
+    .map((c) => c.id)
+    .join(',');
+}
+
+const prefersReducedMotion = () =>
+  typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export default function App() {
   const contexts = usePanelStore((s) => s.contexts);
@@ -29,13 +42,27 @@ export default function App() {
   const [draftId, setDraftId] = useState<string | null>(null);
   // 本次会话内被忽略的端口建议
   const [ignoredPorts, setIgnoredPorts] = useState<Set<number>>(new Set());
+  const activeOrderRef = useRef('');
 
   // 订阅 SW 广播 + 首屏拉取 + ⌘⇧K 挂载态
   useEffect(() => {
     const listener = (msg: unknown) => {
       const ev = msg as Event;
-      if (ev?.type === 'STATE_SNAPSHOT') applySnapshot(ev.contexts, ev.tabs, ev.portMappings);
-      else if (ev?.type === 'OPEN_SEARCH') openSearch();
+      if (ev?.type === 'STATE_SNAPSHOT') {
+        const sig = activeOrderSig(ev.contexts);
+        const orderChanged = activeOrderRef.current !== '' && sig !== activeOrderRef.current;
+        activeOrderRef.current = sig;
+        const apply = () => applySnapshot(ev.contexts, ev.tabs, ev.portMappings);
+        // 仅当任务顺序变化时播放视图过渡(任务被激活会上移到顶部),让重排平滑
+        const startVT = (document as Document & {
+          startViewTransition?: (cb: () => void) => unknown;
+        }).startViewTransition;
+        if (orderChanged && startVT && !prefersReducedMotion()) {
+          startVT.call(document, () => flushSync(apply));
+        } else {
+          apply();
+        }
+      } else if (ev?.type === 'OPEN_SEARCH') openSearch();
     };
     chrome.runtime.onMessage.addListener(listener);
     void dispatch({ type: 'REQUEST_SNAPSHOT' });
@@ -167,6 +194,7 @@ export default function App() {
     tabs: tabsOf(ctx),
     duplicateIds,
     portMap,
+    viewTransitionName: `ctx-${ctx.id}`,
     editing: editingId === ctx.id,
     onStartEdit: () => setEditingId(ctx.id),
     onCommitName: (name: string) => commitName(ctx, name),

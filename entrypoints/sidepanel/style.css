@@ -35,3 +35,15 @@ body {
 .hairline {
   border-width: 0.5px;
 }
+
+/* 任务重排的视图过渡:任务组平滑滑动,页面其余部分不做整体淡入淡出 */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-group(*) {
+    animation-duration: 0.2s;
+    animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+}
