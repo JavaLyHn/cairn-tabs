@@ -1,6 +1,24 @@
 import type { TabRecord } from '@/shared/types';
 import { hostname } from '../util';
 import { localhostPort, projectFor } from '@/shared/localhost';
+import { parseGitHub, badgeLabel, repoSlug, cleanGitHubTitle } from '@/shared/github';
+
+// GitHub PR / Issue 图标(Octicons,12px)
+function PrIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true" className="shrink-0">
+      <path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z" />
+    </svg>
+  );
+}
+function IssueIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true" className="shrink-0">
+      <path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" />
+      <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z" />
+    </svg>
+  );
+}
 
 interface Props {
   tab: TabRecord;
@@ -13,7 +31,8 @@ interface Props {
 export function TabRow({ tab, dupState, portMap, onActivate, onClose }: Props) {
   const port = localhostPort(tab.url);
   const project = port != null ? projectFor(tab.url, portMap) : null;
-  const displayTitle = project ?? tab.title;
+  const gh = project == null ? parseGitHub(tab.url) : null; // localhost 优先,其余尝试 GitHub
+  const displayTitle = project ?? (gh ? cleanGitHubTitle(tab.title, gh) : tab.title);
   return (
     <div
       draggable
@@ -32,6 +51,16 @@ export function TabRow({ tab, dupState, portMap, onActivate, onClose }: Props) {
         <div className="w-4 h-4 shrink-0 rounded-sm bg-black/10 dark:bg-white/10" />
       )}
       <span className="flex-1 truncate">{displayTitle}</span>
+      {gh && (
+        <span
+          className="shrink-0 inline-flex items-center gap-1 font-mono text-[11px]
+                     px-1 py-0.5 rounded bg-accent/15 text-accent"
+          title={`${gh.kind === 'pr' ? 'Pull Request' : 'Issue'} #${gh.number} · ${repoSlug(gh)}`}
+        >
+          {gh.kind === 'pr' ? <PrIcon /> : <IssueIcon />}
+          {badgeLabel(gh)}
+        </span>
+      )}
       {port != null && (
         <span className="font-mono text-[11px] opacity-45 shrink-0" title={tab.title}>
           :{port}
@@ -54,7 +83,7 @@ export function TabRow({ tab, dupState, portMap, onActivate, onClose }: Props) {
         </span>
       )}
       <span className="hidden group-hover/row:inline font-mono text-[11px] opacity-40 shrink-0">
-        {hostname(tab.url)}
+        {gh ? repoSlug(gh) : hostname(tab.url)}
       </span>
       <button
         onClick={(e) => {
