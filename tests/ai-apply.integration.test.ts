@@ -75,6 +75,38 @@ describe('AI_ORGANIZE_INBOX (F-13)', () => {
     const ev = await handleCommand({ type: 'AI_ORGANIZE_INBOX' }, aiCtx);
     expect(ev).toEqual({ type: 'AI_ERROR', reason: 'network' });
   });
+
+  it('未分类为空 → empty', async () => {
+    const aiCtx: CommandContext = {
+      ...ctx,
+      ai: {
+        status: () => ({ provider: 'anthropic', hasKey: true, model: 'm' }),
+        configured: () => true,
+        complete: async () => '{"newGroups":[],"assign":[]}',
+        set: async () => {},
+      },
+    };
+    // 未开任何标签,未分类为空
+    const ev = await handleCommand({ type: 'AI_ORGANIZE_INBOX' }, aiCtx);
+    expect(ev).toEqual({ type: 'AI_ERROR', reason: 'empty' });
+  });
+
+  it('AI 返回无法解析 → parse,且不改数据', async () => {
+    const aiCtx: CommandContext = {
+      ...ctx,
+      ai: {
+        status: () => ({ provider: 'anthropic', hasKey: true, model: 'm' }),
+        configured: () => true,
+        complete: async () => 'not json at all',
+        set: async () => {},
+      },
+    };
+    await fake.userOpenTab('https://a.com', { title: 'A' });
+    const ev = await handleCommand({ type: 'AI_ORGANIZE_INBOX' }, aiCtx);
+    expect(ev).toEqual({ type: 'AI_ERROR', reason: 'parse' });
+    // 数据未变:标签仍在未分类
+    expect((await looseTabIds()).length).toBe(1);
+  });
 });
 
 describe('APPLY_AI_PLAN (F-13)', () => {
