@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { INBOX_ID, type Context, type TabRecord } from '@/shared/types';
 import type { Event } from '@/shared/messaging';
+import { redundantIds } from '@/shared/dedup';
 import { usePanelStore, dispatch } from './store';
 import { StatsBar } from './components/StatsBar';
 import { ContextGroup } from './components/ContextGroup';
@@ -67,6 +68,7 @@ export default function App() {
 
   const openTabCount = tabs.filter((t) => t.chromeTabId != null).length;
   const archivedTabCount = archivedContexts.reduce((n, c) => n + c.tabOrder.length, 0);
+  const duplicateIds = useMemo(() => redundantIds(tabs), [tabs]);
 
   // ---- 命令 ----
   const archive = async (contextId: string) => {
@@ -82,6 +84,7 @@ export default function App() {
   const activate = (tabRecordId: string) => dispatch({ type: 'ACTIVATE_TAB', tabRecordId });
   const closeTab = (tabRecordId: string) => dispatch({ type: 'CLOSE_TAB', tabRecordId });
   const createContext = () => dispatch({ type: 'CREATE_CONTEXT', name: '新任务' });
+  const mergeDuplicates = () => dispatch({ type: 'MERGE_DUPLICATES' });
   const doUndo = async () => {
     if (undo) await dispatch({ type: 'UNDO', token: undo.token });
     clearUndo();
@@ -90,6 +93,7 @@ export default function App() {
   const groupProps = (ctx: Context) => ({
     context: ctx,
     tabs: tabsOf(ctx),
+    duplicateIds,
     onArchive: () => archive(ctx.id),
     onRestore: () => restore(ctx.id),
     onRename: (name: string) => rename(ctx.id, name),
@@ -120,7 +124,12 @@ export default function App() {
         </button>
       </header>
 
-      <StatsBar openTabs={openTabCount} activeContexts={activeContexts.length} />
+      <StatsBar
+        openTabs={openTabCount}
+        activeContexts={activeContexts.length}
+        redundant={duplicateIds.size}
+        onMerge={mergeDuplicates}
+      />
 
       {/* 主列表 */}
       <div className="flex-1 overflow-y-auto px-1.5 py-2">

@@ -8,6 +8,7 @@ interface Props {
   context: Context;
   tabs: TabRecord[]; // 已按 tabOrder 排好
   variant: 'active' | 'inbox' | 'archived';
+  duplicateIds: Set<string>;
   onArchive: () => void;
   onRestore: () => void;
   onRename: (name: string) => void;
@@ -21,6 +22,7 @@ export function ContextGroup({
   context,
   tabs,
   variant,
+  duplicateIds,
   onArchive,
   onRestore,
   onRename,
@@ -164,6 +166,7 @@ export function ContextGroup({
               <TabRow
                 key={t.id}
                 tab={t}
+                isDuplicate={duplicateIds.has(t.id)}
                 onActivate={() => onActivateTab(t.id)}
                 onClose={() => onCloseTab(t.id)}
               />

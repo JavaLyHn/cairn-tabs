@@ -10,6 +10,7 @@ export type Command =
   | { type: 'MOVE_TAB'; tabRecordId: string; toContextId: string }
   | { type: 'ARCHIVE_CONTEXT'; contextId: string }
   | { type: 'RESTORE_CONTEXT'; contextId: string }
+  | { type: 'MERGE_DUPLICATES' }
   | { type: 'UNDO'; token: string }
   | { type: 'ACTIVATE_TAB'; tabRecordId: string }
   | { type: 'CLOSE_TAB'; tabRecordId: string }
@@ -30,6 +31,7 @@ export const COMMAND_TYPES = new Set<Command['type']>([
   'MOVE_TAB',
   'ARCHIVE_CONTEXT',
   'RESTORE_CONTEXT',
+  'MERGE_DUPLICATES',
   'UNDO',
   'ACTIVATE_TAB',
   'CLOSE_TAB',

@@ -7,6 +7,7 @@ import { pauseSync, resumeSync } from './sync-lock';
 import { ensureTabInContextGroup, groupRestoredTabs, syncGroupTitle } from './group-sync';
 import type { Command, Event } from '@/shared/messaging';
 import { INBOX_ID } from '@/shared/types';
+import { findDuplicateGroups } from '@/shared/dedup';
 
 export interface CommandContext {
   repo: Repository;
@@ -73,6 +74,18 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       await restoreContext(cmd.contextId, ctx);
       onChange();
       return;
+
+    case 'MERGE_DUPLICATES': {
+      const { tabs } = await repo.getSnapshot();
+      const redundant = findDuplicateGroups(tabs)
+        .flatMap((g) => g.redundant)
+        .map((r) => r.chromeTabId)
+        .filter((id): id is number => id != null);
+      // 关闭冗余标签(保留每组最近活跃的);记录由 onRemoved 清除,补建防御挡幻影
+      await Promise.all(redundant.map((id) => chrome.tabs.remove(id).catch(() => {})));
+      onChange();
+      return;
+    }
 
     case 'UNDO': {
       const contextId = undo.consume(cmd.token);

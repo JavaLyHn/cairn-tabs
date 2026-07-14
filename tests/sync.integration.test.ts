@@ -82,6 +82,30 @@ describe('archive → restore 全链路(回归:不产生未分类幻影)', () =>
   });
 });
 
+describe('MERGE_DUPLICATES(F-05)', () => {
+  it('关闭冗余标签、每组保留最近活跃的,记录同步清除', async () => {
+    await fake.userOpenTab('https://x.com/a', { title: 'A#1' });
+    const keeperTabId = await fake.userOpenTab('https://x.com/a', { title: 'A#2' });
+    await fake.userOpenTab('https://x.com/a', { title: 'A#3' });
+    await fake.userOpenTab('https://x.com/unique', { title: 'U' });
+
+    // 让第二个 a 成为最近活跃 → keeper
+    const keeperRec = (await snapshot()).tabs.find((t) => t.chromeTabId === keeperTabId)!;
+    await repo.updateTab(keeperRec.id, { lastActiveAt: Date.now() + 10_000 });
+
+    await handleCommand({ type: 'MERGE_DUPLICATES' }, ctx);
+
+    // chrome 里只剩 keeper + unique
+    expect(fake.tabsById.size).toBe(2);
+    expect(fake.tabsById.has(keeperTabId)).toBe(true);
+    // DB 记录同步:keeper 保留,冗余记录已随 onRemoved 清除
+    const after = await snapshot();
+    expect(after.tabs.map((t) => t.id).sort()).toEqual(
+      [keeperRec.id, after.tabs.find((t) => t.url === 'https://x.com/unique')!.id].sort(),
+    );
+  });
+});
+
 describe('CLOSE_TAB 对失效标签的健壮性', () => {
   it('关闭一个 chrome 标签已消失的记录时,记录被清除(不静默残留)', async () => {
     await fake.userOpenTab('https://a.com/1', { title: 'A' });

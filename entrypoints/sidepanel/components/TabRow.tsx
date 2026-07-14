@@ -3,11 +3,12 @@ import { hostname } from '../util';
 
 interface Props {
   tab: TabRecord;
+  isDuplicate?: boolean;
   onActivate: () => void;
   onClose: () => void;
 }
 
-export function TabRow({ tab, onActivate, onClose }: Props) {
+export function TabRow({ tab, isDuplicate, onActivate, onClose }: Props) {
   return (
     <div
       draggable
@@ -26,6 +27,14 @@ export function TabRow({ tab, onActivate, onClose }: Props) {
         <div className="w-4 h-4 shrink-0 rounded-sm bg-black/10 dark:bg-white/10" />
       )}
       <span className="flex-1 truncate">{tab.title}</span>
+      {isDuplicate && (
+        <span
+          className="shrink-0 text-[10px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-500"
+          title="重复标签(合并时会被关闭)"
+        >
+          重复
+        </span>
+      )}
       <span className="hidden group-hover/row:inline font-mono text-[11px] opacity-40 shrink-0">
         {hostname(tab.url)}
       </span>
