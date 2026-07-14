@@ -23,6 +23,7 @@ describe('anthropicProvider', () => {
     const headers = call.init.headers as Record<string, string>;
     expect(headers['x-api-key']).toBe('sk-ant');
     expect(headers['anthropic-dangerous-direct-browser-access']).toBe('true');
+    expect(headers['anthropic-version']).toBe('2023-06-01');
     expect(JSON.parse(call.init.body as string).system).toBe('S');
   });
   it('非 2xx 抛错', async () => {
@@ -42,6 +43,10 @@ describe('openaiProvider', () => {
     const msgs = JSON.parse(call.init.body as string).messages;
     expect(msgs[0]).toEqual({ role: 'system', content: 'S' });
     expect(msgs[1]).toEqual({ role: 'user', content: 'U' });
+  });
+  it('非 2xx 抛错', async () => {
+    const { fn } = fakeFetch(500, {});
+    await expect(openaiProvider.complete(req, 'k', fn)).rejects.toThrow();
   });
 });
 
