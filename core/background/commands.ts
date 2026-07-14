@@ -9,6 +9,9 @@ import { DRAFT_CONTEXT_NAME, type Command, type Event } from '@/shared/messaging
 import { INBOX_ID, DEFAULT_FLAGS, type Flags, type TabRecord } from '@/shared/types';
 import { findDuplicateGroups } from '@/shared/dedup';
 import { staleTabs } from '@/shared/stale';
+import { hostnameOf, registrableDomain } from '../clustering/signals';
+import { buildOrganizePrompt, parseOrganizeResponse } from '../ai/organize';
+import type { AIProviderId, AIStatus } from '@/shared/ai';
 
 export interface CommandContext {
   repo: Repository;
@@ -29,6 +32,13 @@ export interface CommandContext {
   };
   /** 自动挂起开关变化时的副作用(注册/取消 alarm);测试中可省略。 */
   onAutoDiscardChanged?: (enabled: boolean) => void;
+  /** AI 整理(F-13);测试中可注入假实现,省略则相关命令降级。 */
+  ai?: {
+    status: () => AIStatus;
+    configured: () => boolean;
+    complete: (system: string, user: string) => Promise<string>;
+    set: (provider: AIProviderId, key?: string, model?: string) => Promise<void>;
+  };
 }
 
 const RESTORE_STAGGER_MS = 50;
@@ -74,6 +84,21 @@ async function archiveAndClose(contextId: string, repo: Repository, now: number)
   } finally {
     resumeSync();
   }
+}
+
+/** 把标签归入某任务(与手动拖拽同一套:移动 + 锁定 + 并入原生分组)。 */
+async function assignTab(
+  tabRecordId: string,
+  toContextId: string,
+  repo: Repository,
+  now: number,
+): Promise<void> {
+  const rec = await repo.getTab(tabRecordId);
+  if (!rec) return;
+  await repo.moveTab(tabRecordId, toContextId, now);
+  await repo.pinTab(tabRecordId);
+  const after = await repo.getTab(tabRecordId);
+  if (after?.chromeTabId != null) await ensureTabInContextGroup(repo, toContextId, after.chromeTabId);
 }
 
 export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<Event | void> {
@@ -237,6 +262,51 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       await flags?.patch({ discardSkipsLocalhost: cmd.enabled });
       onChange();
       return;
+
+    case 'SET_AI_SETTINGS':
+      await ctx.ai?.set(cmd.provider, cmd.key, cmd.model);
+      onChange();
+      return;
+
+    case 'AI_ORGANIZE_INBOX': {
+      if (!ctx.ai || !ctx.ai.configured()) return { type: 'AI_ERROR', reason: 'no_key' };
+      const { contexts, tabs } = await repo.getSnapshot();
+      const loose = tabs.filter((t) => t.contextId === INBOX_ID && t.chromeTabId != null);
+      if (loose.length === 0) return { type: 'AI_ERROR', reason: 'empty' };
+      const tasks = contexts.filter((c) => c.id !== INBOX_ID && c.status === 'active');
+      const { system, user } = buildOrganizePrompt(
+        loose.map((t) => ({ id: t.id, title: t.title, domain: registrableDomain(hostnameOf(t.url)) })),
+        tasks.map((c) => ({ id: c.id, name: c.name })),
+      );
+      let raw: string;
+      try {
+        raw = await ctx.ai.complete(system, user);
+      } catch {
+        return { type: 'AI_ERROR', reason: 'network' };
+      }
+      const plan = parseOrganizeResponse(
+        raw,
+        new Set(loose.map((t) => t.id)),
+        new Set(tasks.map((c) => c.id)),
+      );
+      if (!plan) return { type: 'AI_ERROR', reason: 'parse' };
+      return { type: 'AI_PLAN', plan, tabs: loose };
+    }
+
+    case 'APPLY_AI_PLAN': {
+      for (const g of cmd.plan.newGroups) {
+        const created = await repo.createContext(g.name, now);
+        for (const tabId of g.tabIds) await assignTab(tabId, created.id, repo, now);
+        await syncGroupTitle(repo, created.id, g.name);
+      }
+      for (const a of cmd.plan.assign) {
+        const target = await repo.getContext(a.taskId);
+        if (!target || target.status !== 'active') continue;
+        for (const tabId of a.tabIds) await assignTab(tabId, a.taskId, repo, now);
+      }
+      onChange();
+      return;
+    }
 
     case 'REQUEST_SNAPSHOT':
       onChange();
