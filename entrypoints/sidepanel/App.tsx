@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { INBOX_ID, type Context, type TabRecord } from '@/shared/types';
 import type { Event } from '@/shared/messaging';
+import { AIPlanDialog } from './components/AIPlanDialog';
+import type { AIPlan } from '@/shared/ai';
 import { duplicateMarks, redundantCount } from '@/shared/dedup';
 import { buildPortMap, localhostPort, suggestProjectName } from '@/shared/localhost';
 import { staleTabs } from '@/shared/stale';
@@ -39,6 +41,7 @@ export default function App() {
   const discardedBytes = usePanelStore((s) => s.discardedBytes);
   const undo = usePanelStore((s) => s.undo);
   const searchOpen = usePanelStore((s) => s.searchOpen);
+  const ai = usePanelStore((s) => s.ai);
   const applySnapshot = usePanelStore((s) => s.applySnapshot);
   const setUndo = usePanelStore((s) => s.setUndo);
   const clearUndo = usePanelStore((s) => s.clearUndo);
@@ -62,6 +65,32 @@ export default function App() {
     flashTimer.current = setTimeout(() => setFlash(null), 1800);
   };
 
+  const [aiPlan, setAiPlan] = useState<{ plan: AIPlan; tabs: TabRecord[] } | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
+  const aiOrganize = async () => {
+    if (aiBusy) return;
+    setAiBusy(true);
+    showFlash('✦ AI 分析中…');
+    const ev = await dispatch({ type: 'AI_ORGANIZE_INBOX' });
+    setAiBusy(false);
+    if (ev?.type === 'AI_PLAN') setAiPlan({ plan: ev.plan, tabs: ev.tabs });
+    else if (ev?.type === 'AI_ERROR') {
+      const msg: Record<string, string> = {
+        no_key: '请先在设置里填 AI API key',
+        permission: '未授权访问 API 域名',
+        network: 'AI 调用失败,请稍后重试',
+        parse: 'AI 没能给出可用的分组建议,已保持原样',
+        empty: '未分类里没有可整理的标签',
+      };
+      showFlash(msg[ev.reason] ?? 'AI 调用失败');
+    }
+  };
+  const applyAiPlan = (plan: AIPlan) => {
+    dispatch({ type: 'APPLY_AI_PLAN', plan });
+    setAiPlan(null);
+    showFlash('已应用 AI 整理');
+  };
+
   // 订阅 SW 广播 + 首屏拉取 + ⌘⇧K 挂载态
   useEffect(() => {
     const listener = (msg: unknown) => {
@@ -71,7 +100,7 @@ export default function App() {
         const orderChanged = activeOrderRef.current !== '' && sig !== activeOrderRef.current;
         activeOrderRef.current = sig;
         const apply = () =>
-          applySnapshot(ev.contexts, ev.tabs, ev.portMappings, ev.flags, ev.discardedBytes);
+          applySnapshot(ev.contexts, ev.tabs, ev.portMappings, ev.flags, ev.discardedBytes, ev.ai);
         // 仅当任务顺序变化时播放视图过渡(任务被激活会上移到顶部),让重排平滑
         const startVT = (document as Document & {
           startViewTransition?: (cb: () => void) => unknown;
@@ -263,6 +292,8 @@ export default function App() {
     onDropTab: (tabId: string) => moveTab(tabId, ctx.id),
     onActivateTab: (tabId: string) => activate(tabId),
     onCloseTab: (tabId: string) => closeTab(tabId),
+    aiEnabled: ai.hasKey,
+    onAiOrganize: aiOrganize,
   });
 
   return (
@@ -390,6 +421,16 @@ export default function App() {
         >
           {flash}
         </div>
+      )}
+
+      {aiPlan && (
+        <AIPlanDialog
+          plan={aiPlan.plan}
+          tabs={aiPlan.tabs}
+          taskNames={Object.fromEntries(contexts.map((c) => [c.id, c.name]))}
+          onApply={applyAiPlan}
+          onClose={() => setAiPlan(null)}
+        />
       )}
 
       {settingsOpen && (
