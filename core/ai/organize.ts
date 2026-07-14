@@ -66,17 +66,8 @@ export function parseOrganizeResponse(
   };
 
   const d = data as { newGroups?: unknown; assign?: unknown };
-  const newGroups: AIPlan['newGroups'] = [];
-  if (Array.isArray(d.newGroups)) {
-    for (const g of d.newGroups) {
-      if (!g || typeof g !== 'object') continue;
-      const rawName = (g as { name?: unknown }).name;
-      const name = typeof rawName === 'string' ? rawName.trim() : '';
-      const tabIds = takeTabs((g as { tabIds?: unknown }).tabIds);
-      if (name && tabIds.length) newGroups.push({ name: name.slice(0, 40), tabIds });
-    }
-  }
 
+  // Process assign first so existing tasks win in dedup
   const assign: AIPlan['assign'] = [];
   if (Array.isArray(d.assign)) {
     for (const a of d.assign) {
@@ -86,6 +77,18 @@ export function parseOrganizeResponse(
       if (!validTaskIds.has(taskId)) continue;
       const tabIds = takeTabs((a as { tabIds?: unknown }).tabIds);
       if (tabIds.length) assign.push({ taskId, tabIds });
+    }
+  }
+
+  // Then process newGroups
+  const newGroups: AIPlan['newGroups'] = [];
+  if (Array.isArray(d.newGroups)) {
+    for (const g of d.newGroups) {
+      if (!g || typeof g !== 'object') continue;
+      const rawName = (g as { name?: unknown }).name;
+      const name = typeof rawName === 'string' ? rawName.trim() : '';
+      const tabIds = takeTabs((g as { tabIds?: unknown }).tabIds);
+      if (name && tabIds.length) newGroups.push({ name: name.slice(0, 40), tabIds });
     }
   }
 

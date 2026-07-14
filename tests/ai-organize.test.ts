@@ -53,4 +53,11 @@ describe('parseOrganizeResponse', () => {
   it('空结果 → null', () => {
     expect(parseOrganizeResponse('{"newGroups":[],"assign":[]}', TABS, TASKS)).toBeNull();
   });
+  it('同一标签同时出现在新组与已有任务 → 归入已有任务', () => {
+    const raw = '{"newGroups":[{"name":"g","tabIds":["t1","t2"]}],"assign":[{"taskId":"c1","tabIds":["t1"]}]}';
+    expect(parseOrganizeResponse(raw, TABS, TASKS)).toEqual({
+      newGroups: [{ name: 'g', tabIds: ['t2'] }],
+      assign: [{ taskId: 'c1', tabIds: ['t1'] }],
+    });
+  });
 });
