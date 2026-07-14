@@ -160,9 +160,11 @@ function AISection({
 
   const isCustom = provider === 'custom';
   const needsUrl = isCustom && !baseUrl.trim();
-  // 有可保存的表单(有 key,custom 还需 URL),或已配置可直接测
+  // 有可保存的表单(有 key,custom 还需 URL)
   const canSave = !!key.trim() && !needsUrl;
-  const canTest = ai.hasKey || canSave;
+  // 可测:表单可保存(会先存再测),或当前查看的正是已配置的那一档(直接测已存配置)。
+  // 不能在切到另一档、未填任何内容时直接测——否则测的是「已保存的那一档」,结果会误导。
+  const canTest = canSave || (ai.hasKey && ai.provider === provider);
 
   const save = async () => {
     setSaving(true);

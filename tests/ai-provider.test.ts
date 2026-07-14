@@ -4,6 +4,7 @@ import {
   openaiProvider,
   customProvider,
   normalizeBaseUrl,
+  permissionOriginFor,
   PROVIDERS,
 } from '@/core/ai/provider';
 import type { ChatRequest } from '@/core/ai/provider';
@@ -94,6 +95,32 @@ describe('customProvider', () => {
     await expect(
       customProvider.complete({ ...req, baseUrl: 'https://x.com/v1' }, 'k', fn),
     ).rejects.toThrow(/404/);
+  });
+});
+
+describe('permissionOriginFor', () => {
+  it('官方两档用固定 host', () => {
+    expect(permissionOriginFor('anthropic')).toBe('https://api.anthropic.com/*');
+    expect(permissionOriginFor('openai')).toBe('https://api.openai.com/*');
+  });
+  it('custom:由 baseUrl 派生 origin,剥掉路径', () => {
+    expect(permissionOriginFor('custom', 'https://newapi.elevatesphere.com/v1')).toBe(
+      'https://newapi.elevatesphere.com/*',
+    );
+    expect(permissionOriginFor('custom', 'https://x.com/v1/chat/completions')).toBe('https://x.com/*');
+  });
+  it('custom:剥掉凭据(userinfo)', () => {
+    expect(permissionOriginFor('custom', 'https://user:pass@relay.example.com/v1')).toBe(
+      'https://relay.example.com/*',
+    );
+  });
+  it('custom:非法 URL 抛错', () => {
+    expect(() => permissionOriginFor('custom', 'not a url')).toThrow(/合法 URL/);
+    expect(() => permissionOriginFor('custom', '')).toThrow(/合法 URL/);
+    expect(() => permissionOriginFor('custom', undefined)).toThrow(/合法 URL/);
+  });
+  it('custom:非 https 抛错', () => {
+    expect(() => permissionOriginFor('custom', 'http://relay.example.com/v1')).toThrow(/https/);
   });
 });
 

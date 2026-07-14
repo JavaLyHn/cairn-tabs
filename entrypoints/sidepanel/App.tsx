@@ -5,7 +5,7 @@ import type { Event } from '@/shared/messaging';
 import { AIPlanDialog } from './components/AIPlanDialog';
 import type { AIPlan } from '@/shared/ai';
 import type { AIProviderId } from '@/shared/ai';
-import { PROVIDERS } from '@/core/ai/provider';
+import { permissionOriginFor } from '@/core/ai/provider';
 import { duplicateMarks, redundantCount } from '@/shared/dedup';
 import { buildPortMap, localhostPort, suggestProjectName } from '@/shared/localhost';
 import { staleTabs } from '@/shared/stale';
@@ -272,20 +272,8 @@ export default function App() {
     showFlash('已导出全部数据 (JSON)');
   };
   const saveAi = async (provider: AIProviderId, key: string, model: string, baseUrl?: string) => {
-    // custom 的授权域名由所填 baseUrl 的 origin 派生;官方两档用固定 host
-    let origin: string;
-    if (provider === 'custom') {
-      let parsed: URL;
-      try {
-        parsed = new URL((baseUrl ?? '').trim());
-      } catch {
-        throw new Error('接口地址不是合法 URL');
-      }
-      if (parsed.protocol !== 'https:') throw new Error('接口地址需为 https');
-      origin = `${parsed.origin}/*`;
-    } else {
-      origin = PROVIDERS[provider].host;
-    }
+    // custom 的授权域名由所填 baseUrl 的 origin 派生;官方两档用固定 host(见 permissionOriginFor)
+    const origin = permissionOriginFor(provider, baseUrl);
     const granted = await chrome.permissions.request({ origins: [origin] });
     if (!granted) throw new Error('需要授权访问 API 域名');
     await dispatch({ type: 'SET_AI_SETTINGS', provider, key, model, baseUrl });

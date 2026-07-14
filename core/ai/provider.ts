@@ -108,3 +108,20 @@ export const PROVIDERS: Record<AIProviderId, AIProvider> = {
   openai: openaiProvider,
   custom: customProvider,
 };
+
+/**
+ * 该 provider 运行时需申请的 host 权限匹配串。
+ * 官方两档用固定 host;custom 由所填 baseUrl 的 origin 派生(仅 https,自动剥掉路径/凭据)。
+ * baseUrl 非法或非 https 时抛错(供 UI 在申请权限前拦截)。
+ */
+export function permissionOriginFor(provider: AIProviderId, baseUrl?: string): string {
+  if (provider !== 'custom') return PROVIDERS[provider].host;
+  let parsed: URL;
+  try {
+    parsed = new URL((baseUrl ?? '').trim());
+  } catch {
+    throw new Error('接口地址不是合法 URL');
+  }
+  if (parsed.protocol !== 'https:') throw new Error('接口地址需为 https');
+  return `${parsed.origin}/*`;
+}
