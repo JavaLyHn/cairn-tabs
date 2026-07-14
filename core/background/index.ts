@@ -7,20 +7,27 @@ import { registerTabListeners, reconcile } from './tab-sync';
 import { registerGroupListeners, reconcileGroups } from './group-sync';
 import { handleCommand, type CommandContext } from './commands';
 import { PenaltyStore } from './penalties';
-import { PortMappingStore } from './settings';
+import { PortMappingStore, FlagsStore } from './settings';
 import { COMMAND_TYPES, type Command } from '@/shared/messaging';
 
 const search = new SearchIndex();
 const undo = new UndoManager();
 const penalties = new PenaltyStore();
 const portMappings = new PortMappingStore();
+const flags = new FlagsStore();
 
 /** 读快照 → 重建搜索索引 → 广播 STATE_SNAPSHOT(侧边栏关闭时 sendMessage 失败,忽略)。 */
 async function broadcast(): Promise<void> {
   const { contexts, tabs } = await repository.getSnapshot();
   search.rebuild(contexts, tabs);
   chrome.runtime
-    .sendMessage({ type: 'STATE_SNAPSHOT', contexts, tabs, portMappings: portMappings.get() })
+    .sendMessage({
+      type: 'STATE_SNAPSHOT',
+      contexts,
+      tabs,
+      portMappings: portMappings.get(),
+      autoCluster: flags.autoCluster(),
+    })
     .catch(() => {});
 }
 
@@ -43,6 +50,9 @@ const cmdCtx: CommandContext = {
   ports: {
     set: (port, project) => portMappings.set(port, project),
     remove: (port) => portMappings.remove(port),
+  },
+  flags: {
+    setAutoCluster: (enabled) => flags.setAutoCluster(enabled),
   },
 };
 
@@ -84,8 +94,13 @@ export function initBackground(): void {
     if (command === 'open-search') void openSidePanelForSearch();
   });
 
-  // 标签事件 → DB(带聚簇引擎;读负样本)
-  registerTabListeners(repository, scheduleBroadcast, () => penalties.get());
+  // 标签事件 → DB(带聚簇引擎;读负样本 + 自动聚簇开关)
+  registerTabListeners(
+    repository,
+    scheduleBroadcast,
+    () => penalties.get(),
+    () => flags.autoCluster(),
+  );
   // 原生分组事件 → DB(双向同步入站)
   registerGroupListeners(repository, scheduleBroadcast);
 
@@ -98,6 +113,7 @@ async function hydrate(): Promise<void> {
   await repository.ensureInbox(now);
   await penalties.load();
   await portMappings.load();
+  await flags.load();
   await reconcile(repository, scheduleBroadcast);
   await reconcileGroups(repository, scheduleBroadcast);
   await broadcast();

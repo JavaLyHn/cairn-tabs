@@ -12,10 +12,16 @@ interface PanelState {
   contexts: Context[];
   tabs: TabRecord[];
   portMappings: PortMapping[];
+  autoCluster: boolean;
   undo: UndoState | null;
   searchOpen: boolean;
 
-  applySnapshot: (contexts: Context[], tabs: TabRecord[], portMappings: PortMapping[]) => void;
+  applySnapshot: (
+    contexts: Context[],
+    tabs: TabRecord[],
+    portMappings: PortMapping[],
+    autoCluster: boolean,
+  ) => void;
   setUndo: (u: UndoState) => void;
   clearUndo: () => void;
   openSearch: () => void;
@@ -26,10 +32,12 @@ export const usePanelStore = create<PanelState>((set) => ({
   contexts: [],
   tabs: [],
   portMappings: [],
+  autoCluster: true,
   undo: null,
   searchOpen: false,
 
-  applySnapshot: (contexts, tabs, portMappings) => set({ contexts, tabs, portMappings }),
+  applySnapshot: (contexts, tabs, portMappings, autoCluster) =>
+    set({ contexts, tabs, portMappings, autoCluster }),
   setUndo: (undo) => set({ undo }),
   clearUndo: () => set({ undo: null }),
   openSearch: () => set({ searchOpen: true }),

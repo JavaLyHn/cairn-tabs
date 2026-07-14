@@ -21,6 +21,10 @@ export interface CommandContext {
     set: (port: number, project: string) => Promise<void>;
     remove: (port: number) => Promise<void>;
   };
+  /** 功能开关读写;测试中可省略。 */
+  flags?: {
+    setAutoCluster: (enabled: boolean) => Promise<void>;
+  };
 }
 
 const RESTORE_STAGGER_MS = 50;
@@ -29,7 +33,7 @@ const UNDO_TTL_MS = 5000;
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<Event | void> {
-  const { repo, search, undo, onChange, recordNegative, ports } = ctx;
+  const { repo, search, undo, onChange, recordNegative, ports, flags } = ctx;
   const now = Date.now();
 
   switch (cmd.type) {
@@ -158,6 +162,11 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
 
     case 'REMOVE_PORT_MAPPING':
       await ports?.remove(cmd.port);
+      onChange();
+      return;
+
+    case 'SET_AUTO_CLUSTER':
+      await flags?.setAutoCluster(cmd.enabled);
       onChange();
       return;
 

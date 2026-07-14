@@ -10,6 +10,7 @@ import type { Penalties } from '../clustering/rules';
 
 type OnChange = () => void;
 type GetPenalties = () => Penalties;
+type GetAutoCluster = () => boolean;
 
 /** 一个 chrome.Tab 是否值得记录(跳过无 url 的空白页/内部页)。 */
 function isTrackable(tab: chrome.tabs.Tab): boolean {
@@ -36,6 +37,7 @@ export function registerTabListeners(
   repo: Repository,
   onChange: OnChange,
   getPenalties: GetPenalties = () => ({}),
+  getAutoCluster: GetAutoCluster = () => true,
 ): void {
   chrome.tabs.onCreated.addListener(async (tab) => {
     if (isSyncPaused() || tab.id == null) return;
@@ -46,9 +48,10 @@ export function registerTabListeners(
     const openerRecordId =
       tab.openerTabId != null ? (await repo.getTabByChromeId(tab.openerTabId))?.id : undefined;
 
-    // 原生分组归属优先(F-06);否则用聚簇引擎打分(F-07)
+    // 原生分组归属优先(F-06);否则(自动聚簇开启时)用引擎打分(F-07)
+    const autoCluster = getAutoCluster();
     let contextId = await contextIdForGroup(repo, tab.groupId);
-    if (contextId === INBOX_ID) {
+    if (contextId === INBOX_ID && autoCluster) {
       contextId = await resolveNewTabContext(repo, getPenalties(), { url, openerRecordId, now });
     }
 
@@ -69,7 +72,7 @@ export function registerTabListeners(
 
     if (contextId !== INBOX_ID) {
       await ensureTabInContextGroup(repo, contextId, tab.id); // 引擎归入命名簇 → 同步进原生分组
-    } else {
+    } else if (autoCluster) {
       await maybePromoteInbox(repo, now); // 未分类累积出 opener 树 → 自动升格
     }
     onChange();

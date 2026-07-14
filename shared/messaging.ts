@@ -13,6 +13,7 @@ export type Command =
   | { type: 'MERGE_DUPLICATES' }
   | { type: 'SET_PORT_MAPPING'; port: number; project: string }
   | { type: 'REMOVE_PORT_MAPPING'; port: number }
+  | { type: 'SET_AUTO_CLUSTER'; enabled: boolean }
   | { type: 'UNDO'; token: string }
   | { type: 'ACTIVATE_TAB'; tabRecordId: string }
   | { type: 'CLOSE_TAB'; tabRecordId: string }
@@ -20,7 +21,13 @@ export type Command =
   | { type: 'SEARCH'; query: string };
 
 export type Event =
-  | { type: 'STATE_SNAPSHOT'; contexts: Context[]; tabs: TabRecord[]; portMappings: PortMapping[] }
+  | {
+      type: 'STATE_SNAPSHOT';
+      contexts: Context[];
+      tabs: TabRecord[];
+      portMappings: PortMapping[];
+      autoCluster: boolean;
+    }
   | { type: 'SEARCH_RESULTS'; query: string; results: SearchResult[] }
   | { type: 'UNDOABLE'; action: string; token: string; ttlMs: number }
   | { type: 'CONTEXT_CREATED'; contextId: string }
@@ -40,6 +47,7 @@ export const COMMAND_TYPES = new Set<Command['type']>([
   'MERGE_DUPLICATES',
   'SET_PORT_MAPPING',
   'REMOVE_PORT_MAPPING',
+  'SET_AUTO_CLUSTER',
   'UNDO',
   'ACTIVATE_TAB',
   'CLOSE_TAB',

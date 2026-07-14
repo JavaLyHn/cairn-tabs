@@ -11,6 +11,7 @@ import { SearchOverlay } from './components/SearchOverlay';
 import { UndoToast } from './components/UndoToast';
 import { PortBindSuggestions } from './components/PortBindSuggestions';
 import { EmptyState } from './components/EmptyState';
+import { SettingsPanel } from './components/SettingsPanel';
 
 /** 活跃任务的排序签名(用于判断顺序是否变化,决定是否播放过渡)。 */
 function activeOrderSig(contexts: Context[]): string {
@@ -28,6 +29,7 @@ export default function App() {
   const contexts = usePanelStore((s) => s.contexts);
   const tabs = usePanelStore((s) => s.tabs);
   const portMappings = usePanelStore((s) => s.portMappings);
+  const autoCluster = usePanelStore((s) => s.autoCluster);
   const undo = usePanelStore((s) => s.undo);
   const searchOpen = usePanelStore((s) => s.searchOpen);
   const applySnapshot = usePanelStore((s) => s.applySnapshot);
@@ -43,6 +45,7 @@ export default function App() {
   // 本次会话内被忽略的端口建议
   const [ignoredPorts, setIgnoredPorts] = useState<Set<number>>(new Set());
   const activeOrderRef = useRef('');
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // 订阅 SW 广播 + 首屏拉取 + ⌘⇧K 挂载态
   useEffect(() => {
@@ -52,7 +55,7 @@ export default function App() {
         const sig = activeOrderSig(ev.contexts);
         const orderChanged = activeOrderRef.current !== '' && sig !== activeOrderRef.current;
         activeOrderRef.current = sig;
-        const apply = () => applySnapshot(ev.contexts, ev.tabs, ev.portMappings);
+        const apply = () => applySnapshot(ev.contexts, ev.tabs, ev.portMappings, ev.autoCluster);
         // 仅当任务顺序变化时播放视图过渡(任务被激活会上移到顶部),让重排平滑
         const startVT = (document as Document & {
           startViewTransition?: (cb: () => void) => unknown;
@@ -184,6 +187,7 @@ export default function App() {
     if (project.trim()) dispatch({ type: 'SET_PORT_MAPPING', port, project });
   };
   const ignorePort = (port: number) => setIgnoredPorts((s) => new Set(s).add(port));
+  const toggleAutoCluster = (enabled: boolean) => dispatch({ type: 'SET_AUTO_CLUSTER', enabled });
   const doUndo = async () => {
     if (undo) await dispatch({ type: 'UNDO', token: undo.token });
     clearUndo();
@@ -242,6 +246,26 @@ export default function App() {
         >
           + 新建
         </button>
+        <button
+          onClick={() => setSettingsOpen((v) => !v)}
+          className="shrink-0 flex items-center justify-center w-7 h-7 rounded-md opacity-60 hover:opacity-100
+                     hover:bg-black/5 dark:hover:bg-white/10"
+          title="设置"
+        >
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
       </header>
 
       <StatsBar
@@ -284,6 +308,14 @@ export default function App() {
           ttlMs={undo.ttlMs}
           onUndo={doUndo}
           onDismiss={clearUndo}
+        />
+      )}
+
+      {settingsOpen && (
+        <SettingsPanel
+          autoCluster={autoCluster}
+          onToggleAutoCluster={toggleAutoCluster}
+          onClose={() => setSettingsOpen(false)}
         />
       )}
 

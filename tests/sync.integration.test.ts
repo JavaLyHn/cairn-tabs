@@ -201,6 +201,26 @@ describe('自动聚簇(F-07)', () => {
   });
 });
 
+describe('自动聚簇开关', () => {
+  it('关闭后 opener 树不再自动升格,新标签都留在未分类', async () => {
+    const f = new FakeChrome();
+    f.install();
+    const db = new CairnTabsDB(`toggle-${dbn++}`);
+    await db.open();
+    const r = new Repository(db);
+    await r.ensureInbox(Date.now());
+    registerTabListeners(r, () => {}, () => ({}), () => false); // 自动聚簇关闭
+
+    const root = await f.userOpenTab('https://gh.com/x', { title: 'X' });
+    await f.userOpenTab('https://so.com/1', { title: 'A', openerTabId: root });
+    await f.userOpenTab('https://so.com/2', { title: 'B', openerTabId: root });
+
+    const named = (await r.getSnapshot()).contexts.filter((c) => c.id !== INBOX_ID);
+    expect(named).toHaveLength(0); // 未产生新任务簇
+    expect((await r.getContext(INBOX_ID))!.tabOrder).toHaveLength(3); // 全留在未分类
+  });
+});
+
 describe('原生 UI 把标签拖出分组(入站)', () => {
   it('拖出分组的标签回到未分类', async () => {
     await fake.userOpenTab('https://a.com/1', { title: 'A' });
