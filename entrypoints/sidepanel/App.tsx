@@ -4,6 +4,7 @@ import { INBOX_ID, type Context, type TabRecord } from '@/shared/types';
 import type { Event } from '@/shared/messaging';
 import { duplicateMarks, redundantCount } from '@/shared/dedup';
 import { buildPortMap, localhostPort, suggestProjectName } from '@/shared/localhost';
+import { contextToMarkdown, exportAllJSON } from '@/shared/export';
 import { usePanelStore, dispatch } from './store';
 import { StatsBar } from './components/StatsBar';
 import { ContextGroup } from './components/ContextGroup';
@@ -46,6 +47,13 @@ export default function App() {
   const [ignoredPorts, setIgnoredPorts] = useState<Set<number>>(new Set());
   const activeOrderRef = useRef('');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [flash, setFlash] = useState<string | null>(null);
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const showFlash = (msg: string) => {
+    setFlash(msg);
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setFlash(null), 1800);
+  };
 
   // 订阅 SW 广播 + 首屏拉取 + ⌘⇧K 挂载态
   useEffect(() => {
@@ -193,6 +201,32 @@ export default function App() {
   };
   const ignorePort = (port: number) => setIgnoredPorts((s) => new Set(s).add(port));
   const toggleAutoCluster = (enabled: boolean) => dispatch({ type: 'SET_AUTO_CLUSTER', enabled });
+
+  const exportContextMd = async (ctx: Context) => {
+    const md = contextToMarkdown(ctx, tabsOf(ctx));
+    try {
+      await navigator.clipboard.writeText(md);
+      showFlash('已复制 Markdown 到剪贴板');
+    } catch {
+      showFlash('复制失败,请重试');
+    }
+  };
+  const exportAllData = () => {
+    const json = exportAllJSON(contexts, tabs, Date.now());
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, '0');
+    const name = `cairn-tabs-backup-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.json`;
+    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    setSettingsOpen(false);
+    showFlash('已导出全部数据 (JSON)');
+  };
   const doUndo = async () => {
     if (undo) await dispatch({ type: 'UNDO', token: undo.token });
     clearUndo();
@@ -211,6 +245,7 @@ export default function App() {
     onArchive: () => archive(ctx.id),
     onArchiveAll: archiveInbox,
     onRestore: () => restore(ctx.id),
+    onExport: () => exportContextMd(ctx),
     onDelete: () => del(ctx.id),
     onDropTab: (tabId: string) => moveTab(tabId, ctx.id),
     onActivateTab: (tabId: string) => activate(tabId),
@@ -317,10 +352,20 @@ export default function App() {
         />
       )}
 
+      {flash && (
+        <div
+          className="absolute bottom-16 left-1/2 -translate-x-1/2 px-3 py-2 rounded-lg text-[12px] shadow-lg
+                     bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
+        >
+          {flash}
+        </div>
+      )}
+
       {settingsOpen && (
         <SettingsPanel
           autoCluster={autoCluster}
           onToggleAutoCluster={toggleAutoCluster}
+          onExportAll={exportAllData}
           onClose={() => setSettingsOpen(false)}
         />
       )}

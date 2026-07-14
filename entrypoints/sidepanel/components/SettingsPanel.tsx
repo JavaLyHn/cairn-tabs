@@ -1,6 +1,7 @@
 interface Props {
   autoCluster: boolean;
   onToggleAutoCluster: (enabled: boolean) => void;
+  onExportAll: () => void;
   onClose: () => void;
 }
 
@@ -18,7 +19,7 @@ function Toggle({ on }: { on: boolean }) {
   );
 }
 
-export function SettingsPanel({ autoCluster, onToggleAutoCluster, onClose }: Props) {
+export function SettingsPanel({ autoCluster, onToggleAutoCluster, onExportAll, onClose }: Props) {
   return (
     <div className="absolute inset-0 z-30" onClick={onClose}>
       <div
@@ -43,6 +44,18 @@ export function SettingsPanel({ autoCluster, onToggleAutoCluster, onClose }: Pro
             <Toggle on={autoCluster} />
           </div>
         </button>
+
+        <div className="border-t border-black/10 dark:border-white/10">
+          <button
+            onClick={onExportAll}
+            className="w-full text-left px-3 py-2.5 hover:bg-black/5 dark:hover:bg-white/5"
+          >
+            <div className="text-[12.5px]">导出全部数据 (JSON)</div>
+            <div className="text-[11px] opacity-50 leading-snug mt-0.5">
+              下载所有任务与标签的备份文件,用于迁移或存档。
+            </div>
+          </button>
+        </div>
       </div>
     </div>
   );

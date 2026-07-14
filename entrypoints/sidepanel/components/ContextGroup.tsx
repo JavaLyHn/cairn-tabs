@@ -18,6 +18,7 @@ interface Props {
   onArchive: () => void;
   onArchiveAll: () => void; // 未分类:收纳全部零散标签
   onRestore: () => void;
+  onExport: () => void; // 导出为 Markdown(复制到剪贴板)
   onDelete: () => void;
   onDropTab: (tabRecordId: string) => void;
   onActivateTab: (tabRecordId: string) => void;
@@ -38,6 +39,7 @@ export function ContextGroup({
   onArchive,
   onArchiveAll,
   onRestore,
+  onExport,
   onDelete,
   onDropTab,
   onActivateTab,
@@ -148,6 +150,13 @@ export function ContextGroup({
                 恢复
               </button>
               <button
+                onClick={onExport}
+                className="text-[11px] opacity-60 hover:opacity-100"
+                title="导出为 Markdown(复制到剪贴板)"
+              >
+                导出
+              </button>
+              <button
                 onClick={onDelete}
                 className="text-[11px] opacity-40 hover:opacity-100 hover:text-red-500"
                 title="删除任务(彻底移除)"
@@ -173,6 +182,15 @@ export function ContextGroup({
                   title="改名"
                 >
                   改名
+                </button>
+              )}
+              {!isInbox && (
+                <button
+                  onClick={onExport}
+                  className="text-[11px] opacity-60 hover:opacity-100"
+                  title="导出为 Markdown(复制到剪贴板)"
+                >
+                  导出
                 </button>
               )}
               {!isInbox && (
