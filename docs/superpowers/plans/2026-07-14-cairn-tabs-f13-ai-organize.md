@@ -632,7 +632,7 @@ import type { AIPlan, AIStatus, AIProviderId, AIErrorReason } from './ai';
 顶部导入补:
 
 ```ts
-import { registrableDomain } from '../clustering/signals';
+import { hostnameOf, registrableDomain } from '../clustering/signals';
 import { buildOrganizePrompt, parseOrganizeResponse } from '../ai/organize';
 import type { AIProviderId, AIStatus } from '@/shared/ai';
 ```
@@ -683,7 +683,7 @@ async function assignTab(
       if (loose.length === 0) return { type: 'AI_ERROR', reason: 'empty' };
       const tasks = contexts.filter((c) => c.id !== INBOX_ID && c.status === 'active');
       const { system, user } = buildOrganizePrompt(
-        loose.map((t) => ({ id: t.id, title: t.title, domain: registrableDomain(t.url) })),
+        loose.map((t) => ({ id: t.id, title: t.title, domain: registrableDomain(hostnameOf(t.url)) })),
         tasks.map((c) => ({ id: c.id, name: c.name })),
       );
       let raw: string;
