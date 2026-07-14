@@ -130,14 +130,14 @@ export function ContextGroup({
               <button
                 onClick={onRestore}
                 className="text-[11px] text-accent hover:underline"
-                title="恢复整簇"
+                title="恢复任务"
               >
                 恢复
               </button>
               <button
                 onClick={onDelete}
                 className="text-[11px] opacity-40 hover:opacity-100 hover:text-red-500"
-                title="删除归档簇(彻底移除)"
+                title="删除任务(彻底移除)"
               >
                 删
               </button>
@@ -166,7 +166,7 @@ export function ContextGroup({
                 <button
                   onClick={onDelete}
                   className="text-[11px] opacity-40 hover:opacity-100 hover:text-red-500"
-                  title="删除簇(标签退回未分类)"
+                  title="删除任务(标签退回未分类)"
                 >
                   删
                 </button>

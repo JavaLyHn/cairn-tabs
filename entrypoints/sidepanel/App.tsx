@@ -210,7 +210,7 @@ export default function App() {
           onClick={createContext}
           className="shrink-0 px-2 py-1.5 rounded-md text-[12px] opacity-70 hover:opacity-100
                      hover:bg-black/5 dark:hover:bg-white/10"
-          title="新建上下文"
+          title="新建任务"
         >
           + 新建
         </button>
@@ -246,7 +246,7 @@ export default function App() {
 
       {/* 底部状态栏 */}
       <footer className="px-3 py-1.5 text-[11px] opacity-50 hairline border-t border-black/10 dark:border-white/10">
-        归档 <span className="font-mono">{archivedContexts.length}</span> 簇 ·{' '}
+        归档 <span className="font-mono">{archivedContexts.length}</span> 任务 ·{' '}
         <span className="font-mono">{archivedTabCount}</span> 标签
       </footer>
 

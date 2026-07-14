@@ -12,7 +12,7 @@ export function StatsBar({ openTabs, activeContexts, redundant, onMerge }: Props
         <span className="font-mono">{openTabs}</span> 标签
       </span>
       <span>
-        <span className="font-mono">{activeContexts}</span> 上下文
+        <span className="font-mono">{activeContexts}</span> 任务
       </span>
       {redundant > 0 && (
         <button

@@ -106,7 +106,7 @@ export function SearchOverlay({ onClose, onActivate, onRestoreContext }: Props) 
           ))}
         </div>
         <div className="px-4 py-1.5 text-[10.5px] opacity-40 border-t border-black/10 dark:border-white/10 font-mono">
-          ↑↓ 选择 · ↵ 跳转 · ⌘↵ 恢复整簇 · esc 关闭
+          ↑↓ 选择 · ↵ 跳转 · ⌘↵ 恢复任务 · esc 关闭
         </div>
       </div>
     </div>
