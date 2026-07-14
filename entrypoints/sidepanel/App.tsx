@@ -271,11 +271,29 @@ export default function App() {
     setSettingsOpen(false);
     showFlash('已导出全部数据 (JSON)');
   };
-  const saveAi = async (provider: AIProviderId, key: string, model: string) => {
-    const origins = [PROVIDERS[provider].host];
-    const granted = await chrome.permissions.request({ origins });
+  const saveAi = async (provider: AIProviderId, key: string, model: string, baseUrl?: string) => {
+    // custom 的授权域名由所填 baseUrl 的 origin 派生;官方两档用固定 host
+    let origin: string;
+    if (provider === 'custom') {
+      let parsed: URL;
+      try {
+        parsed = new URL((baseUrl ?? '').trim());
+      } catch {
+        throw new Error('接口地址不是合法 URL');
+      }
+      if (parsed.protocol !== 'https:') throw new Error('接口地址需为 https');
+      origin = `${parsed.origin}/*`;
+    } else {
+      origin = PROVIDERS[provider].host;
+    }
+    const granted = await chrome.permissions.request({ origins: [origin] });
     if (!granted) throw new Error('需要授权访问 API 域名');
-    await dispatch({ type: 'SET_AI_SETTINGS', provider, key, model });
+    await dispatch({ type: 'SET_AI_SETTINGS', provider, key, model, baseUrl });
+  };
+  const testAi = async (): Promise<{ ok: boolean; detail: string }> => {
+    const ev = await dispatch({ type: 'TEST_AI_CONNECTION' });
+    if (ev?.type === 'AI_TEST_RESULT') return { ok: ev.ok, detail: ev.detail };
+    return { ok: false, detail: '测试失败' };
   };
 
   const doUndo = async () => {
@@ -447,6 +465,7 @@ export default function App() {
           flags={flags}
           ai={ai}
           onSaveAi={saveAi}
+          onTestAi={testAi}
           onToggleAutoCluster={toggleAutoCluster}
           onToggleStaleHints={toggleStaleHints}
           onToggleAutoDiscard={toggleAutoDiscard}

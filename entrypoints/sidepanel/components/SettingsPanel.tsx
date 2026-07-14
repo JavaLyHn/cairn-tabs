@@ -9,7 +9,8 @@ interface Props {
   onToggleStaleHints: (enabled: boolean) => void;
   onToggleAutoDiscard: (enabled: boolean) => void;
   onToggleDiscardSkipsLocalhost: (enabled: boolean) => void;
-  onSaveAi: (provider: AIProviderId, key: string, model: string) => Promise<void>;
+  onSaveAi: (provider: AIProviderId, key: string, model: string, baseUrl?: string) => Promise<void>;
+  onTestAi: () => Promise<{ ok: boolean; detail: string }>;
   onExportAll: () => void;
   onClose: () => void;
 }
@@ -63,6 +64,7 @@ export function SettingsPanel({
   onToggleAutoDiscard,
   onToggleDiscardSkipsLocalhost,
   onSaveAi,
+  onTestAi,
   onExportAll,
   onClose,
 }: Props) {
@@ -113,7 +115,7 @@ export function SettingsPanel({
         </div>
 
         <div className="border-t border-black/10 dark:border-white/10">
-          <AISection ai={ai} onSave={onSaveAi} />
+          <AISection ai={ai} onSave={onSaveAi} onTest={onTestAi} />
         </div>
 
         <div className="border-t border-black/10 dark:border-white/10">
@@ -132,24 +134,42 @@ export function SettingsPanel({
   );
 }
 
+const PROVIDER_LABELS: Record<AIProviderId, string> = {
+  anthropic: 'Anthropic',
+  openai: 'OpenAI',
+  custom: '自定义中转站',
+};
+
 function AISection({
   ai,
   onSave,
+  onTest,
 }: {
   ai: AIStatus;
-  onSave: (provider: AIProviderId, key: string, model: string) => Promise<void>;
+  onSave: (provider: AIProviderId, key: string, model: string, baseUrl?: string) => Promise<void>;
+  onTest: () => Promise<{ ok: boolean; detail: string }>;
 }) {
   const [provider, setProvider] = useState<AIProviderId>(ai.provider);
   const [key, setKey] = useState('');
   const [model, setModel] = useState('');
+  const [baseUrl, setBaseUrl] = useState(ai.baseUrl ?? '');
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [msg, setMsg] = useState('');
+  const [result, setResult] = useState<{ ok: boolean; detail: string } | null>(null);
+
+  const isCustom = provider === 'custom';
+  const needsUrl = isCustom && !baseUrl.trim();
+  // 有可保存的表单(有 key,custom 还需 URL),或已配置可直接测
+  const canSave = !!key.trim() && !needsUrl;
+  const canTest = ai.hasKey || canSave;
 
   const save = async () => {
     setSaving(true);
     setMsg('');
+    setResult(null);
     try {
-      await onSave(provider, key, model);
+      await onSave(provider, key, model, isCustom ? baseUrl : undefined);
       setKey('');
       setMsg('已保存');
     } catch (e) {
@@ -158,51 +178,108 @@ function AISection({
     setSaving(false);
   };
 
+  const test = async () => {
+    setTesting(true);
+    setMsg('');
+    setResult(null);
+    try {
+      // 表单有新 key/URL → 先保存(含权限申请),再测已保存的配置
+      if (key.trim()) {
+        await onSave(provider, key, model, isCustom ? baseUrl : undefined);
+        setKey('');
+      }
+      setResult(await onTest());
+    } catch (e) {
+      setResult({ ok: false, detail: e instanceof Error ? e.message : '测试失败' });
+    }
+    setTesting(false);
+  };
+
+  const busy = saving || testing;
+
   return (
     <div className="px-3 py-2.5">
       <div className="text-[12.5px] mb-1">AI 整理(BYO Key)</div>
       <div className="text-[11px] opacity-50 leading-snug mb-2">
         默认关闭。开启后仅把标签标题+域名+任务名发给你选的服务商,用你的 key 直连,绝不发完整网址/页面内容。
-        {ai.hasKey && <span className="text-accent"> 当前:{ai.provider} 已配置。</span>}
+        {ai.hasKey && (
+          <span className="text-accent"> 当前:{PROVIDER_LABELS[ai.provider]} 已配置。</span>
+        )}
       </div>
       <div className="flex gap-1 mb-1.5">
-        {(['anthropic', 'openai'] as AIProviderId[]).map((p) => (
+        {(['anthropic', 'openai', 'custom'] as AIProviderId[]).map((p) => (
           <button
             key={p}
-            onClick={() => setProvider(p)}
+            onClick={() => {
+              setProvider(p);
+              setResult(null);
+              setMsg('');
+            }}
             className={`px-2 py-0.5 rounded text-[12px] ${
               provider === p ? 'bg-accent/15 text-accent' : 'opacity-60 hover:opacity-100'
             }`}
           >
-            {p === 'anthropic' ? 'Anthropic' : 'OpenAI'}
+            {PROVIDER_LABELS[p]}
           </button>
         ))}
       </div>
+      {isCustom && (
+        <>
+          <input
+            value={baseUrl}
+            onChange={(e) => setBaseUrl(e.target.value)}
+            placeholder="接口地址,如 https://newapi.elevatesphere.com/v1"
+            className="w-full mb-1.5 px-2 py-1 text-[12px] rounded border border-black/15 dark:border-white/15
+                       bg-transparent outline-none focus:border-accent font-mono"
+          />
+          <div className="text-[11px] opacity-45 leading-snug mb-1.5">
+            OpenAI 兼容中转站。中转站是第三方,数据会经过它——请填你信任的地址。
+          </div>
+        </>
+      )}
       <input
         type="password"
         value={key}
         onChange={(e) => setKey(e.target.value)}
-        placeholder={`${provider} API key`}
+        placeholder={`${PROVIDER_LABELS[provider]} API key`}
         className="w-full mb-1.5 px-2 py-1 text-[12px] rounded border border-black/15 dark:border-white/15
                    bg-transparent outline-none focus:border-accent"
       />
       <input
         value={model}
         onChange={(e) => setModel(e.target.value)}
-        placeholder="模型(留空用默认)"
+        placeholder={isCustom ? '模型,如 gpt-4o / claude-3-5-sonnet' : '模型(留空用默认)'}
         className="w-full mb-1.5 px-2 py-1 text-[12px] rounded border border-black/15 dark:border-white/15
                    bg-transparent outline-none focus:border-accent font-mono"
       />
       <div className="flex items-center gap-2">
         <button
           onClick={save}
-          disabled={saving || !key.trim()}
+          disabled={busy || !canSave}
           className="px-2.5 py-1 rounded-md text-[12px] bg-accent text-white hover:opacity-90 disabled:opacity-40"
         >
           保存并启用
         </button>
+        <button
+          onClick={test}
+          disabled={busy || !canTest}
+          className="px-2.5 py-1 rounded-md text-[12px] border border-black/15 dark:border-white/20
+                     hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-40"
+        >
+          {testing ? '测试中…' : '测试连接'}
+        </button>
         {msg && <span className="text-[11px] opacity-60">{msg}</span>}
       </div>
+      {result && (
+        <div
+          className={`mt-1.5 text-[11px] leading-snug ${
+            result.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+          }`}
+        >
+          {result.ok ? '✓ ' : '✗ '}
+          {result.detail}
+        </div>
+      )}
     </div>
   );
 }
