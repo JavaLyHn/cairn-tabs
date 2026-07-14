@@ -16,7 +16,8 @@ export default defineConfig({
     name: 'Cairn Tabs',
     description: '面向程序员的标签页上下文管理器 (MVP 核心闭环)',
     permissions: ['tabs', 'tabGroups', 'storage', 'sidePanel', 'alarms'],
-    optional_host_permissions: ['https://api.anthropic.com/*', 'https://api.openai.com/*'],
+    // 官方两档 + 自定义中转站(任意 https host,运行时按所填地址派生 origin、带用户手势申请)
+    optional_host_permissions: ['https://api.anthropic.com/*', 'https://api.openai.com/*', 'https://*/*'],
     // 工具栏图标(点击打开侧边栏);图标沿用 public/icon 下的 logo
     action: {
       default_icon: {
