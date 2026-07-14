@@ -4,7 +4,7 @@ import type { Repository } from '../store/repositories';
 import type { SearchIndex } from '../search';
 import type { UndoManager } from './undo';
 import { pauseSync, resumeSync } from './sync-lock';
-import { ensureTabInContextGroup, groupRestoredTabs, syncGroupTitle } from './group-sync';
+import { ensureTabInContextGroup, groupTabsForContext, syncGroupTitle } from './group-sync';
 import { DRAFT_CONTEXT_NAME, type Command, type Event } from '@/shared/messaging';
 import { INBOX_ID } from '@/shared/types';
 import { findDuplicateGroups } from '@/shared/dedup';
@@ -14,6 +14,8 @@ export interface CommandContext {
   search: SearchIndex;
   undo: UndoManager;
   onChange: () => void;
+  /** 记录负样本(某 URL 的域名不属于 contextId);测试中可省略。 */
+  recordNegative?: (url: string, contextId: string) => Promise<void>;
 }
 
 const RESTORE_STAGGER_MS = 50;
@@ -22,7 +24,7 @@ const UNDO_TTL_MS = 5000;
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<Event | void> {
-  const { repo, search, undo, onChange } = ctx;
+  const { repo, search, undo, onChange, recordNegative } = ctx;
   const now = Date.now();
 
   switch (cmd.type) {
@@ -51,10 +53,16 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       return;
 
     case 'MOVE_TAB': {
+      const before = await repo.getTab(cmd.tabRecordId);
       await repo.moveTab(cmd.tabRecordId, cmd.toContextId, now);
+      await repo.pinTab(cmd.tabRecordId); // 人工归属,引擎不再改动(PRD §6.1)
       const rec = await repo.getTab(cmd.tabRecordId);
       if (rec?.chromeTabId != null) {
         await ensureTabInContextGroup(repo, cmd.toContextId, rec.chromeTabId);
+      }
+      // 从命名簇拖出 → 记负样本(降低该域名再归入该簇的权重,PRD §6.2)
+      if (before && before.contextId !== INBOX_ID && before.contextId !== cmd.toContextId) {
+        await recordNegative?.(before.url, before.contextId);
       }
       onChange();
       return;
@@ -183,7 +191,7 @@ async function restoreContext(contextId: string, ctx: CommandContext): Promise<v
     }
     await repo.setContextActive(contextId);
     // 把恢复的标签编成原生分组(与 §6.4 双向同步一致)
-    await groupRestoredTabs(repo, contextId, createdIds);
+    await groupTabsForContext(repo, contextId, createdIds);
   } finally {
     resumeSync();
   }

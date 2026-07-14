@@ -146,6 +146,11 @@ export class Repository {
     await this.db.tabs.update(id, patch);
   }
 
+  /** 标记为人工归属,聚簇引擎不再改动。 */
+  async pinTab(id: string): Promise<void> {
+    await this.db.tabs.update(id, { pinned: true });
+  }
+
   async touchTab(id: string, now: number): Promise<void> {
     const tab = await this.db.tabs.get(id);
     if (!tab) return;

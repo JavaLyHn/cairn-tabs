@@ -24,6 +24,7 @@ interface FakeTab {
   discarded: boolean;
   favIconUrl?: string;
   pendingUrl?: string;
+  openerTabId?: number;
 }
 
 interface FakeGroup {
@@ -50,8 +51,11 @@ export class FakeChrome {
   groupOnUpdated = new Emitter();
   groupOnRemoved = new Emitter();
 
-  /** 模拟用户在浏览器里打开一个标签(触发 onCreated)。 */
-  async userOpenTab(url: string, opts: { windowId?: number; title?: string } = {}): Promise<number> {
+  /** 模拟用户在浏览器里打开一个标签(触发 onCreated)。openerTabId 模拟从某标签点开。 */
+  async userOpenTab(
+    url: string,
+    opts: { windowId?: number; title?: string; openerTabId?: number } = {},
+  ): Promise<number> {
     const id = this.nextTabId++;
     const tab: FakeTab = {
       id,
@@ -61,6 +65,7 @@ export class FakeChrome {
       groupId: NONE,
       active: false,
       discarded: false,
+      openerTabId: opts.openerTabId,
     };
     this.tabsById.set(id, tab);
     await this.onCreated.emit({ ...tab });

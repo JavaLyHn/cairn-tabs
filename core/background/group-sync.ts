@@ -71,8 +71,8 @@ export async function ensureTabInContextGroup(
   });
 }
 
-/** 恢复后把整簇标签编成一个新原生分组。 */
-export async function groupRestoredTabs(
+/** 把一组标签编入某 Context 的新原生分组(恢复、升格共用)。 */
+export async function groupTabsForContext(
   repo: Repository,
   contextId: string,
   chromeTabIds: number[],
@@ -129,6 +129,7 @@ export async function handleTabGroupChange(
 
   if (record.contextId !== targetContextId) {
     await repo.moveTab(record.id, targetContextId, now);
+    await repo.pinTab(record.id); // 原生 UI 的人工分组操作 → 锁定归属(PRD §6.4)
     onChange();
   }
 }

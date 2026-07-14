@@ -51,6 +51,8 @@ export interface TabRecord {
   url: string;
   title: string;
   faviconUrl?: string;
+  openerRecordId?: string; // 打开来源(构成任务树),聚簇 opener 信号用
+  pinned?: boolean; // 人工移动过 → 引擎不再改动其归属
   firstOpenedAt: number;
   lastActiveAt: number;
 }

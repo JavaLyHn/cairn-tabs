@@ -150,6 +150,43 @@ describe('CLOSE_TAB 对失效标签的健壮性', () => {
   });
 });
 
+describe('自动聚簇(F-07)', () => {
+  it('未分类里 opener 树 ≥3 → 自动升格为新命名簇并成组', async () => {
+    const root = await fake.userOpenTab('https://github.com/a/b/issues/1', { title: 'Fix login' });
+    await fake.userOpenTab('https://stackoverflow.com/q/1', { title: 'SO 1', openerTabId: root });
+    // 第 3 个出现时触发升格
+    await fake.userOpenTab('https://stackoverflow.com/q/2', { title: 'SO 2', openerTabId: root });
+
+    const named = (await snapshot()).contexts.filter((c) => c.id !== INBOX_ID);
+    expect(named).toHaveLength(1);
+    expect(named[0]!.name).toBe('Fix login');
+    expect(named[0]!.tabOrder).toHaveLength(3);
+    expect(await inboxTabIds()).toEqual([]);
+    // 三个标签被编入同一个原生分组
+    const gids = new Set([...fake.tabsById.values()].map((t) => t.groupId));
+    expect(gids.size).toBe(1);
+    expect([...gids][0]).toBeGreaterThanOrEqual(0);
+  });
+
+  it('从命名簇内标签点开的新标签,经原生分组归入该簇', async () => {
+    // 先手动建簇并放一个标签(建立原生分组)
+    const t = await fake.userOpenTab('https://github.com/a/b', { title: 'repo' });
+    await handleCommand({ type: 'CREATE_CONTEXT', name: 'work' }, ctx);
+    const cid = (await snapshot()).contexts.find((c) => c.name === 'work')!.id;
+    const [rid] = await inboxTabIds();
+    await handleCommand({ type: 'MOVE_TAB', tabRecordId: rid!, toContextId: cid }, ctx);
+
+    const rec = (await snapshot()).tabs.find((x) => x.id === rid)!;
+    const gid = fake.tabsById.get(rec.chromeTabId!)!.groupId; // 该簇的原生分组
+    // Chrome 会把从组内标签点开的子标签放进同组:模拟为 create 到该 group
+    const child = await fake.userOpenTab('https://docs.gh.com/x', { title: 'docs' });
+    await fake.tabs.group({ tabIds: [child], groupId: gid });
+
+    const childRec = (await snapshot()).tabs.find((x) => x.chromeTabId === child)!;
+    expect(childRec.contextId).toBe(cid); // 自动归入 work 簇
+  });
+});
+
 describe('原生 UI 把标签拖出分组(入站)', () => {
   it('拖出分组的标签回到未分类', async () => {
     await fake.userOpenTab('https://a.com/1', { title: 'A' });

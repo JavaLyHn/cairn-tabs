@@ -6,10 +6,12 @@ import { UndoManager } from './undo';
 import { registerTabListeners, reconcile } from './tab-sync';
 import { registerGroupListeners, reconcileGroups } from './group-sync';
 import { handleCommand, type CommandContext } from './commands';
+import { PenaltyStore } from './penalties';
 import { COMMAND_TYPES, type Command } from '@/shared/messaging';
 
 const search = new SearchIndex();
 const undo = new UndoManager();
+const penalties = new PenaltyStore();
 
 /** 读快照 → 重建搜索索引 → 广播 STATE_SNAPSHOT(侧边栏关闭时 sendMessage 失败,忽略)。 */
 async function broadcast(): Promise<void> {
@@ -30,7 +32,13 @@ function scheduleBroadcast(): void {
   }, 40);
 }
 
-const cmdCtx: CommandContext = { repo: repository, search, undo, onChange: scheduleBroadcast };
+const cmdCtx: CommandContext = {
+  repo: repository,
+  search,
+  undo,
+  onChange: scheduleBroadcast,
+  recordNegative: (url, contextId) => penalties.recordNegativeForUrl(url, contextId),
+};
 
 /** ⌘⇧K:打开侧边栏并请其展开搜索 overlay。 */
 async function openSidePanelForSearch(): Promise<void> {
@@ -70,8 +78,8 @@ export function initBackground(): void {
     if (command === 'open-search') void openSidePanelForSearch();
   });
 
-  // 标签事件 → DB
-  registerTabListeners(repository, scheduleBroadcast);
+  // 标签事件 → DB(带聚簇引擎;读负样本)
+  registerTabListeners(repository, scheduleBroadcast, () => penalties.get());
   // 原生分组事件 → DB(双向同步入站)
   registerGroupListeners(repository, scheduleBroadcast);
 
@@ -82,6 +90,7 @@ export function initBackground(): void {
 async function hydrate(): Promise<void> {
   const now = Date.now();
   await repository.ensureInbox(now);
+  await penalties.load();
   await reconcile(repository, scheduleBroadcast);
   await reconcileGroups(repository, scheduleBroadcast);
   await broadcast();

@@ -4,9 +4,12 @@
 import type { Repository } from '../store/repositories';
 import { INBOX_ID } from '@/shared/types';
 import { isSyncPaused } from './sync-lock';
-import { handleTabGroupChange } from './group-sync';
+import { handleTabGroupChange, ensureTabInContextGroup } from './group-sync';
+import { resolveNewTabContext, maybePromoteInbox } from './clustering';
+import type { Penalties } from '../clustering/rules';
 
 type OnChange = () => void;
+type GetPenalties = () => Penalties;
 
 /** 一个 chrome.Tab 是否值得记录(跳过无 url 的空白页/内部页)。 */
 function isTrackable(tab: chrome.tabs.Tab): boolean {
@@ -29,25 +32,46 @@ async function contextIdForGroup(repo: Repository, groupId?: number): Promise<st
   return INBOX_ID;
 }
 
-export function registerTabListeners(repo: Repository, onChange: OnChange): void {
+export function registerTabListeners(
+  repo: Repository,
+  onChange: OnChange,
+  getPenalties: GetPenalties = () => ({}),
+): void {
   chrome.tabs.onCreated.addListener(async (tab) => {
     if (isSyncPaused() || tab.id == null) return;
     if (!isTrackable(tab)) return;
     if (await repo.getTabByChromeId(tab.id)) return; // 幂等
     const now = Date.now();
+    const url = tab.url || tab.pendingUrl || '';
+    const openerRecordId =
+      tab.openerTabId != null ? (await repo.getTabByChromeId(tab.openerTabId))?.id : undefined;
+
+    // 原生分组归属优先(F-06);否则用聚簇引擎打分(F-07)
+    let contextId = await contextIdForGroup(repo, tab.groupId);
+    if (contextId === INBOX_ID) {
+      contextId = await resolveNewTabContext(repo, getPenalties(), { url, openerRecordId, now });
+    }
+
     await repo.addTab(
       {
         chromeTabId: tab.id,
         windowId: tab.windowId,
-        contextId: await contextIdForGroup(repo, tab.groupId),
-        url: tab.url || tab.pendingUrl || '',
+        contextId,
+        url,
         title: tabTitle(tab),
         faviconUrl: tab.favIconUrl,
+        openerRecordId,
         firstOpenedAt: now,
         lastActiveAt: now,
       },
       now,
     );
+
+    if (contextId !== INBOX_ID) {
+      await ensureTabInContextGroup(repo, contextId, tab.id); // 引擎归入命名簇 → 同步进原生分组
+    } else {
+      await maybePromoteInbox(repo, now); // 未分类累积出 opener 树 → 自动升格
+    }
     onChange();
   });
 
