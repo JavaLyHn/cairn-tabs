@@ -3,7 +3,7 @@
 
 import type { Repository } from '../store/repositories';
 import { INBOX_ID, type Context, type ContextColor } from '@/shared/types';
-import { withSyncPaused } from './sync-lock';
+import { withSyncPaused, isSyncPaused } from './sync-lock';
 
 const NONE = -1; // chrome.tabGroups.TAB_GROUP_ID_NONE
 
@@ -136,6 +136,7 @@ export async function handleTabGroupChange(
 export function registerGroupListeners(repo: Repository, onChange: () => void): void {
   // 原生改了分组标题/颜色 → 同步回对应 Context(未知分组则收编)
   chrome.tabGroups.onUpdated.addListener(async (group) => {
+    if (isSyncPaused()) return; // 我们自建分组时产生的事件不回灌(否则会把自己的组误收编成「新分组」)
     const ctx = await repo.findContextByNativeGroupId(group.id);
     if (ctx) {
       const nextName = group.title?.trim();
@@ -151,6 +152,7 @@ export function registerGroupListeners(repo: Repository, onChange: () => void): 
 
   // 原生解散分组 → 保留 Context(数据不丢),仅清除 nativeGroupId
   chrome.tabGroups.onRemoved.addListener(async (group) => {
+    if (isSyncPaused()) return;
     const ctx = await repo.findContextByNativeGroupId(group.id);
     if (ctx) await repo.setNativeGroupId(ctx.id, undefined);
     onChange();

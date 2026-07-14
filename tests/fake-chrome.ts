@@ -118,13 +118,17 @@ export class FakeChrome {
       if (gid == null) {
         gid = this.nextGroupId++;
         const first = this.tabsById.get(ids[0]!);
-        this.groupsById.set(gid, {
+        const g: FakeGroup = {
           id: gid,
           color: 'grey',
           windowId: first?.windowId ?? 1,
           collapsed: false,
           shared: false,
-        });
+        };
+        this.groupsById.set(gid, g);
+        // 真实 Chrome:新建分组会派发 group 事件(在调用方 setNativeGroupId 之前)。
+        // 用以复现「我们自建的分组被入站处理误收编成新分组」的竞态。
+        await this.groupOnUpdated.emit({ ...g });
       }
       for (const id of ids) {
         const tab = this.tabsById.get(id);

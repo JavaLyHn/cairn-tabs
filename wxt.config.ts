@@ -5,6 +5,10 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   srcDir: '.',
+  // 不自动拉起独立 Chrome;由你把 .output/chrome-mv3-dev 手动加载进自己的浏览器
+  webExt: {
+    disabled: true,
+  },
   vite: () => ({
     plugins: [tailwindcss()],
   }),

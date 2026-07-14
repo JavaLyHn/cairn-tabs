@@ -79,6 +79,12 @@ describe('archive → restore 全链路(回归:不产生未分类幻影)', () =>
     const groupIds = new Set([...fake.tabsById.values()].map((t) => t.groupId));
     expect(groupIds.size).toBe(1);
     expect([...groupIds][0]).toBeGreaterThanOrEqual(0);
+
+    // 关键回归点:恢复自建分组时产生的 group 事件不得被误收编成「新分组」
+    const ctxs = (await snapshot()).contexts.filter((c) => c.id !== INBOX_ID);
+    expect(ctxs).toHaveLength(1); // 只有原簇,无幻影 Context
+    expect(ctxs[0]!.id).toBe(cid);
+    expect(ctxs.some((c) => c.name === '新分组')).toBe(false);
   });
 });
 

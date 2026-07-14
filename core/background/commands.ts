@@ -162,19 +162,13 @@ async function restoreContext(contextId: string, ctx: CommandContext): Promise<v
       const record = await repo.getTab(recordId);
       if (!record) continue;
       try {
+        // 后台创建(active:false)让其正常加载出标题;不立即 discard——
+        // 对正在加载的新标签 discard 不可靠,会把标签卡在转圈的「无标题」状态。
+        // 内存回收留给 F-11 的挂起扫描按空闲时长统一处理。
         const created = await chrome.tabs.create({ url: record.url, active: false, windowId });
         if (created.id != null) {
-          // 立即挂起,避免恢复瞬间内存暴涨。await 以确保其事件落在持锁期内;
-          // 老版 Chrome discard 可能换 id,用其返回值回填。
-          let finalId = created.id;
-          try {
-            const d = await chrome.tabs.discard(created.id);
-            if (d?.id != null) finalId = d.id;
-          } catch {
-            /* loading 中的标签无法 discard,忽略 */
-          }
-          await repo.bindChromeTab(recordId, finalId, created.windowId ?? windowId ?? 0, Date.now());
-          createdIds.push(finalId);
+          await repo.bindChromeTab(recordId, created.id, created.windowId ?? windowId ?? 0, Date.now());
+          createdIds.push(created.id);
         }
       } catch {
         // 达到浏览器标签上限等 → 跳过该标签,继续恢复其余
