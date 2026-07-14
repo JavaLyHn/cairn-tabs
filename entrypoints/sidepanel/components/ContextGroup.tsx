@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Context, TabRecord } from '@/shared/types';
 import { INBOX_ID } from '@/shared/types';
 import { TabRow } from './TabRow';
@@ -12,10 +12,10 @@ interface Props {
   portMap: Record<number, string>;
   editing: boolean;
   onStartEdit: () => void;
-  onEndEdit: () => void;
+  onCommitName: (name: string) => void; // 回车/失焦:确认命名(空草稿会被放弃)
+  onCancelEdit: () => void; // Esc:取消(空草稿会被删除)
   onArchive: () => void;
   onRestore: () => void;
-  onRename: (name: string) => void;
   onDelete: () => void;
   onDropTab: (tabRecordId: string) => void;
   onActivateTab: (tabRecordId: string) => void;
@@ -30,10 +30,10 @@ export function ContextGroup({
   portMap,
   editing,
   onStartEdit,
-  onEndEdit,
+  onCommitName,
+  onCancelEdit,
   onArchive,
   onRestore,
-  onRename,
   onDelete,
   onDropTab,
   onActivateTab,
@@ -41,6 +41,7 @@ export function ContextGroup({
 }: Props) {
   const [collapsed, setCollapsed] = useState(variant === 'archived');
   const [dragOver, setDragOver] = useState(false);
+  const cancelledRef = useRef(false);
 
   const isInbox = context.id === INBOX_ID;
   const canDrop = variant !== 'archived';
@@ -94,12 +95,19 @@ export function ContextGroup({
             defaultValue={context.name}
             onFocus={(e) => e.target.select()}
             onBlur={(e) => {
-              onRename(e.target.value);
-              onEndEdit();
+              if (cancelledRef.current) {
+                cancelledRef.current = false;
+                onCancelEdit();
+              } else {
+                onCommitName(e.target.value);
+              }
             }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-              if (e.key === 'Escape') onEndEdit();
+              if (e.key === 'Enter') e.currentTarget.blur();
+              if (e.key === 'Escape') {
+                cancelledRef.current = true;
+                e.currentTarget.blur();
+              }
             }}
             className="flex-1 bg-transparent outline-none border-b border-accent"
           />

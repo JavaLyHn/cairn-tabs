@@ -24,6 +24,8 @@ export default function App() {
 
   // 正在改名的簇 id(受控:新建后自动进入、双击或点「改名」进入)
   const [editingId, setEditingId] = useState<string | null>(null);
+  // 刚新建、尚未确认的草稿簇 id(未命名且无标签时被放弃则删除)
+  const [draftId, setDraftId] = useState<string | null>(null);
   // 本次会话内被忽略的端口建议
   const [ignoredPorts, setIgnoredPorts] = useState<Set<number>>(new Set());
 
@@ -106,7 +108,33 @@ export default function App() {
   const createContext = async () => {
     // 至多一个「新任务」草稿:SW 复用已存在的,返回其 id;新建后直接进入改名
     const ev = await dispatch({ type: 'CREATE_CONTEXT', name: '新任务' });
-    if (ev?.type === 'CONTEXT_CREATED') setEditingId(ev.contextId);
+    if (ev?.type === 'CONTEXT_CREATED') {
+      setDraftId(ev.contextId);
+      setEditingId(ev.contextId);
+    }
+  };
+
+  /** 结束改名:命名有效则保留改名;若是被放弃的空草稿则删除。 */
+  const commitName = (c: Context, value: string) => {
+    const name = value.trim();
+    const meaningful = name !== '' && name !== '新任务';
+    if (meaningful) {
+      rename(c.id, name);
+      if (draftId === c.id) setDraftId(null); // 已确认,不再是草稿
+    } else if (draftId === c.id && c.tabOrder.length === 0) {
+      del(c.id); // 空草稿未命名 → 放弃删除
+      setDraftId(null);
+    }
+    setEditingId(null);
+  };
+
+  /** Esc 取消:空草稿直接删除,否则仅退出编辑。 */
+  const cancelEdit = (c: Context) => {
+    if (draftId === c.id && c.tabOrder.length === 0) {
+      del(c.id);
+      setDraftId(null);
+    }
+    setEditingId(null);
   };
   const mergeDuplicates = () => dispatch({ type: 'MERGE_DUPLICATES' });
   const bindPort = (port: number, project: string) => {
@@ -125,10 +153,10 @@ export default function App() {
     portMap,
     editing: editingId === ctx.id,
     onStartEdit: () => setEditingId(ctx.id),
-    onEndEdit: () => setEditingId((cur) => (cur === ctx.id ? null : cur)),
+    onCommitName: (name: string) => commitName(ctx, name),
+    onCancelEdit: () => cancelEdit(ctx),
     onArchive: () => archive(ctx.id),
     onRestore: () => restore(ctx.id),
-    onRename: (name: string) => rename(ctx.id, name),
     onDelete: () => del(ctx.id),
     onDropTab: (tabId: string) => moveTab(tabId, ctx.id),
     onActivateTab: (tabId: string) => activate(tabId),
