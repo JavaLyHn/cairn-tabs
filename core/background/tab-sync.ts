@@ -1,0 +1,155 @@
+// chrome.tabs.* → TabRecord 增删改(见设计文档 §4)。
+// SW 是唯一写入方。收纳/恢复/分组操作期间用 sync-lock 抑制自身触发的事件回灌。
+
+import type { Repository } from '../store/repositories';
+import { INBOX_ID } from '@/shared/types';
+import { isSyncPaused } from './sync-lock';
+import { handleTabGroupChange } from './group-sync';
+
+type OnChange = () => void;
+
+/** 一个 chrome.Tab 是否值得记录(跳过无 url 的空白页/内部页)。 */
+function isTrackable(tab: chrome.tabs.Tab): boolean {
+  const url = tab.url || tab.pendingUrl || '';
+  if (!url) return false;
+  if (url.startsWith('chrome://newtab') || url === 'about:blank') return false;
+  return true;
+}
+
+function tabTitle(tab: chrome.tabs.Tab): string {
+  return tab.title?.trim() || tab.url || tab.pendingUrl || '(无标题)';
+}
+
+/** 依据原生分组归属决定新标签落入哪个 Context(未分组 → 未分类)。 */
+async function contextIdForGroup(repo: Repository, groupId?: number): Promise<string> {
+  if (groupId != null && groupId >= 0) {
+    const ctx = await repo.findContextByNativeGroupId(groupId);
+    if (ctx) return ctx.id;
+  }
+  return INBOX_ID;
+}
+
+export function registerTabListeners(repo: Repository, onChange: OnChange): void {
+  chrome.tabs.onCreated.addListener(async (tab) => {
+    if (isSyncPaused() || tab.id == null) return;
+    if (!isTrackable(tab)) return;
+    if (await repo.getTabByChromeId(tab.id)) return; // 幂等
+    const now = Date.now();
+    await repo.addTab(
+      {
+        chromeTabId: tab.id,
+        windowId: tab.windowId,
+        contextId: await contextIdForGroup(repo, tab.groupId),
+        url: tab.url || tab.pendingUrl || '',
+        title: tabTitle(tab),
+        faviconUrl: tab.favIconUrl,
+        firstOpenedAt: now,
+        lastActiveAt: now,
+      },
+      now,
+    );
+    onChange();
+  });
+
+  chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+    if (isSyncPaused()) return;
+
+    // 原生 UI 把标签拖进/出分组
+    if (changeInfo.groupId !== undefined) {
+      await handleTabGroupChange(repo, tabId, changeInfo.groupId, tab, onChange);
+    }
+
+    const record = await repo.getTabByChromeId(tabId);
+    if (!record) {
+      if (isTrackable(tab)) {
+        // 防御:仅为确实仍存在的标签补建记录,避免为正在关闭的标签回填幻影
+        try {
+          await chrome.tabs.get(tabId);
+        } catch {
+          return;
+        }
+        const now = Date.now();
+        await repo.addTab(
+          {
+            chromeTabId: tabId,
+            windowId: tab.windowId,
+            contextId: await contextIdForGroup(repo, tab.groupId),
+            url: tab.url || '',
+            title: tabTitle(tab),
+            faviconUrl: tab.favIconUrl,
+            firstOpenedAt: now,
+            lastActiveAt: now,
+          },
+          now,
+        );
+        onChange();
+      }
+      return;
+    }
+    if (changeInfo.url || changeInfo.title || changeInfo.favIconUrl) {
+      await repo.updateTab(record.id, {
+        url: tab.url ?? record.url,
+        title: tabTitle(tab),
+        faviconUrl: tab.favIconUrl ?? record.faviconUrl,
+      });
+      onChange();
+    }
+  });
+
+  chrome.tabs.onActivated.addListener(async (info) => {
+    if (isSyncPaused()) return;
+    const record = await repo.getTabByChromeId(info.tabId);
+    if (record) {
+      await repo.touchTab(record.id, Date.now());
+      onChange();
+    }
+  });
+
+  chrome.tabs.onRemoved.addListener(async (tabId) => {
+    if (isSyncPaused()) return;
+    // 收纳已把 chromeTabId 清空,此处按 chromeTabId 找不到记录 → 自然 no-op(区别于归档)
+    await repo.removeTabByChromeId(tabId);
+    onChange();
+  });
+}
+
+/**
+ * 与 chrome.tabs.query 全量对账(见设计文档风险表)。
+ * 在 hydrate/启动时执行,补偿 SW 休眠期间丢失的事件。
+ */
+export async function reconcile(repo: Repository, onChange: OnChange): Promise<void> {
+  const now = Date.now();
+  const liveTabs = await chrome.tabs.query({});
+  const liveById = new Map<number, chrome.tabs.Tab>();
+  for (const t of liveTabs) if (t.id != null) liveById.set(t.id, t);
+
+  const { tabs: records } = await repo.getSnapshot();
+  const recordByChromeId = new Map<number, string>();
+  for (const r of records) if (r.chromeTabId != null) recordByChromeId.set(r.chromeTabId, r.id);
+
+  // 1) 活跃记录对应的 chrome 标签已不存在 → 休眠期被关闭,删记录
+  for (const r of records) {
+    if (r.chromeTabId != null && !liveById.has(r.chromeTabId)) {
+      await repo.removeTab(r.id);
+    }
+  }
+  // 2) chrome 中存在但无记录的标签 → 休眠期新开,补建(按分组归属)
+  for (const [chromeId, tab] of liveById) {
+    if (!recordByChromeId.has(chromeId) && isTrackable(tab)) {
+      await repo.addTab(
+        {
+          chromeTabId: chromeId,
+          windowId: tab.windowId,
+          contextId: await contextIdForGroup(repo, tab.groupId),
+          url: tab.url || tab.pendingUrl || '',
+          title: tabTitle(tab),
+          faviconUrl: tab.favIconUrl,
+          firstOpenedAt: now,
+          lastActiveAt: now,
+        },
+        now,
+      );
+    }
+  }
+  onChange();
+}
