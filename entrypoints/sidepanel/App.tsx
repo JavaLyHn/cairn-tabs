@@ -9,6 +9,7 @@ import { ContextGroup } from './components/ContextGroup';
 import { SearchOverlay } from './components/SearchOverlay';
 import { UndoToast } from './components/UndoToast';
 import { PortBindSuggestions } from './components/PortBindSuggestions';
+import { EmptyState } from './components/EmptyState';
 
 export default function App() {
   const contexts = usePanelStore((s) => s.contexts);
@@ -91,6 +92,8 @@ export default function App() {
 
   const openTabCount = tabs.filter((t) => t.chromeTabId != null).length;
   const archivedTabCount = archivedContexts.reduce((n, c) => n + c.tabOrder.length, 0);
+  // 完全空:无标签、无命名簇、无归档 → 展示空状态插画
+  const isEmpty = tabs.length === 0 && activeContexts.length === 0 && archivedContexts.length === 0;
   const duplicateIds = useMemo(() => redundantIds(tabs), [tabs]);
   const portMap = useMemo(() => buildPortMap(portMappings), [portMappings]);
   // 打开中、未绑定、未忽略的 localhost 端口 → 建议绑定(每端口取首个标签标题做建议名)
@@ -224,11 +227,12 @@ export default function App() {
 
       {/* 主列表 */}
       <div className="flex-1 overflow-y-auto px-1.5 py-2">
+        {isEmpty && <EmptyState onNew={createContext} />}
         {activeContexts.map((c) => (
           <ContextGroup key={c.id} variant="active" {...groupProps(c)} />
         ))}
 
-        {inbox && <ContextGroup key={inbox.id} variant="inbox" {...groupProps(inbox)} />}
+        {!isEmpty && inbox && <ContextGroup key={inbox.id} variant="inbox" {...groupProps(inbox)} />}
 
         {archivedContexts.length > 0 && (
           <div className="mt-3 pt-2 border-t border-black/10 dark:border-white/10">
