@@ -5,7 +5,7 @@ import type { SearchIndex } from '../search';
 import type { UndoManager } from './undo';
 import { pauseSync, resumeSync } from './sync-lock';
 import { ensureTabInContextGroup, groupRestoredTabs, syncGroupTitle } from './group-sync';
-import type { Command, Event } from '@/shared/messaging';
+import { DRAFT_CONTEXT_NAME, type Command, type Event } from '@/shared/messaging';
 import { INBOX_ID } from '@/shared/types';
 import { findDuplicateGroups } from '@/shared/dedup';
 
@@ -26,10 +26,16 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
   const now = Date.now();
 
   switch (cmd.type) {
-    case 'CREATE_CONTEXT':
-      await repo.createContext(cmd.name, now);
+    case 'CREATE_CONTEXT': {
+      const name = cmd.name.trim() || DRAFT_CONTEXT_NAME;
+      // 至多一个同名草稿:已存在则复用,不重复生成
+      const { contexts } = await repo.getSnapshot();
+      const existing = contexts.find((c) => c.origin === 'manual' && c.name === name);
+      if (existing) return { type: 'CONTEXT_CREATED', contextId: existing.id };
+      const ctx = await repo.createContext(name, now);
       onChange();
-      return;
+      return { type: 'CONTEXT_CREATED', contextId: ctx.id };
+    }
 
     case 'RENAME_CONTEXT': {
       const trimmed = cmd.name.trim();

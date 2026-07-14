@@ -21,7 +21,11 @@ export type Event =
   | { type: 'STATE_SNAPSHOT'; contexts: Context[]; tabs: TabRecord[] }
   | { type: 'SEARCH_RESULTS'; query: string; results: SearchResult[] }
   | { type: 'UNDOABLE'; action: string; token: string; ttlMs: number }
+  | { type: 'CONTEXT_CREATED'; contextId: string }
   | { type: 'OPEN_SEARCH' };
+
+/** 新建上下文时的默认草稿名(用于「至多一个草稿」去重) */
+export const DRAFT_CONTEXT_NAME = '新任务';
 
 /** SW 用于识别「这是命令而非广播事件」的类型集合。 */
 export const COMMAND_TYPES = new Set<Command['type']>([

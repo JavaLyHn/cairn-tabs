@@ -88,6 +88,29 @@ describe('archive → restore 全链路(回归:不产生未分类幻影)', () =>
   });
 });
 
+describe('CREATE_CONTEXT 草稿去重', () => {
+  it('重复点新建不会生成多个「新任务」,返回同一 id', async () => {
+    const e1 = await handleCommand({ type: 'CREATE_CONTEXT', name: '新任务' }, ctx);
+    const e2 = await handleCommand({ type: 'CREATE_CONTEXT', name: '新任务' }, ctx);
+    expect(e1?.type).toBe('CONTEXT_CREATED');
+    expect(e2?.type).toBe('CONTEXT_CREATED');
+    expect(e1).toEqual(e2); // 同一 contextId
+    const manual = (await snapshot()).contexts.filter((c) => c.id !== INBOX_ID);
+    expect(manual).toHaveLength(1);
+  });
+
+  it('改名后再点新建会生成新的草稿', async () => {
+    const e1 = (await handleCommand({ type: 'CREATE_CONTEXT', name: '新任务' }, ctx)) as {
+      contextId: string;
+    };
+    await handleCommand({ type: 'RENAME_CONTEXT', contextId: e1.contextId, name: 'bug-1' }, ctx);
+    await handleCommand({ type: 'CREATE_CONTEXT', name: '新任务' }, ctx);
+    const manual = (await snapshot()).contexts.filter((c) => c.id !== INBOX_ID);
+    expect(manual).toHaveLength(2);
+    expect(manual.filter((c) => c.name === '新任务')).toHaveLength(1);
+  });
+});
+
 describe('MERGE_DUPLICATES(F-05)', () => {
   it('关闭冗余标签、每组保留最近活跃的,记录同步清除', async () => {
     await fake.userOpenTab('https://x.com/a', { title: 'A#1' });

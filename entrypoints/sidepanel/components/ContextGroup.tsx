@@ -9,6 +9,9 @@ interface Props {
   tabs: TabRecord[]; // 已按 tabOrder 排好
   variant: 'active' | 'inbox' | 'archived';
   duplicateIds: Set<string>;
+  editing: boolean;
+  onStartEdit: () => void;
+  onEndEdit: () => void;
   onArchive: () => void;
   onRestore: () => void;
   onRename: (name: string) => void;
@@ -23,6 +26,9 @@ export function ContextGroup({
   tabs,
   variant,
   duplicateIds,
+  editing,
+  onStartEdit,
+  onEndEdit,
   onArchive,
   onRestore,
   onRename,
@@ -32,7 +38,6 @@ export function ContextGroup({
   onCloseTab,
 }: Props) {
   const [collapsed, setCollapsed] = useState(variant === 'archived');
-  const [editing, setEditing] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
   const isInbox = context.id === INBOX_ID;
@@ -84,20 +89,22 @@ export function ContextGroup({
           <input
             autoFocus
             defaultValue={context.name}
+            onFocus={(e) => e.target.select()}
             onBlur={(e) => {
               onRename(e.target.value);
-              setEditing(false);
+              onEndEdit();
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-              if (e.key === 'Escape') setEditing(false);
+              if (e.key === 'Escape') onEndEdit();
             }}
             className="flex-1 bg-transparent outline-none border-b border-accent"
           />
         ) : (
           <span
             className={`flex-1 truncate font-medium ${variant === 'archived' ? 'opacity-60' : ''}`}
-            onDoubleClick={() => !isInbox && setEditing(true)}
+            onDoubleClick={() => !isInbox && onStartEdit()}
+            title={isInbox ? undefined : '双击改名'}
           >
             {context.name}
           </span>
@@ -126,6 +133,15 @@ export function ContextGroup({
             </>
           ) : (
             <>
+              {!isInbox && (
+                <button
+                  onClick={onStartEdit}
+                  className="text-[11px] opacity-60 hover:opacity-100"
+                  title="改名"
+                >
+                  改名
+                </button>
+              )}
               {!isInbox && (
                 <button
                   onClick={onArchive}

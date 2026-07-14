@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { INBOX_ID, type Context, type TabRecord } from '@/shared/types';
 import type { Event } from '@/shared/messaging';
 import { redundantIds } from '@/shared/dedup';
@@ -18,6 +18,9 @@ export default function App() {
   const clearUndo = usePanelStore((s) => s.clearUndo);
   const openSearch = usePanelStore((s) => s.openSearch);
   const closeSearch = usePanelStore((s) => s.closeSearch);
+
+  // 正在改名的簇 id(受控:新建后自动进入、双击或点「改名」进入)
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // 订阅 SW 广播 + 首屏拉取 + ⌘⇧K 挂载态
   useEffect(() => {
@@ -83,7 +86,11 @@ export default function App() {
     dispatch({ type: 'MOVE_TAB', tabRecordId, toContextId });
   const activate = (tabRecordId: string) => dispatch({ type: 'ACTIVATE_TAB', tabRecordId });
   const closeTab = (tabRecordId: string) => dispatch({ type: 'CLOSE_TAB', tabRecordId });
-  const createContext = () => dispatch({ type: 'CREATE_CONTEXT', name: '新任务' });
+  const createContext = async () => {
+    // 至多一个「新任务」草稿:SW 复用已存在的,返回其 id;新建后直接进入改名
+    const ev = await dispatch({ type: 'CREATE_CONTEXT', name: '新任务' });
+    if (ev?.type === 'CONTEXT_CREATED') setEditingId(ev.contextId);
+  };
   const mergeDuplicates = () => dispatch({ type: 'MERGE_DUPLICATES' });
   const doUndo = async () => {
     if (undo) await dispatch({ type: 'UNDO', token: undo.token });
@@ -94,6 +101,9 @@ export default function App() {
     context: ctx,
     tabs: tabsOf(ctx),
     duplicateIds,
+    editing: editingId === ctx.id,
+    onStartEdit: () => setEditingId(ctx.id),
+    onEndEdit: () => setEditingId((cur) => (cur === ctx.id ? null : cur)),
     onArchive: () => archive(ctx.id),
     onRestore: () => restore(ctx.id),
     onRename: (name: string) => rename(ctx.id, name),
