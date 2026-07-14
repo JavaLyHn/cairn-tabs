@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { DEFAULT_FLAGS, type Context, type TabRecord, type PortMapping, type Flags } from '@/shared/types';
 import type { Command, Event } from '@/shared/messaging';
+import type { AIStatus } from '@/shared/ai';
 
 interface UndoState {
   action: string;
@@ -14,6 +15,7 @@ interface PanelState {
   portMappings: PortMapping[];
   flags: Flags;
   discardedBytes: number;
+  ai: AIStatus;
   undo: UndoState | null;
   searchOpen: boolean;
 
@@ -23,6 +25,7 @@ interface PanelState {
     portMappings: PortMapping[],
     flags: Flags,
     discardedBytes: number,
+    ai: AIStatus,
   ) => void;
   setUndo: (u: UndoState) => void;
   clearUndo: () => void;
@@ -36,11 +39,12 @@ export const usePanelStore = create<PanelState>((set) => ({
   portMappings: [],
   flags: DEFAULT_FLAGS,
   discardedBytes: 0,
+  ai: { provider: 'anthropic', hasKey: false, model: 'claude-haiku-4-5' },
   undo: null,
   searchOpen: false,
 
-  applySnapshot: (contexts, tabs, portMappings, flags, discardedBytes) =>
-    set({ contexts, tabs, portMappings, flags, discardedBytes }),
+  applySnapshot: (contexts, tabs, portMappings, flags, discardedBytes, ai) =>
+    set({ contexts, tabs, portMappings, flags, discardedBytes, ai }),
   setUndo: (undo) => set({ undo }),
   clearUndo: () => set({ undo: null }),
   openSearch: () => set({ searchOpen: true }),

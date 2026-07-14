@@ -2,6 +2,7 @@
 // UI 只发 Command;SW 是唯一写入方,处理后广播 Event。
 
 import type { Context, TabRecord, SearchResult, PortMapping, Flags } from './types';
+import type { AIPlan, AIStatus, AIProviderId, AIErrorReason } from './ai';
 
 export type Command =
   | { type: 'CREATE_CONTEXT'; name: string }
@@ -23,7 +24,10 @@ export type Command =
   | { type: 'ACTIVATE_TAB'; tabRecordId: string }
   | { type: 'CLOSE_TAB'; tabRecordId: string }
   | { type: 'REQUEST_SNAPSHOT' }
-  | { type: 'SEARCH'; query: string };
+  | { type: 'SEARCH'; query: string }
+  | { type: 'AI_ORGANIZE_INBOX' }
+  | { type: 'APPLY_AI_PLAN'; plan: AIPlan }
+  | { type: 'SET_AI_SETTINGS'; provider: AIProviderId; key?: string; model?: string };
 
 export type Event =
   | {
@@ -33,11 +37,14 @@ export type Event =
       portMappings: PortMapping[];
       flags: Flags;
       discardedBytes: number;
+      ai: AIStatus;
     }
   | { type: 'SEARCH_RESULTS'; query: string; results: SearchResult[] }
   | { type: 'UNDOABLE'; action: string; token: string; ttlMs: number }
   | { type: 'CONTEXT_CREATED'; contextId: string }
-  | { type: 'OPEN_SEARCH' };
+  | { type: 'OPEN_SEARCH' }
+  | { type: 'AI_PLAN'; plan: AIPlan; tabs: TabRecord[] }
+  | { type: 'AI_ERROR'; reason: AIErrorReason };
 
 /** 新建上下文时的默认草稿名(用于「至多一个草稿」去重) */
 export const DRAFT_CONTEXT_NAME = '新任务';
@@ -64,6 +71,9 @@ export const COMMAND_TYPES = new Set<Command['type']>([
   'CLOSE_TAB',
   'REQUEST_SNAPSHOT',
   'SEARCH',
+  'AI_ORGANIZE_INBOX',
+  'APPLY_AI_PLAN',
+  'SET_AI_SETTINGS',
 ]);
 
 /** UI → SW:发送命令,await 到 SW 处理完成 */

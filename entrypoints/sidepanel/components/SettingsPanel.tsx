@@ -1,11 +1,15 @@
+import { useState } from 'react';
 import type { Flags } from '@/shared/types';
+import type { AIProviderId, AIStatus } from '@/shared/ai';
 
 interface Props {
   flags: Flags;
+  ai: AIStatus;
   onToggleAutoCluster: (enabled: boolean) => void;
   onToggleStaleHints: (enabled: boolean) => void;
   onToggleAutoDiscard: (enabled: boolean) => void;
   onToggleDiscardSkipsLocalhost: (enabled: boolean) => void;
+  onSaveAi: (provider: AIProviderId, key: string, model: string) => Promise<void>;
   onExportAll: () => void;
   onClose: () => void;
 }
@@ -53,10 +57,12 @@ function ToggleRow({
 
 export function SettingsPanel({
   flags,
+  ai,
   onToggleAutoCluster,
   onToggleStaleHints,
   onToggleAutoDiscard,
   onToggleDiscardSkipsLocalhost,
+  onSaveAi,
   onExportAll,
   onClose,
 }: Props) {
@@ -107,6 +113,10 @@ export function SettingsPanel({
         </div>
 
         <div className="border-t border-black/10 dark:border-white/10">
+          <AISection ai={ai} onSave={onSaveAi} />
+        </div>
+
+        <div className="border-t border-black/10 dark:border-white/10">
           <button
             onClick={onExportAll}
             className="w-full text-left px-3 py-2.5 hover:bg-black/5 dark:hover:bg-white/5"
@@ -117,6 +127,81 @@ export function SettingsPanel({
             </div>
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function AISection({
+  ai,
+  onSave,
+}: {
+  ai: AIStatus;
+  onSave: (provider: AIProviderId, key: string, model: string) => Promise<void>;
+}) {
+  const [provider, setProvider] = useState<AIProviderId>(ai.provider);
+  const [key, setKey] = useState('');
+  const [model, setModel] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const save = async () => {
+    setSaving(true);
+    setMsg('');
+    try {
+      await onSave(provider, key, model);
+      setKey('');
+      setMsg('已保存');
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : '保存失败');
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="px-3 py-2.5">
+      <div className="text-[12.5px] mb-1">AI 整理(BYO Key)</div>
+      <div className="text-[11px] opacity-50 leading-snug mb-2">
+        默认关闭。开启后仅把标签标题+域名+任务名发给你选的服务商,用你的 key 直连,绝不发完整网址/页面内容。
+        {ai.hasKey && <span className="text-accent"> 当前:{ai.provider} 已配置。</span>}
+      </div>
+      <div className="flex gap-1 mb-1.5">
+        {(['anthropic', 'openai'] as AIProviderId[]).map((p) => (
+          <button
+            key={p}
+            onClick={() => setProvider(p)}
+            className={`px-2 py-0.5 rounded text-[12px] ${
+              provider === p ? 'bg-accent/15 text-accent' : 'opacity-60 hover:opacity-100'
+            }`}
+          >
+            {p === 'anthropic' ? 'Anthropic' : 'OpenAI'}
+          </button>
+        ))}
+      </div>
+      <input
+        type="password"
+        value={key}
+        onChange={(e) => setKey(e.target.value)}
+        placeholder={`${provider} API key`}
+        className="w-full mb-1.5 px-2 py-1 text-[12px] rounded border border-black/15 dark:border-white/15
+                   bg-transparent outline-none focus:border-accent"
+      />
+      <input
+        value={model}
+        onChange={(e) => setModel(e.target.value)}
+        placeholder="模型(留空用默认)"
+        className="w-full mb-1.5 px-2 py-1 text-[12px] rounded border border-black/15 dark:border-white/15
+                   bg-transparent outline-none focus:border-accent font-mono"
+      />
+      <div className="flex items-center gap-2">
+        <button
+          onClick={save}
+          disabled={saving || !key.trim()}
+          className="px-2.5 py-1 rounded-md text-[12px] bg-accent text-white hover:opacity-90 disabled:opacity-40"
+        >
+          保存并启用
+        </button>
+        {msg && <span className="text-[11px] opacity-60">{msg}</span>}
       </div>
     </div>
   );

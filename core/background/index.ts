@@ -7,7 +7,8 @@ import { registerTabListeners, reconcile } from './tab-sync';
 import { registerGroupListeners, reconcileGroups } from './group-sync';
 import { handleCommand, type CommandContext } from './commands';
 import { PenaltyStore } from './penalties';
-import { PortMappingStore, FlagsStore, MemoryStore } from './settings';
+import { PortMappingStore, FlagsStore, MemoryStore, AISettingsStore } from './settings';
+import { PROVIDERS } from '../ai/provider';
 import { runDiscardScan } from './discard-scan';
 import { COMMAND_TYPES, type Command } from '@/shared/messaging';
 
@@ -17,6 +18,7 @@ const penalties = new PenaltyStore();
 const portMappings = new PortMappingStore();
 const flags = new FlagsStore();
 const memory = new MemoryStore();
+const aiSettings = new AISettingsStore();
 
 const DISCARD_ALARM = 'discard-scan';
 
@@ -32,6 +34,7 @@ async function broadcast(): Promise<void> {
       portMappings: portMappings.get(),
       flags: flags.get(),
       discardedBytes: memory.get(),
+      ai: aiSettings.status(),
     })
     .catch(() => {});
 }
@@ -80,6 +83,24 @@ const cmdCtx: CommandContext = {
   onAutoDiscardChanged: (enabled) => {
     ensureDiscardAlarm(enabled);
     if (enabled) runScanNow(); // 立即扫一轮,不必等第一个 5 分钟周期
+  },
+  ai: {
+    status: () => aiSettings.status(),
+    configured: () => aiSettings.configured(),
+    complete: (system, user) => {
+      const p = aiSettings.provider();
+      const key = aiSettings.keyFor();
+      if (!key) return Promise.reject(new Error('no key'));
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 30_000);
+      return PROVIDERS[p]
+        .complete(
+          { system, user, model: aiSettings.effectiveModel(), maxTokens: 1024, signal: ctrl.signal },
+          key,
+        )
+        .finally(() => clearTimeout(timer));
+    },
+    set: (provider, key, model) => aiSettings.set(provider, key, model),
   },
 };
 
@@ -147,6 +168,7 @@ async function hydrate(): Promise<void> {
   await portMappings.load();
   await flags.load();
   await memory.load();
+  await aiSettings.load();
   ensureDiscardAlarm(flags.get().autoDiscard); // 按持久化的开关恢复扫描
   await reconcile(repository, scheduleBroadcast);
   await reconcileGroups(repository, scheduleBroadcast);

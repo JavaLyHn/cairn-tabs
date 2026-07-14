@@ -23,6 +23,8 @@ interface Props {
   onDropTab: (tabRecordId: string) => void;
   onActivateTab: (tabRecordId: string) => void;
   onCloseTab: (tabRecordId: string) => void;
+  aiEnabled?: boolean;
+  onAiOrganize?: () => void;
 }
 
 export function ContextGroup({
@@ -44,6 +46,8 @@ export function ContextGroup({
   onDropTab,
   onActivateTab,
   onCloseTab,
+  aiEnabled,
+  onAiOrganize,
 }: Props) {
   const [collapsed, setCollapsed] = useState(variant === 'archived');
   const [dragOver, setDragOver] = useState(false);
@@ -166,6 +170,15 @@ export function ContextGroup({
             </>
           ) : (
             <>
+              {isInbox && aiEnabled && tabs.length > 0 && (
+                <button
+                  onClick={onAiOrganize}
+                  className="text-[11px] text-accent hover:underline"
+                  title="用 AI 把零散标签分组"
+                >
+                  ✦ AI 整理
+                </button>
+              )}
               {isInbox && tabs.length > 0 && (
                 <button
                   onClick={onArchiveAll}
