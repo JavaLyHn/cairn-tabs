@@ -121,6 +121,11 @@ export function registerTabListeners(
       });
       onChange();
     }
+    // 挂起状态变化(我方扫描或 Chrome 自身内存回收都会触发)→ 回填 discarded
+    if (changeInfo.discarded !== undefined) {
+      await repo.updateTab(record.id, { discarded: changeInfo.discarded });
+      onChange();
+    }
   });
 
   chrome.tabs.onActivated.addListener(async (info) => {

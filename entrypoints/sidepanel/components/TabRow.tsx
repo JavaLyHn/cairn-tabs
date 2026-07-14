@@ -24,15 +24,27 @@ interface Props {
   tab: TabRecord;
   dupState?: 'keeper' | 'redundant';
   portMap: Record<number, string>;
+  ageLabel?: string; // 陈旧簇里显示「N 天前」
   onActivate: () => void;
   onClose: () => void;
 }
 
-export function TabRow({ tab, dupState, portMap, onActivate, onClose }: Props) {
+// 休眠(已挂起)标记
+function MoonIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0">
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  );
+}
+
+export function TabRow({ tab, dupState, portMap, ageLabel, onActivate, onClose }: Props) {
   const port = localhostPort(tab.url);
   const project = port != null ? projectFor(tab.url, portMap) : null;
   const gh = project == null ? parseGitHub(tab.url) : null; // localhost 优先,其余尝试 GitHub
   const displayTitle = project ?? (gh ? cleanGitHubTitle(tab.title, gh) : tab.title);
+  const asleep = tab.discarded === true;
   return (
     <div
       draggable
@@ -43,14 +55,23 @@ export function TabRow({ tab, dupState, portMap, onActivate, onClose }: Props) {
       onClick={onActivate}
       className="group/row flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer
                  hover:bg-black/5 dark:hover:bg-white/5 select-none"
-      title={tab.url}
+      title={asleep ? `已休眠 · 点击重新加载\n${tab.url}` : tab.url}
     >
       {tab.faviconUrl ? (
-        <img src={tab.faviconUrl} alt="" className="w-4 h-4 shrink-0" />
+        <img src={tab.faviconUrl} alt="" className={`w-4 h-4 shrink-0 ${asleep ? 'grayscale opacity-50' : ''}`} />
       ) : (
         <div className="w-4 h-4 shrink-0 rounded-sm bg-black/10 dark:bg-white/10" />
       )}
-      <span className="flex-1 truncate">{displayTitle}</span>
+      <span className={`flex-1 truncate ${asleep ? 'opacity-55' : ''}`}>{displayTitle}</span>
+      {asleep && (
+        <span
+          className="shrink-0 inline-flex items-center gap-1 font-mono text-[10.5px] opacity-45"
+          title="已休眠 · 点击重新加载"
+        >
+          <MoonIcon />
+          休眠
+        </span>
+      )}
       {gh && (
         <span
           className="shrink-0 inline-flex items-center gap-1 font-mono text-[11px]
@@ -81,6 +102,9 @@ export function TabRow({ tab, dupState, portMap, onActivate, onClose }: Props) {
         >
           重复·留
         </span>
+      )}
+      {ageLabel && (
+        <span className="font-mono text-[11px] opacity-40 shrink-0">{ageLabel}</span>
       )}
       <span className="hidden group-hover/row:inline font-mono text-[11px] opacity-40 shrink-0">
         {gh ? repoSlug(gh) : hostname(tab.url)}

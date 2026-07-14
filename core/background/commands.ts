@@ -6,8 +6,9 @@ import type { UndoManager } from './undo';
 import { pauseSync, resumeSync } from './sync-lock';
 import { ensureTabInContextGroup, groupTabsForContext, syncGroupTitle } from './group-sync';
 import { DRAFT_CONTEXT_NAME, type Command, type Event } from '@/shared/messaging';
-import { INBOX_ID, type TabRecord } from '@/shared/types';
+import { INBOX_ID, DEFAULT_FLAGS, type Flags, type TabRecord } from '@/shared/types';
 import { findDuplicateGroups } from '@/shared/dedup';
+import { staleTabs } from '@/shared/stale';
 
 export interface CommandContext {
   repo: Repository;
@@ -23,8 +24,11 @@ export interface CommandContext {
   };
   /** 功能开关读写;测试中可省略。 */
   flags?: {
-    setAutoCluster: (enabled: boolean) => Promise<void>;
+    get: () => Flags;
+    patch: (partial: Partial<Flags>) => Promise<void>;
   };
+  /** 自动挂起开关变化时的副作用(注册/取消 alarm);测试中可省略。 */
+  onAutoDiscardChanged?: (enabled: boolean) => void;
 }
 
 const RESTORE_STAGGER_MS = 50;
@@ -32,11 +36,11 @@ const UNDO_TTL_MS = 5000;
 
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-/** 「暂存 · MM-DD HH:mm」—— 未分类整批收纳时的默认任务名。 */
-function stashName(now: number): string {
+/** 「{前缀} · MM-DD HH:mm」—— 整批收纳时的默认任务名。 */
+function stampedName(prefix: string, now: number): string {
   const d = new Date(now);
   const p = (n: number) => String(n).padStart(2, '0');
-  return `暂存 · ${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  return `${prefix} · ${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 /**
@@ -130,10 +134,24 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       // 移入一个新「暂存」任务再归档,未分类清空但仍保留。
       const inbox = await repo.getContext(INBOX_ID);
       if (!inbox || inbox.tabOrder.length === 0) return;
-      const ctx = await repo.createContext(stashName(now), now);
+      const ctx = await repo.createContext(stampedName('暂存', now), now);
       for (const tabId of [...inbox.tabOrder]) {
         await repo.moveTab(tabId, ctx.id, now);
       }
+      await archiveAndClose(ctx.id, repo, now);
+      onChange();
+      const { token, ttlMs } = undo.register('archive', ctx.id, UNDO_TTL_MS);
+      return { type: 'UNDOABLE', action: 'archive', token, ttlMs };
+    }
+
+    case 'ARCHIVE_STALE': {
+      // 把所有陈旧标签(超过 staleDays 未访问)移入一个「陈旧」暂存任务再整批收纳。
+      const { tabs } = await repo.getSnapshot();
+      const staleDays = (flags?.get() ?? DEFAULT_FLAGS).staleDays;
+      const stale = staleTabs(tabs, now, staleDays);
+      if (stale.length === 0) return;
+      const ctx = await repo.createContext(stampedName('陈旧', now), now);
+      for (const t of stale) await repo.moveTab(t.id, ctx.id, now);
       await archiveAndClose(ctx.id, repo, now);
       onChange();
       const { token, ttlMs } = undo.register('archive', ctx.id, UNDO_TTL_MS);
@@ -200,7 +218,23 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       return;
 
     case 'SET_AUTO_CLUSTER':
-      await flags?.setAutoCluster(cmd.enabled);
+      await flags?.patch({ autoCluster: cmd.enabled });
+      onChange();
+      return;
+
+    case 'SET_STALE_HINTS':
+      await flags?.patch({ staleHints: cmd.enabled });
+      onChange();
+      return;
+
+    case 'SET_AUTO_DISCARD':
+      await flags?.patch({ autoDiscard: cmd.enabled });
+      ctx.onAutoDiscardChanged?.(cmd.enabled); // 注册/取消挂起扫描 alarm
+      onChange();
+      return;
+
+    case 'SET_DISCARD_SKIP_LOCALHOST':
+      await flags?.patch({ discardSkipsLocalhost: cmd.enabled });
       onChange();
       return;
 

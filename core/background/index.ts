@@ -7,7 +7,8 @@ import { registerTabListeners, reconcile } from './tab-sync';
 import { registerGroupListeners, reconcileGroups } from './group-sync';
 import { handleCommand, type CommandContext } from './commands';
 import { PenaltyStore } from './penalties';
-import { PortMappingStore, FlagsStore } from './settings';
+import { PortMappingStore, FlagsStore, MemoryStore } from './settings';
+import { runDiscardScan } from './discard-scan';
 import { COMMAND_TYPES, type Command } from '@/shared/messaging';
 
 const search = new SearchIndex();
@@ -15,6 +16,9 @@ const undo = new UndoManager();
 const penalties = new PenaltyStore();
 const portMappings = new PortMappingStore();
 const flags = new FlagsStore();
+const memory = new MemoryStore();
+
+const DISCARD_ALARM = 'discard-scan';
 
 /** 读快照 → 重建搜索索引 → 广播 STATE_SNAPSHOT(侧边栏关闭时 sendMessage 失败,忽略)。 */
 async function broadcast(): Promise<void> {
@@ -26,9 +30,27 @@ async function broadcast(): Promise<void> {
       contexts,
       tabs,
       portMappings: portMappings.get(),
-      autoCluster: flags.autoCluster(),
+      flags: flags.get(),
+      discardedBytes: memory.get(),
     })
     .catch(() => {});
+}
+
+/** 挂起扫描 alarm:仅在自动挂起开启时注册,关闭时取消(默认关 → 零后台开销)。 */
+function ensureDiscardAlarm(enabled: boolean): void {
+  if (!chrome.alarms) return;
+  if (enabled) chrome.alarms.create(DISCARD_ALARM, { periodInMinutes: 5 });
+  else chrome.alarms.clear(DISCARD_ALARM).catch(() => {});
+}
+
+function runScanNow(): void {
+  const f = flags.get();
+  void runDiscardScan(
+    repository,
+    { discardAfterMinutes: f.discardAfterMinutes, skipLocalhost: f.discardSkipsLocalhost },
+    (bytes) => memory.add(bytes),
+    scheduleBroadcast,
+  );
 }
 
 let broadcastPending = false;
@@ -52,7 +74,12 @@ const cmdCtx: CommandContext = {
     remove: (port) => portMappings.remove(port),
   },
   flags: {
-    setAutoCluster: (enabled) => flags.setAutoCluster(enabled),
+    get: () => flags.get(),
+    patch: (partial) => flags.patch(partial),
+  },
+  onAutoDiscardChanged: (enabled) => {
+    ensureDiscardAlarm(enabled);
+    if (enabled) runScanNow(); // 立即扫一轮,不必等第一个 5 分钟周期
   },
 };
 
@@ -99,10 +126,15 @@ export function initBackground(): void {
     repository,
     scheduleBroadcast,
     () => penalties.get(),
-    () => flags.autoCluster(),
+    () => flags.get().autoCluster,
   );
   // 原生分组事件 → DB(双向同步入站)
   registerGroupListeners(repository, scheduleBroadcast);
+
+  // 挂起扫描 alarm(F-11)
+  chrome.alarms?.onAlarm.addListener((a) => {
+    if (a.name === DISCARD_ALARM) runScanNow();
+  });
 
   // hydrate:重建内存态并与真实标签对账(补偿 SW 休眠丢失的事件)
   void hydrate();
@@ -114,6 +146,8 @@ async function hydrate(): Promise<void> {
   await penalties.load();
   await portMappings.load();
   await flags.load();
+  await memory.load();
+  ensureDiscardAlarm(flags.get().autoDiscard); // 按持久化的开关恢复扫描
   await reconcile(repository, scheduleBroadcast);
   await reconcileGroups(repository, scheduleBroadcast);
   await broadcast();

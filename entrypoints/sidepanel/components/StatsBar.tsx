@@ -1,11 +1,12 @@
 interface Props {
   openTabs: number;
   activeContexts: number;
+  stale: number;
   redundant: number;
   onMerge: () => void;
 }
 
-export function StatsBar({ openTabs, activeContexts, redundant, onMerge }: Props) {
+export function StatsBar({ openTabs, activeContexts, stale, redundant, onMerge }: Props) {
   return (
     <div className="flex items-center gap-4 px-3 py-1.5 text-[11.5px] opacity-60 hairline border-b border-black/10 dark:border-white/10">
       <span>
@@ -14,6 +15,11 @@ export function StatsBar({ openTabs, activeContexts, redundant, onMerge }: Props
       <span>
         <span className="font-mono">{activeContexts}</span> 任务
       </span>
+      {stale > 0 && (
+        <span title="超过阈值天数未访问的标签(下沉到底部)">
+          <span className="font-mono">{stale}</span> 陈旧
+        </span>
+      )}
       {redundant > 0 && (
         <button
           onClick={onMerge}

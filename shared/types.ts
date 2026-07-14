@@ -53,6 +53,7 @@ export interface TabRecord {
   faviconUrl?: string;
   openerRecordId?: string; // 打开来源(构成任务树),聚簇 opener 信号用
   pinned?: boolean; // 人工移动过 → 引擎不再改动其归属
+  discarded?: boolean; // 是否已被挂起(内存释放,点击自动重载;F-11)
   firstOpenedAt: number;
   lastActiveAt: number;
 }
@@ -62,6 +63,25 @@ export interface PortMapping {
   port: number;
   project: string;
 }
+
+/** 功能开关与阈值(落 chrome.storage.local),随快照广播给 UI。 */
+export interface Flags {
+  autoCluster: boolean; // 自动聚簇(F-07)
+  staleHints: boolean; // 陈旧标签下沉提示(F-10)
+  autoDiscard: boolean; // 空闲自动挂起(F-11);默认关,尊重用户不喜欢后台自作主张
+  discardSkipsLocalhost: boolean; // localhost 永不挂起(护 dev server)
+  staleDays: number; // 超过多少天未访问算陈旧
+  discardAfterMinutes: number; // 空闲多少分钟后挂起
+}
+
+export const DEFAULT_FLAGS: Flags = {
+  autoCluster: true,
+  staleHints: true,
+  autoDiscard: false,
+  discardSkipsLocalhost: true,
+  staleDays: 7,
+  discardAfterMinutes: 30,
+};
 
 /** 搜索结果:一条命中的标签 + 其所属簇信息 */
 export interface SearchResult {

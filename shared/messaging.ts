@@ -1,7 +1,7 @@
 // 类型安全的消息协议(见设计文档 §6)
 // UI 只发 Command;SW 是唯一写入方,处理后广播 Event。
 
-import type { Context, TabRecord, SearchResult, PortMapping } from './types';
+import type { Context, TabRecord, SearchResult, PortMapping, Flags } from './types';
 
 export type Command =
   | { type: 'CREATE_CONTEXT'; name: string }
@@ -10,11 +10,15 @@ export type Command =
   | { type: 'MOVE_TAB'; tabRecordId: string; toContextId: string }
   | { type: 'ARCHIVE_CONTEXT'; contextId: string }
   | { type: 'ARCHIVE_INBOX' }
+  | { type: 'ARCHIVE_STALE' }
   | { type: 'RESTORE_CONTEXT'; contextId: string }
   | { type: 'MERGE_DUPLICATES' }
   | { type: 'SET_PORT_MAPPING'; port: number; project: string }
   | { type: 'REMOVE_PORT_MAPPING'; port: number }
   | { type: 'SET_AUTO_CLUSTER'; enabled: boolean }
+  | { type: 'SET_STALE_HINTS'; enabled: boolean }
+  | { type: 'SET_AUTO_DISCARD'; enabled: boolean }
+  | { type: 'SET_DISCARD_SKIP_LOCALHOST'; enabled: boolean }
   | { type: 'UNDO'; token: string }
   | { type: 'ACTIVATE_TAB'; tabRecordId: string }
   | { type: 'CLOSE_TAB'; tabRecordId: string }
@@ -27,7 +31,8 @@ export type Event =
       contexts: Context[];
       tabs: TabRecord[];
       portMappings: PortMapping[];
-      autoCluster: boolean;
+      flags: Flags;
+      discardedBytes: number;
     }
   | { type: 'SEARCH_RESULTS'; query: string; results: SearchResult[] }
   | { type: 'UNDOABLE'; action: string; token: string; ttlMs: number }
@@ -45,11 +50,15 @@ export const COMMAND_TYPES = new Set<Command['type']>([
   'MOVE_TAB',
   'ARCHIVE_CONTEXT',
   'ARCHIVE_INBOX',
+  'ARCHIVE_STALE',
   'RESTORE_CONTEXT',
   'MERGE_DUPLICATES',
   'SET_PORT_MAPPING',
   'REMOVE_PORT_MAPPING',
   'SET_AUTO_CLUSTER',
+  'SET_STALE_HINTS',
+  'SET_AUTO_DISCARD',
+  'SET_DISCARD_SKIP_LOCALHOST',
   'UNDO',
   'ACTIVATE_TAB',
   'CLOSE_TAB',

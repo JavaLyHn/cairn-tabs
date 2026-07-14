@@ -15,7 +15,7 @@ export default defineConfig({
   manifest: {
     name: 'Cairn Tabs',
     description: '面向程序员的标签页上下文管理器 (MVP 核心闭环)',
-    permissions: ['tabs', 'tabGroups', 'storage', 'sidePanel'],
+    permissions: ['tabs', 'tabGroups', 'storage', 'sidePanel', 'alarms'],
     // 工具栏图标(点击打开侧边栏);图标沿用 public/icon 下的 logo
     action: {
       default_icon: {

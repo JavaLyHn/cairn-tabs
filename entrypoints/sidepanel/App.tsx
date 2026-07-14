@@ -4,10 +4,13 @@ import { INBOX_ID, type Context, type TabRecord } from '@/shared/types';
 import type { Event } from '@/shared/messaging';
 import { duplicateMarks, redundantCount } from '@/shared/dedup';
 import { buildPortMap, localhostPort, suggestProjectName } from '@/shared/localhost';
+import { staleTabs } from '@/shared/stale';
+import { formatReclaimed } from '@/shared/discard';
 import { exportAllJSON } from '@/shared/export';
 import { usePanelStore, dispatch } from './store';
 import { StatsBar } from './components/StatsBar';
 import { ContextGroup } from './components/ContextGroup';
+import { StaleGroup } from './components/StaleGroup';
 import { SearchOverlay } from './components/SearchOverlay';
 import { UndoToast } from './components/UndoToast';
 import { PortBindSuggestions } from './components/PortBindSuggestions';
@@ -32,7 +35,8 @@ export default function App() {
   const contexts = usePanelStore((s) => s.contexts);
   const tabs = usePanelStore((s) => s.tabs);
   const portMappings = usePanelStore((s) => s.portMappings);
-  const autoCluster = usePanelStore((s) => s.autoCluster);
+  const flags = usePanelStore((s) => s.flags);
+  const discardedBytes = usePanelStore((s) => s.discardedBytes);
   const undo = usePanelStore((s) => s.undo);
   const searchOpen = usePanelStore((s) => s.searchOpen);
   const applySnapshot = usePanelStore((s) => s.applySnapshot);
@@ -66,7 +70,8 @@ export default function App() {
         const sig = activeOrderSig(ev.contexts);
         const orderChanged = activeOrderRef.current !== '' && sig !== activeOrderRef.current;
         activeOrderRef.current = sig;
-        const apply = () => applySnapshot(ev.contexts, ev.tabs, ev.portMappings, ev.autoCluster);
+        const apply = () =>
+          applySnapshot(ev.contexts, ev.tabs, ev.portMappings, ev.flags, ev.discardedBytes);
         // 仅当任务顺序变化时播放视图过渡(任务被激活会上移到顶部),让重排平滑
         const startVT = (document as Document & {
           startViewTransition?: (cb: () => void) => unknown;
@@ -120,8 +125,18 @@ export default function App() {
     return m;
   }, [tabs]);
 
+  const now = Date.now();
+  // 陈旧标签(开启提示时):从各任务里「抽出」集中到底部下沉簇,单处呈现避免重复
+  const staleRecords = useMemo(
+    () => (flags.staleHints ? staleTabs(tabs, now, flags.staleDays) : []),
+    [tabs, flags.staleHints, flags.staleDays, now],
+  );
+  const staleIds = useMemo(() => new Set(staleRecords.map((t) => t.id)), [staleRecords]);
+
   const tabsOf = (ctx: Context): TabRecord[] =>
-    ctx.tabOrder.map((id) => tabsById.get(id)).filter((t): t is TabRecord => t != null);
+    ctx.tabOrder
+      .map((id) => tabsById.get(id))
+      .filter((t): t is TabRecord => t != null && (ctx.status === 'archived' || !staleIds.has(t.id)));
 
   const inbox = contexts.find((c) => c.id === INBOX_ID);
   const activeContexts = contexts
@@ -204,6 +219,14 @@ export default function App() {
   };
   const ignorePort = (port: number) => setIgnoredPorts((s) => new Set(s).add(port));
   const toggleAutoCluster = (enabled: boolean) => dispatch({ type: 'SET_AUTO_CLUSTER', enabled });
+  const toggleStaleHints = (enabled: boolean) => dispatch({ type: 'SET_STALE_HINTS', enabled });
+  const toggleAutoDiscard = (enabled: boolean) => dispatch({ type: 'SET_AUTO_DISCARD', enabled });
+  const toggleDiscardSkipsLocalhost = (enabled: boolean) =>
+    dispatch({ type: 'SET_DISCARD_SKIP_LOCALHOST', enabled });
+  const archiveStale = async () => {
+    const ev = await dispatch({ type: 'ARCHIVE_STALE' });
+    if (ev?.type === 'UNDOABLE') setUndo({ action: ev.action, token: ev.token, ttlMs: ev.ttlMs });
+  };
 
   const exportAllData = () => {
     const json = exportAllJSON(contexts, tabs, Date.now());
@@ -302,6 +325,7 @@ export default function App() {
       <StatsBar
         openTabs={openTabCount}
         activeContexts={activeContexts.length}
+        stale={staleRecords.length}
         redundant={redundant}
         onMerge={mergeDuplicates}
       />
@@ -317,6 +341,17 @@ export default function App() {
 
         {!isEmpty && inbox && <ContextGroup key={inbox.id} variant="inbox" {...groupProps(inbox)} />}
 
+        {staleRecords.length > 0 && (
+          <StaleGroup
+            tabs={staleRecords}
+            portMap={portMap}
+            now={now}
+            onArchiveAll={archiveStale}
+            onActivateTab={activate}
+            onCloseTab={closeTab}
+          />
+        )}
+
         {archivedContexts.length > 0 && (
           <div className="mt-3 pt-2 border-t border-black/10 dark:border-white/10">
             <div className="px-2 pb-1 text-[11px] uppercase tracking-wide opacity-40">已归档</div>
@@ -327,10 +362,16 @@ export default function App() {
         )}
       </div>
 
-      {/* 底部状态栏 */}
+      {/* 底部状态栏:归档量 + 累计回收内存(F-11) */}
       <footer className="px-3 py-1.5 text-[11px] opacity-50 hairline border-t border-black/10 dark:border-white/10">
         归档 <span className="font-mono">{archivedContexts.length}</span> 任务 ·{' '}
         <span className="font-mono">{archivedTabCount}</span> 标签
+        {discardedBytes > 0 && (
+          <>
+            {' · '}回收 <span className="font-mono">{formatReclaimed(discardedBytes)}</span>
+            <span className="ml-1 opacity-70">估算</span>
+          </>
+        )}
       </footer>
 
       {undo && (
@@ -353,8 +394,11 @@ export default function App() {
 
       {settingsOpen && (
         <SettingsPanel
-          autoCluster={autoCluster}
+          flags={flags}
           onToggleAutoCluster={toggleAutoCluster}
+          onToggleStaleHints={toggleStaleHints}
+          onToggleAutoDiscard={toggleAutoDiscard}
+          onToggleDiscardSkipsLocalhost={toggleDiscardSkipsLocalhost}
           onExportAll={exportAllData}
           onClose={() => setSettingsOpen(false)}
         />

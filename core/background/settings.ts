@@ -1,17 +1,12 @@
-// 设置存储:localhost 端口映射等,落 chrome.storage.local(F-08,见 PRD §5.3)。
+// 设置存储:功能开关、端口映射、内存回收统计,落 chrome.storage.local(见 PRD §5.3)。
 
-import type { PortMapping } from '@/shared/types';
+import { DEFAULT_FLAGS, type Flags, type PortMapping } from '@/shared/types';
 
 const KEY = 'settings:portMappings';
 const FLAGS_KEY = 'settings:flags';
+const MEM_KEY = 'stats:discardedBytes';
 
-export interface Flags {
-  autoCluster: boolean;
-}
-
-const DEFAULT_FLAGS: Flags = { autoCluster: true };
-
-/** 功能开关(如自动聚簇),落 chrome.storage.local。 */
+/** 功能开关(自动聚簇 / 陈旧提示 / 自动挂起 等),落 chrome.storage.local。 */
 export class FlagsStore {
   private data: Flags = { ...DEFAULT_FLAGS };
 
@@ -28,14 +23,38 @@ export class FlagsStore {
     return this.data;
   }
 
-  autoCluster(): boolean {
-    return this.data.autoCluster;
-  }
-
-  async setAutoCluster(enabled: boolean): Promise<void> {
-    this.data = { ...this.data, autoCluster: enabled };
+  async patch(partial: Partial<Flags>): Promise<void> {
+    this.data = { ...this.data, ...partial };
     try {
       await chrome.storage.local.set({ [FLAGS_KEY]: this.data });
+    } catch {
+      /* 忽略写入失败 */
+    }
+  }
+}
+
+/** 累计估算回收内存(F-11),落 chrome.storage.local。 */
+export class MemoryStore {
+  private bytes = 0;
+
+  async load(): Promise<void> {
+    try {
+      const r = await chrome.storage.local.get(MEM_KEY);
+      this.bytes = (r[MEM_KEY] as number) ?? 0;
+    } catch {
+      this.bytes = 0;
+    }
+  }
+
+  get(): number {
+    return this.bytes;
+  }
+
+  async add(delta: number): Promise<void> {
+    if (delta <= 0) return;
+    this.bytes += delta;
+    try {
+      await chrome.storage.local.set({ [MEM_KEY]: this.bytes });
     } catch {
       /* 忽略写入失败 */
     }

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Context, TabRecord, PortMapping } from '@/shared/types';
+import { DEFAULT_FLAGS, type Context, type TabRecord, type PortMapping, type Flags } from '@/shared/types';
 import type { Command, Event } from '@/shared/messaging';
 
 interface UndoState {
@@ -12,7 +12,8 @@ interface PanelState {
   contexts: Context[];
   tabs: TabRecord[];
   portMappings: PortMapping[];
-  autoCluster: boolean;
+  flags: Flags;
+  discardedBytes: number;
   undo: UndoState | null;
   searchOpen: boolean;
 
@@ -20,7 +21,8 @@ interface PanelState {
     contexts: Context[],
     tabs: TabRecord[],
     portMappings: PortMapping[],
-    autoCluster: boolean,
+    flags: Flags,
+    discardedBytes: number,
   ) => void;
   setUndo: (u: UndoState) => void;
   clearUndo: () => void;
@@ -32,12 +34,13 @@ export const usePanelStore = create<PanelState>((set) => ({
   contexts: [],
   tabs: [],
   portMappings: [],
-  autoCluster: true,
+  flags: DEFAULT_FLAGS,
+  discardedBytes: 0,
   undo: null,
   searchOpen: false,
 
-  applySnapshot: (contexts, tabs, portMappings, autoCluster) =>
-    set({ contexts, tabs, portMappings, autoCluster }),
+  applySnapshot: (contexts, tabs, portMappings, flags, discardedBytes) =>
+    set({ contexts, tabs, portMappings, flags, discardedBytes }),
   setUndo: (undo) => set({ undo }),
   clearUndo: () => set({ undo: null }),
   openSearch: () => set({ searchOpen: true }),
