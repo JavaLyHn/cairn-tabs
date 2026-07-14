@@ -8,6 +8,13 @@ export interface ChatRequest {
   model: string;
   maxTokens: number;
   signal?: AbortSignal;
+  /** 自定义中转站的接口地址(base,如 https://host/v1);仅 custom 使用。 */
+  baseUrl?: string;
+}
+
+/** 去掉尾部斜杠(`.../v1/` → `.../v1`),用于拼接中转站 endpoint。 */
+export function normalizeBaseUrl(url: string): string {
+  return url.replace(/\/+$/, '');
 }
 
 export interface AIProvider {
@@ -46,33 +53,58 @@ export const anthropicProvider: AIProvider = {
   },
 };
 
+/** OpenAI 兼容的请求塑形 + 取文本(官方 OpenAI 与自定义中转站共用)。 */
+async function postOpenAIChat(
+  url: string,
+  req: ChatRequest,
+  key: string,
+  fetchImpl: typeof fetch,
+  label: string,
+): Promise<string> {
+  const res = await fetchImpl(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      model: req.model,
+      max_tokens: req.maxTokens,
+      messages: [
+        { role: 'system', content: req.system },
+        { role: 'user', content: req.user },
+      ],
+    }),
+    signal: req.signal,
+  });
+  if (!res.ok) throw new Error(`${label} ${res.status}`);
+  const data = (await res.json()) as { choices?: { message?: { content?: unknown } }[] };
+  const text = data?.choices?.[0]?.message?.content;
+  if (typeof text !== 'string') throw new Error(`${label}: no text`);
+  return text;
+}
+
 export const openaiProvider: AIProvider = {
   id: 'openai',
   defaultModel: 'gpt-4o-mini',
   host: 'https://api.openai.com/*',
+  complete(req, key, fetchImpl = fetch) {
+    return postOpenAIChat('https://api.openai.com/v1/chat/completions', req, key, fetchImpl, 'openai');
+  },
+};
+
+// 自定义中转站(OpenAI 兼容):endpoint 由用户所填 baseUrl 派生。
+// host 用宽匹配串仅作文档;实际运行时权限按 baseUrl 的 origin 派生、带用户手势申请。
+export const customProvider: AIProvider = {
+  id: 'custom',
+  defaultModel: 'gpt-4o-mini',
+  host: 'https://*/*',
   async complete(req, key, fetchImpl = fetch) {
-    const res = await fetchImpl('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: req.model,
-        max_tokens: req.maxTokens,
-        messages: [
-          { role: 'system', content: req.system },
-          { role: 'user', content: req.user },
-        ],
-      }),
-      signal: req.signal,
-    });
-    if (!res.ok) throw new Error(`openai ${res.status}`);
-    const data = (await res.json()) as { choices?: { message?: { content?: unknown } }[] };
-    const text = data?.choices?.[0]?.message?.content;
-    if (typeof text !== 'string') throw new Error('openai: no text');
-    return text;
+    if (!req.baseUrl) throw new Error('custom: no baseUrl');
+    const url = `${normalizeBaseUrl(req.baseUrl)}/chat/completions`;
+    return postOpenAIChat(url, req, key, fetchImpl, 'custom');
   },
 };
 
 export const PROVIDERS: Record<AIProviderId, AIProvider> = {
   anthropic: anthropicProvider,
   openai: openaiProvider,
+  custom: customProvider,
 };

@@ -27,7 +27,8 @@ export type Command =
   | { type: 'SEARCH'; query: string }
   | { type: 'AI_ORGANIZE_INBOX' }
   | { type: 'APPLY_AI_PLAN'; plan: AIPlan }
-  | { type: 'SET_AI_SETTINGS'; provider: AIProviderId; key?: string; model?: string };
+  | { type: 'SET_AI_SETTINGS'; provider: AIProviderId; key?: string; model?: string; baseUrl?: string }
+  | { type: 'TEST_AI_CONNECTION' };
 
 export type Event =
   | {
@@ -44,7 +45,8 @@ export type Event =
   | { type: 'CONTEXT_CREATED'; contextId: string }
   | { type: 'OPEN_SEARCH' }
   | { type: 'AI_PLAN'; plan: AIPlan; tabs: TabRecord[] }
-  | { type: 'AI_ERROR'; reason: AIErrorReason };
+  | { type: 'AI_ERROR'; reason: AIErrorReason }
+  | { type: 'AI_TEST_RESULT'; ok: boolean; detail: string };
 
 /** 新建上下文时的默认草稿名(用于「至多一个草稿」去重) */
 export const DRAFT_CONTEXT_NAME = '新任务';
@@ -74,6 +76,7 @@ export const COMMAND_TYPES = new Set<Command['type']>([
   'AI_ORGANIZE_INBOX',
   'APPLY_AI_PLAN',
   'SET_AI_SETTINGS',
+  'TEST_AI_CONNECTION',
 ]);
 
 /** UI → SW:发送命令,await 到 SW 处理完成 */

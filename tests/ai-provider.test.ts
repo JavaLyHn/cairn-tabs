@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { anthropicProvider, openaiProvider, PROVIDERS } from '@/core/ai/provider';
+import {
+  anthropicProvider,
+  openaiProvider,
+  customProvider,
+  normalizeBaseUrl,
+  PROVIDERS,
+} from '@/core/ai/provider';
 import type { ChatRequest } from '@/core/ai/provider';
 
 const req: ChatRequest = { system: 'S', user: 'U', model: 'm', maxTokens: 100 };
@@ -50,9 +56,51 @@ describe('openaiProvider', () => {
   });
 });
 
+describe('normalizeBaseUrl', () => {
+  it('去掉尾部斜杠', () => {
+    expect(normalizeBaseUrl('https://x.com/v1/')).toBe('https://x.com/v1');
+    expect(normalizeBaseUrl('https://x.com/v1')).toBe('https://x.com/v1');
+    expect(normalizeBaseUrl('https://x.com/v1///')).toBe('https://x.com/v1');
+  });
+});
+
+describe('customProvider', () => {
+  it('用 baseUrl 拼 endpoint、OpenAI 兼容塑形、Bearer', async () => {
+    const { fn, calls } = fakeFetch(200, { choices: [{ message: { content: 'ok' } }] });
+    const out = await customProvider.complete(
+      { ...req, baseUrl: 'https://newapi.elevatesphere.com/v1' },
+      'sk-relay',
+      fn,
+    );
+    expect(out).toBe('ok');
+    const call = calls[0]!;
+    expect(call.url).toBe('https://newapi.elevatesphere.com/v1/chat/completions');
+    expect((call.init.headers as Record<string, string>).authorization).toBe('Bearer sk-relay');
+    const msgs = JSON.parse(call.init.body as string).messages;
+    expect(msgs[0]).toEqual({ role: 'system', content: 'S' });
+    expect(msgs[1]).toEqual({ role: 'user', content: 'U' });
+  });
+  it('baseUrl 尾斜杠被归一', async () => {
+    const { fn, calls } = fakeFetch(200, { choices: [{ message: { content: 'ok' } }] });
+    await customProvider.complete({ ...req, baseUrl: 'https://x.com/v1/' }, 'k', fn);
+    expect(calls[0]!.url).toBe('https://x.com/v1/chat/completions');
+  });
+  it('缺 baseUrl → reject', async () => {
+    const { fn } = fakeFetch(200, {});
+    await expect(customProvider.complete(req, 'k', fn)).rejects.toThrow(/baseUrl/);
+  });
+  it('非 2xx 抛错', async () => {
+    const { fn } = fakeFetch(404, {});
+    await expect(
+      customProvider.complete({ ...req, baseUrl: 'https://x.com/v1' }, 'k', fn),
+    ).rejects.toThrow(/404/);
+  });
+});
+
 describe('PROVIDERS', () => {
-  it('两家默认模型', () => {
+  it('三家默认模型', () => {
     expect(PROVIDERS.anthropic.defaultModel).toBe('claude-haiku-4-5');
     expect(PROVIDERS.openai.defaultModel).toBe('gpt-4o-mini');
+    expect(PROVIDERS.custom.defaultModel).toBe('gpt-4o-mini');
   });
 });
