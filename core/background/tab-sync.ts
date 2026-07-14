@@ -135,6 +135,17 @@ export function registerTabListeners(
     await repo.removeTabByChromeId(tabId);
     onChange();
   });
+
+  // Chrome 替换标签(discard/预渲染换 id)→ 回填新 id,避免记录 chromeTabId 变陈旧
+  // 导致后续关闭/激活匹配不上而残留(见 sync.integration.test)。
+  chrome.tabs.onReplaced.addListener(async (addedTabId, removedTabId) => {
+    if (isSyncPaused()) return;
+    const record = await repo.getTabByChromeId(removedTabId);
+    if (record) {
+      await repo.updateTab(record.id, { chromeTabId: addedTabId });
+      onChange();
+    }
+  });
 }
 
 /**

@@ -47,6 +47,19 @@ export default function App() {
     return () => chrome.runtime.onMessage.removeListener(listener);
   }, [applySnapshot, openSearch]);
 
+  // 面板重新可见/聚焦时拉一次最新快照,自愈任何漏收的广播(保证「及时更新」)
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'visible') void dispatch({ type: 'REQUEST_SNAPSHOT' });
+    };
+    document.addEventListener('visibilitychange', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      document.removeEventListener('visibilitychange', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, []);
+
   // 面板聚焦时本地兜底 ⌘⇧K
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

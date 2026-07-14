@@ -135,6 +135,20 @@ describe('MERGE_DUPLICATES(F-05)', () => {
   });
 });
 
+describe('标签被 Chrome 替换后关闭仍能同步移除(onReplaced)', () => {
+  it('标签换 id(discard 等)后再关闭,侧边栏记录被移除', async () => {
+    const oldId = await fake.userOpenTab('https://a.com/1', { title: 'A' });
+    const [rid] = await inboxTabIds();
+    expect(rid).toBeDefined();
+
+    const newId = await fake.userReplaceTab(oldId); // Chrome 换了 id
+    await fake.tabs.remove(newId); // 用户在标签栏关闭它
+
+    expect(await repo.getTab(rid!)).toBeUndefined(); // 记录应被移除,而非残留
+    expect(await inboxTabIds()).toEqual([]);
+  });
+});
+
 describe('CLOSE_TAB 对失效标签的健壮性', () => {
   it('关闭一个 chrome 标签已消失的记录时,记录被清除(不静默残留)', async () => {
     await fake.userOpenTab('https://a.com/1', { title: 'A' });

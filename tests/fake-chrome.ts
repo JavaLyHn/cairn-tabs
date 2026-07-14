@@ -48,6 +48,7 @@ export class FakeChrome {
   onUpdated = new Emitter();
   onActivated = new Emitter();
   onRemoved = new Emitter();
+  onReplaced = new Emitter();
   groupOnUpdated = new Emitter();
   groupOnRemoved = new Emitter();
 
@@ -70,6 +71,17 @@ export class FakeChrome {
     this.tabsById.set(id, tab);
     await this.onCreated.emit({ ...tab });
     return id;
+  }
+
+  /** 模拟 Chrome 替换标签(如 discard/预渲染换 id,触发 onReplaced)。返回新 id。 */
+  async userReplaceTab(oldId: number): Promise<number> {
+    const tab = this.tabsById.get(oldId);
+    if (!tab) throw new Error(`No tab ${oldId}`);
+    const newId = this.nextTabId++;
+    this.tabsById.delete(oldId);
+    this.tabsById.set(newId, { ...tab, id: newId });
+    await this.onReplaced.emit(newId, oldId);
+    return newId;
   }
 
   /** 模拟用户在浏览器里把标签拖出分组(触发 onUpdated groupId:-1)。 */
@@ -219,6 +231,7 @@ export class FakeChrome {
         onUpdated: this.onUpdated,
         onActivated: this.onActivated,
         onRemoved: this.onRemoved,
+        onReplaced: this.onReplaced,
       },
       tabGroups: {
         ...this.tabGroups,
