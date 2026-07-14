@@ -1,7 +1,45 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import type { Context, TabRecord } from '@/shared/types';
 import { contextToMarkdown, contextToJSON } from '@/shared/export';
 import { downloadText, sanitizeFilename } from '../util';
+
+/** 把我们生成的简单 Markdown 渲染为可读元素(标题 + 可点链接)。 */
+function renderMarkdown(md: string): ReactNode {
+  return md
+    .split('\n')
+    .filter((l) => l.trim().length > 0)
+    .map((line, i) => {
+      if (line.startsWith('## ')) {
+        return (
+          <div key={i} className="font-semibold text-[13px] mb-1">
+            {line.slice(3)}
+          </div>
+        );
+      }
+      const m = line.match(/^- \[(.*)\]\((.*)\)$/);
+      if (m) {
+        return (
+          <div key={i} className="flex items-baseline gap-1.5 py-0.5">
+            <span className="opacity-30 shrink-0">•</span>
+            <a
+              href={m[2]}
+              target="_blank"
+              rel="noreferrer"
+              title={m[2]}
+              className="text-accent hover:underline truncate"
+            >
+              {m[1]}
+            </a>
+          </div>
+        );
+      }
+      return (
+        <div key={i} className="opacity-70">
+          {line}
+        </div>
+      );
+    });
+}
 
 interface Props {
   context: Context;
@@ -56,9 +94,18 @@ export function ExportDialog({ context, tabs, exportedAt, onFlash, onClose }: Pr
           {tab('json', 'JSON')}
         </div>
 
-        <pre className="flex-1 overflow-auto px-3 py-2 text-[11.5px] leading-relaxed font-mono whitespace-pre-wrap break-all">
-          {content}
-        </pre>
+        {format === 'md' ? (
+          <div className="flex-1 overflow-auto px-3 py-2 text-[12px]">{renderMarkdown(md)}</div>
+        ) : (
+          <div className="flex-1 overflow-auto">
+            <div className="px-3 pt-2 text-[11px] opacity-45">
+              任务与标签的原始数据备份(可迁移 / 日后再导入)。
+            </div>
+            <pre className="px-3 py-2 text-[11.5px] leading-relaxed font-mono whitespace-pre-wrap break-words">
+              {json}
+            </pre>
+          </div>
+        )}
 
         <div className="flex items-center justify-end gap-2 px-3 py-2 border-t border-black/10 dark:border-white/10">
           <button onClick={onClose} className="px-2.5 py-1 rounded-md text-[12px] opacity-60 hover:opacity-100">
