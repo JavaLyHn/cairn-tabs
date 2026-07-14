@@ -196,6 +196,19 @@ export class FakeChrome {
     update: async (_id: number, _p: unknown) => ({}),
   };
 
+  private storageLocal: Record<string, unknown> = {};
+  storage = {
+    local: {
+      get: async (key: string) => ({ [key]: this.storageLocal[key] }),
+      set: async (obj: Record<string, unknown>) => {
+        Object.assign(this.storageLocal, obj);
+      },
+      remove: async (key: string) => {
+        delete this.storageLocal[key];
+      },
+    },
+  };
+
   /** 装到全局 chrome,并把事件对象接到我们注册用的形状。 */
   install() {
     const g = globalThis as any;
@@ -213,6 +226,7 @@ export class FakeChrome {
         onRemoved: this.groupOnRemoved,
       },
       windows: this.windows,
+      storage: this.storage,
     };
   }
 }

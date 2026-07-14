@@ -1,14 +1,19 @@
 import type { TabRecord } from '@/shared/types';
 import { hostname } from '../util';
+import { localhostPort, projectFor } from '@/shared/localhost';
 
 interface Props {
   tab: TabRecord;
   isDuplicate?: boolean;
+  portMap: Record<number, string>;
   onActivate: () => void;
   onClose: () => void;
 }
 
-export function TabRow({ tab, isDuplicate, onActivate, onClose }: Props) {
+export function TabRow({ tab, isDuplicate, portMap, onActivate, onClose }: Props) {
+  const port = localhostPort(tab.url);
+  const project = port != null ? projectFor(tab.url, portMap) : null;
+  const displayTitle = project ?? tab.title;
   return (
     <div
       draggable
@@ -26,7 +31,12 @@ export function TabRow({ tab, isDuplicate, onActivate, onClose }: Props) {
       ) : (
         <div className="w-4 h-4 shrink-0 rounded-sm bg-black/10 dark:bg-white/10" />
       )}
-      <span className="flex-1 truncate">{tab.title}</span>
+      <span className="flex-1 truncate">{displayTitle}</span>
+      {port != null && (
+        <span className="font-mono text-[11px] opacity-45 shrink-0" title={tab.title}>
+          :{port}
+        </span>
+      )}
       {isDuplicate && (
         <span
           className="shrink-0 text-[10px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-500"

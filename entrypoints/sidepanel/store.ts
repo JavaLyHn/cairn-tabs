@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Context, TabRecord } from '@/shared/types';
+import type { Context, TabRecord, PortMapping } from '@/shared/types';
 import type { Command, Event } from '@/shared/messaging';
 
 interface UndoState {
@@ -11,10 +11,11 @@ interface UndoState {
 interface PanelState {
   contexts: Context[];
   tabs: TabRecord[];
+  portMappings: PortMapping[];
   undo: UndoState | null;
   searchOpen: boolean;
 
-  applySnapshot: (contexts: Context[], tabs: TabRecord[]) => void;
+  applySnapshot: (contexts: Context[], tabs: TabRecord[], portMappings: PortMapping[]) => void;
   setUndo: (u: UndoState) => void;
   clearUndo: () => void;
   openSearch: () => void;
@@ -24,10 +25,11 @@ interface PanelState {
 export const usePanelStore = create<PanelState>((set) => ({
   contexts: [],
   tabs: [],
+  portMappings: [],
   undo: null,
   searchOpen: false,
 
-  applySnapshot: (contexts, tabs) => set({ contexts, tabs }),
+  applySnapshot: (contexts, tabs, portMappings) => set({ contexts, tabs, portMappings }),
   setUndo: (undo) => set({ undo }),
   clearUndo: () => set({ undo: null }),
   openSearch: () => set({ searchOpen: true }),

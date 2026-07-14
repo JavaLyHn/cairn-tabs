@@ -16,6 +16,11 @@ export interface CommandContext {
   onChange: () => void;
   /** 记录负样本(某 URL 的域名不属于 contextId);测试中可省略。 */
   recordNegative?: (url: string, contextId: string) => Promise<void>;
+  /** localhost 端口映射的读写;测试中可省略。 */
+  ports?: {
+    set: (port: number, project: string) => Promise<void>;
+    remove: (port: number) => Promise<void>;
+  };
 }
 
 const RESTORE_STAGGER_MS = 50;
@@ -24,7 +29,7 @@ const UNDO_TTL_MS = 5000;
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<Event | void> {
-  const { repo, search, undo, onChange, recordNegative } = ctx;
+  const { repo, search, undo, onChange, recordNegative, ports } = ctx;
   const now = Date.now();
 
   switch (cmd.type) {
@@ -145,6 +150,16 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       }
       return;
     }
+
+    case 'SET_PORT_MAPPING':
+      await ports?.set(cmd.port, cmd.project);
+      onChange();
+      return;
+
+    case 'REMOVE_PORT_MAPPING':
+      await ports?.remove(cmd.port);
+      onChange();
+      return;
 
     case 'REQUEST_SNAPSHOT':
       onChange();

@@ -7,18 +7,20 @@ import { registerTabListeners, reconcile } from './tab-sync';
 import { registerGroupListeners, reconcileGroups } from './group-sync';
 import { handleCommand, type CommandContext } from './commands';
 import { PenaltyStore } from './penalties';
+import { PortMappingStore } from './settings';
 import { COMMAND_TYPES, type Command } from '@/shared/messaging';
 
 const search = new SearchIndex();
 const undo = new UndoManager();
 const penalties = new PenaltyStore();
+const portMappings = new PortMappingStore();
 
 /** 读快照 → 重建搜索索引 → 广播 STATE_SNAPSHOT(侧边栏关闭时 sendMessage 失败,忽略)。 */
 async function broadcast(): Promise<void> {
   const { contexts, tabs } = await repository.getSnapshot();
   search.rebuild(contexts, tabs);
   chrome.runtime
-    .sendMessage({ type: 'STATE_SNAPSHOT', contexts, tabs })
+    .sendMessage({ type: 'STATE_SNAPSHOT', contexts, tabs, portMappings: portMappings.get() })
     .catch(() => {});
 }
 
@@ -38,6 +40,10 @@ const cmdCtx: CommandContext = {
   undo,
   onChange: scheduleBroadcast,
   recordNegative: (url, contextId) => penalties.recordNegativeForUrl(url, contextId),
+  ports: {
+    set: (port, project) => portMappings.set(port, project),
+    remove: (port) => portMappings.remove(port),
+  },
 };
 
 /** ⌘⇧K:打开侧边栏并请其展开搜索 overlay。 */
@@ -91,6 +97,7 @@ async function hydrate(): Promise<void> {
   const now = Date.now();
   await repository.ensureInbox(now);
   await penalties.load();
+  await portMappings.load();
   await reconcile(repository, scheduleBroadcast);
   await reconcileGroups(repository, scheduleBroadcast);
   await broadcast();

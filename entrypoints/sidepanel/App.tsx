@@ -2,15 +2,18 @@ import { useEffect, useMemo, useState } from 'react';
 import { INBOX_ID, type Context, type TabRecord } from '@/shared/types';
 import type { Event } from '@/shared/messaging';
 import { redundantIds } from '@/shared/dedup';
+import { buildPortMap, localhostPort, suggestProjectName } from '@/shared/localhost';
 import { usePanelStore, dispatch } from './store';
 import { StatsBar } from './components/StatsBar';
 import { ContextGroup } from './components/ContextGroup';
 import { SearchOverlay } from './components/SearchOverlay';
 import { UndoToast } from './components/UndoToast';
+import { PortBindSuggestions } from './components/PortBindSuggestions';
 
 export default function App() {
   const contexts = usePanelStore((s) => s.contexts);
   const tabs = usePanelStore((s) => s.tabs);
+  const portMappings = usePanelStore((s) => s.portMappings);
   const undo = usePanelStore((s) => s.undo);
   const searchOpen = usePanelStore((s) => s.searchOpen);
   const applySnapshot = usePanelStore((s) => s.applySnapshot);
@@ -21,12 +24,14 @@ export default function App() {
 
   // 正在改名的簇 id(受控:新建后自动进入、双击或点「改名」进入)
   const [editingId, setEditingId] = useState<string | null>(null);
+  // 本次会话内被忽略的端口建议
+  const [ignoredPorts, setIgnoredPorts] = useState<Set<number>>(new Set());
 
   // 订阅 SW 广播 + 首屏拉取 + ⌘⇧K 挂载态
   useEffect(() => {
     const listener = (msg: unknown) => {
       const ev = msg as Event;
-      if (ev?.type === 'STATE_SNAPSHOT') applySnapshot(ev.contexts, ev.tabs);
+      if (ev?.type === 'STATE_SNAPSHOT') applySnapshot(ev.contexts, ev.tabs, ev.portMappings);
       else if (ev?.type === 'OPEN_SEARCH') openSearch();
     };
     chrome.runtime.onMessage.addListener(listener);
@@ -72,6 +77,18 @@ export default function App() {
   const openTabCount = tabs.filter((t) => t.chromeTabId != null).length;
   const archivedTabCount = archivedContexts.reduce((n, c) => n + c.tabOrder.length, 0);
   const duplicateIds = useMemo(() => redundantIds(tabs), [tabs]);
+  const portMap = useMemo(() => buildPortMap(portMappings), [portMappings]);
+  // 打开中、未绑定、未忽略的 localhost 端口 → 建议绑定(每端口取首个标签标题做建议名)
+  const portSuggestions = useMemo(() => {
+    const byPort = new Map<number, string>();
+    for (const t of tabs) {
+      if (t.chromeTabId == null) continue;
+      const p = localhostPort(t.url);
+      if (p == null || portMap[p] != null || ignoredPorts.has(p) || byPort.has(p)) continue;
+      byPort.set(p, suggestProjectName(t.title, p));
+    }
+    return [...byPort.entries()].map(([port, name]) => ({ port, name }));
+  }, [tabs, portMap, ignoredPorts]);
 
   // ---- 命令 ----
   const archive = async (contextId: string) => {
@@ -92,6 +109,10 @@ export default function App() {
     if (ev?.type === 'CONTEXT_CREATED') setEditingId(ev.contextId);
   };
   const mergeDuplicates = () => dispatch({ type: 'MERGE_DUPLICATES' });
+  const bindPort = (port: number, project: string) => {
+    if (project.trim()) dispatch({ type: 'SET_PORT_MAPPING', port, project });
+  };
+  const ignorePort = (port: number) => setIgnoredPorts((s) => new Set(s).add(port));
   const doUndo = async () => {
     if (undo) await dispatch({ type: 'UNDO', token: undo.token });
     clearUndo();
@@ -101,6 +122,7 @@ export default function App() {
     context: ctx,
     tabs: tabsOf(ctx),
     duplicateIds,
+    portMap,
     editing: editingId === ctx.id,
     onStartEdit: () => setEditingId(ctx.id),
     onEndEdit: () => setEditingId((cur) => (cur === ctx.id ? null : cur)),
@@ -140,6 +162,8 @@ export default function App() {
         redundant={duplicateIds.size}
         onMerge={mergeDuplicates}
       />
+
+      <PortBindSuggestions suggestions={portSuggestions} onBind={bindPort} onIgnore={ignorePort} />
 
       {/* 主列表 */}
       <div className="flex-1 overflow-y-auto px-1.5 py-2">

@@ -1,7 +1,7 @@
 // 类型安全的消息协议(见设计文档 §6)
 // UI 只发 Command;SW 是唯一写入方,处理后广播 Event。
 
-import type { Context, TabRecord, SearchResult } from './types';
+import type { Context, TabRecord, SearchResult, PortMapping } from './types';
 
 export type Command =
   | { type: 'CREATE_CONTEXT'; name: string }
@@ -11,6 +11,8 @@ export type Command =
   | { type: 'ARCHIVE_CONTEXT'; contextId: string }
   | { type: 'RESTORE_CONTEXT'; contextId: string }
   | { type: 'MERGE_DUPLICATES' }
+  | { type: 'SET_PORT_MAPPING'; port: number; project: string }
+  | { type: 'REMOVE_PORT_MAPPING'; port: number }
   | { type: 'UNDO'; token: string }
   | { type: 'ACTIVATE_TAB'; tabRecordId: string }
   | { type: 'CLOSE_TAB'; tabRecordId: string }
@@ -18,7 +20,7 @@ export type Command =
   | { type: 'SEARCH'; query: string };
 
 export type Event =
-  | { type: 'STATE_SNAPSHOT'; contexts: Context[]; tabs: TabRecord[] }
+  | { type: 'STATE_SNAPSHOT'; contexts: Context[]; tabs: TabRecord[]; portMappings: PortMapping[] }
   | { type: 'SEARCH_RESULTS'; query: string; results: SearchResult[] }
   | { type: 'UNDOABLE'; action: string; token: string; ttlMs: number }
   | { type: 'CONTEXT_CREATED'; contextId: string }
@@ -36,6 +38,8 @@ export const COMMAND_TYPES = new Set<Command['type']>([
   'ARCHIVE_CONTEXT',
   'RESTORE_CONTEXT',
   'MERGE_DUPLICATES',
+  'SET_PORT_MAPPING',
+  'REMOVE_PORT_MAPPING',
   'UNDO',
   'ACTIVATE_TAB',
   'CLOSE_TAB',

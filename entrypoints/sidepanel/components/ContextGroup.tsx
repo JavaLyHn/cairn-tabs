@@ -9,6 +9,7 @@ interface Props {
   tabs: TabRecord[]; // 已按 tabOrder 排好
   variant: 'active' | 'inbox' | 'archived';
   duplicateIds: Set<string>;
+  portMap: Record<number, string>;
   editing: boolean;
   onStartEdit: () => void;
   onEndEdit: () => void;
@@ -26,6 +27,7 @@ export function ContextGroup({
   tabs,
   variant,
   duplicateIds,
+  portMap,
   editing,
   onStartEdit,
   onEndEdit,
@@ -183,6 +185,7 @@ export function ContextGroup({
                 key={t.id}
                 tab={t}
                 isDuplicate={duplicateIds.has(t.id)}
+                portMap={portMap}
                 onActivate={() => onActivateTab(t.id)}
                 onClose={() => onCloseTab(t.id)}
               />

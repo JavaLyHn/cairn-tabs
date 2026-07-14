@@ -57,6 +57,12 @@ export interface TabRecord {
   lastActiveAt: number;
 }
 
+/** localhost 端口 → 项目名 映射(F-08,见 PRD §5.1/§7.3) */
+export interface PortMapping {
+  port: number;
+  project: string;
+}
+
 /** 搜索结果:一条命中的标签 + 其所属簇信息 */
 export interface SearchResult {
   tab: TabRecord;
