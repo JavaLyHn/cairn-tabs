@@ -73,8 +73,13 @@ export function ContextGroup({
           : undefined
       }
     >
-      {/* 簇头部 */}
-      <div className="group/head flex items-center gap-2 px-2 py-1.5">
+      {/* 簇头部:整行单击折叠/展开(编辑中除外) */}
+      <div
+        className="group/head flex items-center gap-2 px-2 py-1.5 cursor-pointer select-none"
+        onClick={() => {
+          if (!editing) setCollapsed((c) => !c);
+        }}
+      >
         {/* 命名簇左侧 2px 边条,颜色 = 其原生分组颜色(双向同步的视觉体现) */}
         {!isInbox && (
           <div
@@ -83,19 +88,23 @@ export function ContextGroup({
           />
         )}
 
-        <button
-          onClick={() => setCollapsed((c) => !c)}
-          className="flex items-center justify-center w-5 h-5 shrink-0 rounded text-[11px]
-                     opacity-50 hover:opacity-90 hover:bg-black/5 dark:hover:bg-white/10"
-          title={collapsed ? '展开' : '折叠'}
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={`w-4 h-4 shrink-0 opacity-45 transition-transform ${collapsed ? '' : 'rotate-90'}`}
         >
-          {collapsed ? '▸' : '▾'}
-        </button>
+          <path d="m9 18 6-6-6-6" />
+        </svg>
 
         {editing ? (
           <input
             autoFocus
             defaultValue={context.name}
+            onClick={(e) => e.stopPropagation()}
             onFocus={(e) => e.target.select()}
             onBlur={(e) => {
               if (cancelledRef.current) {
@@ -115,19 +124,18 @@ export function ContextGroup({
             className="flex-1 bg-transparent outline-none border-b border-accent"
           />
         ) : (
-          <span
-            className={`flex-1 truncate font-medium ${variant === 'archived' ? 'opacity-60' : ''}`}
-            onDoubleClick={() => !isInbox && onStartEdit()}
-            title={isInbox ? undefined : '双击改名'}
-          >
+          <span className={`flex-1 truncate font-medium ${variant === 'archived' ? 'opacity-60' : ''}`}>
             {context.name}
           </span>
         )}
 
         <span className="font-mono text-[11px] opacity-40 shrink-0">{tabs.length}</span>
 
-        {/* hover 操作 */}
-        <div className="hidden group-hover/head:flex items-center gap-1 shrink-0">
+        {/* hover 操作(点击不触发折叠) */}
+        <div
+          className="hidden group-hover/head:flex items-center gap-1 shrink-0"
+          onClick={(e) => e.stopPropagation()}
+        >
           {variant === 'archived' ? (
             <>
               <button
