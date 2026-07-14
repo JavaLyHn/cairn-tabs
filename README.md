@@ -48,6 +48,10 @@ tests/           Vitest(含 fake-chrome 集成测试)
 docs/            设计文档
 ```
 
+## 贡献
+
+欢迎参与,请先读 [CONTRIBUTING.md](./CONTRIBUTING.md)。
+
 ## 许可证
 
-TBD
+[AGPL-3.0-only](./LICENSE) © JavaLyHn。基于本项目的衍生作品(含联网 SaaS)需按同协议开源。

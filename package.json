@@ -3,6 +3,7 @@
   "description": "面向程序员的标签页上下文管理器 (MVP 核心闭环)",
   "private": true,
   "version": "0.1.0",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "dev": "wxt",
