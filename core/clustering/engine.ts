@@ -172,7 +172,10 @@ export function sameDomainSuggestions(
   const byDomain = new Map<string, string[]>();
   for (const t of inboxTabs) {
     if (t.pinned || t.chromeTabId == null) continue; // 只看未锁定的活标签
-    const d = registrableDomain(hostnameOf(t.url));
+    const host = hostnameOf(t.url);
+    // localhost 各端口是不同项目(交给 F-08 端口映射),不按同域并簇
+    if (!host || host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost')) continue;
+    const d = registrableDomain(host);
     if (!d) continue;
     const arr = byDomain.get(d);
     if (arr) arr.push(t.id);

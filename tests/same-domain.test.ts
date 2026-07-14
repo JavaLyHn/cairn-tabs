@@ -67,6 +67,16 @@ describe('sameDomainSuggestions', () => {
     expect(out.map((s) => s.domain)).toEqual(['b.com', 'a.com']);
   });
 
+  it('localhost 各端口不并簇(交给 F-08)', () => {
+    const tabs = [
+      tab('http://localhost:3000/'),
+      tab('http://localhost:5173/'),
+      tab('http://localhost:8080/'),
+      tab('http://127.0.0.1:9000/'),
+    ];
+    expect(sameDomainSuggestions(tabs, new Set(), 2)).toEqual([]);
+  });
+
   it('阈值 < 2 兜底为 2', () => {
     const tabs = [tab('https://x.com/1'), tab('https://x.com/2')];
     expect(sameDomainSuggestions(tabs, new Set(), 1)).toHaveLength(1); // 按 2 算 → 命中
