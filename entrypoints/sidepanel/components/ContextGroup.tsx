@@ -81,7 +81,8 @@ export function ContextGroup({
 
         <button
           onClick={() => setCollapsed((c) => !c)}
-          className="opacity-40 hover:opacity-80 w-3 shrink-0 text-[10px]"
+          className="flex items-center justify-center w-5 h-5 shrink-0 rounded text-[11px]
+                     opacity-50 hover:opacity-90 hover:bg-black/5 dark:hover:bg-white/10"
           title={collapsed ? '展开' : '折叠'}
         >
           {collapsed ? '▸' : '▾'}
