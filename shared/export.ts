@@ -24,6 +24,15 @@ export function contextToMarkdown(ctx: Context, orderedTabs: TabRecord[]): strin
   return `## ${ctx.name} (${date})\n${lines.join('\n')}\n`;
 }
 
+/** 单个任务 → JSON(结构与全量备份一致,便于日后再导入)。 */
+export function contextToJSON(ctx: Context, orderedTabs: TabRecord[], exportedAt: number): string {
+  return JSON.stringify(
+    { app: 'cairn-tabs', version: 1, exportedAt, contexts: [ctx], tabs: orderedTabs },
+    null,
+    2,
+  );
+}
+
 /** 全量 JSON 备份(可作数据迁移;日后支持再导入)。 */
 export function exportAllJSON(contexts: Context[], tabs: TabRecord[], exportedAt: number): string {
   return JSON.stringify(

@@ -4,7 +4,7 @@ import { INBOX_ID, type Context, type TabRecord } from '@/shared/types';
 import type { Event } from '@/shared/messaging';
 import { duplicateMarks, redundantCount } from '@/shared/dedup';
 import { buildPortMap, localhostPort, suggestProjectName } from '@/shared/localhost';
-import { contextToMarkdown, exportAllJSON } from '@/shared/export';
+import { exportAllJSON } from '@/shared/export';
 import { usePanelStore, dispatch } from './store';
 import { StatsBar } from './components/StatsBar';
 import { ContextGroup } from './components/ContextGroup';
@@ -13,6 +13,8 @@ import { UndoToast } from './components/UndoToast';
 import { PortBindSuggestions } from './components/PortBindSuggestions';
 import { EmptyState } from './components/EmptyState';
 import { SettingsPanel } from './components/SettingsPanel';
+import { ExportDialog } from './components/ExportDialog';
+import { downloadText } from './util';
 
 /** 活跃任务的排序签名(用于判断顺序是否变化,决定是否播放过渡)。 */
 function activeOrderSig(contexts: Context[]): string {
@@ -47,6 +49,7 @@ export default function App() {
   const [ignoredPorts, setIgnoredPorts] = useState<Set<number>>(new Set());
   const activeOrderRef = useRef('');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [exportTarget, setExportTarget] = useState<{ id: string; at: number } | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const showFlash = (msg: string) => {
@@ -202,28 +205,15 @@ export default function App() {
   const ignorePort = (port: number) => setIgnoredPorts((s) => new Set(s).add(port));
   const toggleAutoCluster = (enabled: boolean) => dispatch({ type: 'SET_AUTO_CLUSTER', enabled });
 
-  const exportContextMd = async (ctx: Context) => {
-    const md = contextToMarkdown(ctx, tabsOf(ctx));
-    try {
-      await navigator.clipboard.writeText(md);
-      showFlash('已复制 Markdown 到剪贴板');
-    } catch {
-      showFlash('复制失败,请重试');
-    }
-  };
   const exportAllData = () => {
     const json = exportAllJSON(contexts, tabs, Date.now());
     const d = new Date();
     const p = (n: number) => String(n).padStart(2, '0');
-    const name = `cairn-tabs-backup-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.json`;
-    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    downloadText(
+      `cairn-tabs-backup-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.json`,
+      json,
+      'application/json',
+    );
     setSettingsOpen(false);
     showFlash('已导出全部数据 (JSON)');
   };
@@ -245,7 +235,7 @@ export default function App() {
     onArchive: () => archive(ctx.id),
     onArchiveAll: archiveInbox,
     onRestore: () => restore(ctx.id),
-    onExport: () => exportContextMd(ctx),
+    onExport: () => setExportTarget({ id: ctx.id, at: Date.now() }),
     onDelete: () => del(ctx.id),
     onDropTab: (tabId: string) => moveTab(tabId, ctx.id),
     onActivateTab: (tabId: string) => activate(tabId),
@@ -369,6 +359,19 @@ export default function App() {
           onClose={() => setSettingsOpen(false)}
         />
       )}
+
+      {(() => {
+        const ctx = exportTarget ? contexts.find((c) => c.id === exportTarget.id) : null;
+        return ctx && exportTarget ? (
+          <ExportDialog
+            context={ctx}
+            tabs={tabsOf(ctx)}
+            exportedAt={exportTarget.at}
+            onFlash={showFlash}
+            onClose={() => setExportTarget(null)}
+          />
+        ) : null;
+      })()}
 
       {searchOpen && (
         <SearchOverlay

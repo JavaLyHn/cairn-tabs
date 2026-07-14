@@ -17,6 +17,23 @@ export function colorHex(color: ContextColor): string {
   return COLOR_HEX[color];
 }
 
+/** 把字符串下载为文件。 */
+export function downloadText(filename: string, text: string, mime: string): void {
+  const url = URL.createObjectURL(new Blob([text], { type: mime }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/** 清理文件名中不安全的字符。 */
+export function sanitizeFilename(name: string): string {
+  return (name.replace(/[\\/:*?"<>|]+/g, '_').trim() || 'export').slice(0, 60);
+}
+
 export function hostname(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, '');
