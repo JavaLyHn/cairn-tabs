@@ -8,6 +8,7 @@ import type { AIProviderId } from '@/shared/ai';
 import { permissionOriginFor } from '@/core/ai/provider';
 import { duplicateMarks, redundantCount } from '@/shared/dedup';
 import { buildPortMap, localhostPort, suggestProjectName } from '@/shared/localhost';
+import { sameDomainSuggestions } from '@/core/clustering/engine';
 import { staleTabs } from '@/shared/stale';
 import { formatReclaimed } from '@/shared/discard';
 import { exportAllJSON } from '@/shared/export';
@@ -18,6 +19,7 @@ import { StaleGroup } from './components/StaleGroup';
 import { SearchOverlay } from './components/SearchOverlay';
 import { UndoToast } from './components/UndoToast';
 import { PortBindSuggestions } from './components/PortBindSuggestions';
+import { DomainPromoteSuggestions } from './components/DomainPromoteSuggestions';
 import { EmptyState } from './components/EmptyState';
 import { SettingsPanel } from './components/SettingsPanel';
 import { ExportDialog } from './components/ExportDialog';
@@ -56,6 +58,8 @@ export default function App() {
   const [draftId, setDraftId] = useState<string | null>(null);
   // 本次会话内被忽略的端口建议
   const [ignoredPorts, setIgnoredPorts] = useState<Set<number>>(new Set());
+  // 本次会话内被忽略的同域升格建议
+  const [ignoredDomains, setIgnoredDomains] = useState<Set<string>>(new Set());
   const activeOrderRef = useRef('');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [exportTarget, setExportTarget] = useState<{ id: string; at: number } | null>(null);
@@ -196,6 +200,18 @@ export default function App() {
     return [...byPort.entries()].map(([port, name]) => ({ port, name }));
   }, [tabs, portMap, ignoredPorts]);
 
+  // 同域升格建议(F-07):自动聚簇开启时,未分类里同域标签够阈值 → 建议成簇(去掉已忽略的域)
+  const domainSuggestions = useMemo(() => {
+    if (!flags.autoCluster) return [];
+    const looseTabs = tabs.filter((t) => t.contextId === INBOX_ID);
+    const names = new Set(
+      contexts.filter((c) => c.status === 'active' && c.id !== INBOX_ID).map((c) => c.name),
+    );
+    return sameDomainSuggestions(looseTabs, names, flags.sameDomainPromoteSize).filter(
+      (s) => !ignoredDomains.has(s.domain),
+    );
+  }, [tabs, contexts, flags.autoCluster, flags.sameDomainPromoteSize, ignoredDomains]);
+
   // ---- 命令 ----
   const archive = async (contextId: string) => {
     const ev = await dispatch({ type: 'ARCHIVE_CONTEXT', contextId });
@@ -249,6 +265,11 @@ export default function App() {
     if (project.trim()) dispatch({ type: 'SET_PORT_MAPPING', port, project });
   };
   const ignorePort = (port: number) => setIgnoredPorts((s) => new Set(s).add(port));
+  const promoteDomain = (domain: string, tabIds: string[]) =>
+    dispatch({ type: 'PROMOTE_SAME_DOMAIN', domain, tabIds });
+  const ignoreDomain = (domain: string) => setIgnoredDomains((s) => new Set(s).add(domain));
+  const setSameDomainSize = (size: number) =>
+    dispatch({ type: 'SET_SAME_DOMAIN_PROMOTE_SIZE', size });
   const toggleAutoCluster = (enabled: boolean) => dispatch({ type: 'SET_AUTO_CLUSTER', enabled });
   const toggleStaleHints = (enabled: boolean) => dispatch({ type: 'SET_STALE_HINTS', enabled });
   const toggleAutoDiscard = (enabled: boolean) => dispatch({ type: 'SET_AUTO_DISCARD', enabled });
@@ -383,6 +404,12 @@ export default function App() {
 
       <PortBindSuggestions suggestions={portSuggestions} onBind={bindPort} onIgnore={ignorePort} />
 
+      <DomainPromoteSuggestions
+        suggestions={domainSuggestions}
+        onPromote={promoteDomain}
+        onIgnore={ignoreDomain}
+      />
+
       {/* 主列表 */}
       <div className="flex-1 overflow-y-auto px-1.5 py-2">
         {isEmpty && <EmptyState onNew={createContext} />}
@@ -460,6 +487,7 @@ export default function App() {
           onSaveAi={saveAi}
           onTestAi={testAi}
           onToggleAutoCluster={toggleAutoCluster}
+          onSetSameDomainSize={setSameDomainSize}
           onToggleStaleHints={toggleStaleHints}
           onToggleAutoDiscard={toggleAutoDiscard}
           onToggleDiscardSkipsLocalhost={toggleDiscardSkipsLocalhost}

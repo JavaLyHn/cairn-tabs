@@ -6,6 +6,7 @@ interface Props {
   flags: Flags;
   ai: AIStatus;
   onToggleAutoCluster: (enabled: boolean) => void;
+  onSetSameDomainSize: (size: number) => void;
   onToggleStaleHints: (enabled: boolean) => void;
   onToggleAutoDiscard: (enabled: boolean) => void;
   onToggleDiscardSkipsLocalhost: (enabled: boolean) => void;
@@ -61,10 +62,56 @@ function ToggleRow({
   );
 }
 
+function StepperRow({
+  title,
+  desc,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  title: string;
+  desc: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (v: number) => void;
+}) {
+  const set = (v: number) => onChange(Math.max(min, Math.min(max, v)));
+  return (
+    <div className="flex items-start gap-2 px-3 py-2.5">
+      <div className="flex-1">
+        <div className="text-[12.5px]">{title}</div>
+        <div className="text-[11px] opacity-50 leading-snug mt-0.5">{desc}</div>
+      </div>
+      <div className="flex items-center gap-1 pt-0.5 shrink-0">
+        <button
+          onClick={() => set(value - 1)}
+          disabled={value <= min}
+          className="w-6 h-6 rounded-md text-[13px] leading-none border border-black/15 dark:border-white/20
+                     hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-30"
+        >
+          −
+        </button>
+        <span className="w-5 text-center font-mono text-[12.5px]">{value}</span>
+        <button
+          onClick={() => set(value + 1)}
+          disabled={value >= max}
+          className="w-6 h-6 rounded-md text-[13px] leading-none border border-black/15 dark:border-white/20
+                     hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-30"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function SettingsPanel({
   flags,
   ai,
   onToggleAutoCluster,
+  onSetSameDomainSize,
   onToggleStaleHints,
   onToggleAutoDiscard,
   onToggleDiscardSkipsLocalhost,
@@ -90,6 +137,18 @@ export function SettingsPanel({
           on={flags.autoCluster}
           onToggle={() => onToggleAutoCluster(!flags.autoCluster)}
         />
+        {flags.autoCluster && (
+          <div className="border-t border-black/5 dark:border-white/5">
+            <StepperRow
+              title="同域成簇建议"
+              desc="未分类里同一站点的标签达到这个数,就在顶部给一条「成簇」建议(你确认才生效)。"
+              value={flags.sameDomainPromoteSize}
+              min={2}
+              max={8}
+              onChange={onSetSameDomainSize}
+            />
+          </div>
+        )}
 
         <div className="border-t border-black/10 dark:border-white/10">
           <ToggleRow
