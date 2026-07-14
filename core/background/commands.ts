@@ -6,7 +6,7 @@ import type { UndoManager } from './undo';
 import { pauseSync, resumeSync } from './sync-lock';
 import { ensureTabInContextGroup, groupTabsForContext, syncGroupTitle } from './group-sync';
 import { DRAFT_CONTEXT_NAME, type Command, type Event } from '@/shared/messaging';
-import { INBOX_ID } from '@/shared/types';
+import { INBOX_ID, type TabRecord } from '@/shared/types';
 import { findDuplicateGroups } from '@/shared/dedup';
 
 export interface CommandContext {
@@ -37,6 +37,28 @@ function stashName(now: number): string {
   const d = new Date(now);
   const p = (n: number) => String(n).padStart(2, '0');
   return `暂存 · ${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/**
+ * 关闭一个标签,或在其 chromeTabId 已失效/错位时清除幻影记录。
+ * 关键:只有当真实标签的 url 与记录一致时才关闭,避免因 id 陈旧/错位误关别的标签
+ * (Chrome 会 discard/换 id,尤其图片等重标签)。
+ */
+async function closeOrPurge(record: TabRecord, repo: Repository): Promise<void> {
+  if (record.chromeTabId == null) {
+    await repo.removeTab(record.id);
+    return;
+  }
+  try {
+    const live = await chrome.tabs.get(record.chromeTabId);
+    if (live && live.url === record.url) {
+      await chrome.tabs.remove(record.chromeTabId); // 真实对应标签 → 关闭(onRemoved 清记录)
+      return;
+    }
+  } catch {
+    /* 标签已不存在 */
+  }
+  await repo.removeTab(record.id); // id 陈旧/错位 → 直接清幻影记录,绝不误关其它标签
 }
 
 /** 收纳一个 Context 的活跃标签(持锁关闭,避免脱组/关闭事件回灌幻影)。 */
@@ -125,12 +147,9 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
 
     case 'MERGE_DUPLICATES': {
       const { tabs } = await repo.getSnapshot();
-      const redundant = findDuplicateGroups(tabs)
-        .flatMap((g) => g.redundant)
-        .map((r) => r.chromeTabId)
-        .filter((id): id is number => id != null);
-      // 关闭冗余标签(保留每组最近活跃的);记录由 onRemoved 清除,补建防御挡幻影
-      await Promise.all(redundant.map((id) => chrome.tabs.remove(id).catch(() => {})));
+      const redundant = findDuplicateGroups(tabs).flatMap((g) => g.redundant);
+      // 逐个关闭真实的冗余标签,或清除已失效/错位的幻影记录(见 closeOrPurge)
+      for (const r of redundant) await closeOrPurge(r, repo);
       onChange();
       return;
     }
@@ -165,18 +184,8 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
     case 'CLOSE_TAB': {
       const record = await repo.getTab(cmd.tabRecordId);
       if (!record) return;
-      if (record.chromeTabId != null) {
-        // 标签存在 → 关闭,onRemoved 删记录;标签已失效(remove 抛错)→ 直接清记录
-        try {
-          await chrome.tabs.remove(record.chromeTabId);
-        } catch {
-          await repo.removeTab(record.id);
-          onChange();
-        }
-      } else {
-        await repo.removeTab(record.id);
-        onChange();
-      }
+      await closeOrPurge(record, repo);
+      onChange();
       return;
     }
 

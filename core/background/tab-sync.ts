@@ -171,9 +171,18 @@ export async function reconcile(repo: Repository, onChange: OnChange): Promise<v
       await repo.removeTab(r.id);
     }
   }
-  // 2) chrome 中存在但无记录的标签 → 休眠期新开,补建(按分组归属)
+  // 2) 遍历真实标签:无记录则补建;已有记录则用真实标签校正 url/title/favicon
+  //    (修复 discard/换 id 后记录 chromeTabId 错位残留的陈旧 url,避免误判重复)
   for (const [chromeId, tab] of liveById) {
-    if (!recordByChromeId.has(chromeId) && isTrackable(tab)) {
+    if (!isTrackable(tab)) continue;
+    const recId = recordByChromeId.get(chromeId);
+    if (recId) {
+      await repo.updateTab(recId, {
+        url: tab.url || tab.pendingUrl || '',
+        title: tabTitle(tab),
+        faviconUrl: tab.favIconUrl,
+      });
+    } else {
       await repo.addTab(
         {
           chromeTabId: chromeId,

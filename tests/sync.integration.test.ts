@@ -8,6 +8,7 @@ import { registerTabListeners } from '@/core/background/tab-sync';
 import { registerGroupListeners } from '@/core/background/group-sync';
 import { handleCommand, type CommandContext } from '@/core/background/commands';
 import { INBOX_ID } from '@/shared/types';
+import { duplicateMarks } from '@/shared/dedup';
 
 let fake: FakeChrome;
 let repo: Repository;
@@ -164,6 +165,41 @@ describe('标签被 Chrome 替换后关闭仍能同步移除(onReplaced)', () =>
 
     expect(await repo.getTab(rid!)).toBeUndefined(); // 记录应被移除,而非残留
     expect(await inboxTabIds()).toEqual([]);
+  });
+});
+
+describe('合并对失效/错位标签的健壮性', () => {
+  it('冗余标签底层已消失(id 陈旧)→ 清幻影记录、消除重复,不误关其它', async () => {
+    const a1 = await fake.userOpenTab('https://x.com/same', { title: 'A1' });
+    const a2 = await fake.userOpenTab('https://x.com/same', { title: 'A2' });
+    const other = await fake.userOpenTab('https://x.com/other', { title: 'O' });
+    // a2 设为 keeper(最新打开)→ a1 为冗余
+    const a2rec = (await snapshot()).tabs.find((t) => t.chromeTabId === a2)!;
+    await repo.updateTab(a2rec.id, { firstOpenedAt: Date.now() + 10_000 });
+    // a1 的底层标签凭空消失 → 记录 chromeTabId 陈旧
+    fake.tabsById.delete(a1);
+
+    await handleCommand({ type: 'MERGE_DUPLICATES' }, ctx);
+
+    const tabs = (await snapshot()).tabs;
+    expect(tabs.some((t) => t.chromeTabId === a1)).toBe(false); // 幻影记录已清
+    expect(fake.tabsById.has(other)).toBe(true); // 其它标签没被误关
+    expect(duplicateMarks(tabs).size).toBe(0); // 不再有重复
+  });
+
+  it('冗余记录 id 错位到别的网址 → 只清记录,绝不关那个标签', async () => {
+    const a1 = await fake.userOpenTab('https://x.com/same', { title: 'A1' });
+    const a2 = await fake.userOpenTab('https://x.com/same', { title: 'A2' });
+    const other = await fake.userOpenTab('https://x.com/other', { title: 'O' });
+    const a2rec = (await snapshot()).tabs.find((t) => t.chromeTabId === a2)!;
+    await repo.updateTab(a2rec.id, { firstOpenedAt: Date.now() + 10_000 }); // keeper
+    const a1rec = (await snapshot()).tabs.find((t) => t.chromeTabId === a1)!;
+    await repo.updateTab(a1rec.id, { chromeTabId: other }); // 错位:指向别的网址的标签
+
+    await handleCommand({ type: 'MERGE_DUPLICATES' }, ctx);
+
+    expect(fake.tabsById.has(other)).toBe(true); // 没有误关 other
+    expect(await repo.getTab(a1rec.id)).toBeUndefined(); // 错位幻影记录被清
   });
 });
 
