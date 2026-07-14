@@ -137,22 +137,38 @@ export default function App() {
 
   return (
     <div className="relative flex flex-col h-full">
-      {/* 头部 */}
-      <header className="flex items-center gap-2 px-3 py-2 hairline border-b border-black/10 dark:border-white/10">
-        <span className="font-semibold flex-1">Cairn Tabs</span>
+      {/* 头部:搜索入口 + 新建(不再重复 Chrome 侧边栏已显示的应用名) */}
+      <header className="flex items-center gap-1.5 px-2 py-2 border-b border-black/10 dark:border-white/10">
+        <button
+          onClick={openSearch}
+          className="flex-1 flex items-center gap-2 px-2.5 py-1.5 rounded-md text-left
+                     bg-black/[0.05] dark:bg-white/[0.06] hover:bg-black/10 dark:hover:bg-white/10"
+          title="搜索 (⌘⇧K)"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="opacity-55 shrink-0"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <span className="flex-1 opacity-60">搜索标签…</span>
+          <span className="font-mono text-[11px] opacity-45">⌘⇧K</span>
+        </button>
         <button
           onClick={createContext}
-          className="text-[12px] opacity-60 hover:opacity-100"
+          className="shrink-0 px-2 py-1.5 rounded-md text-[12px] opacity-70 hover:opacity-100
+                     hover:bg-black/5 dark:hover:bg-white/10"
           title="新建上下文"
         >
           + 新建
-        </button>
-        <button
-          onClick={openSearch}
-          className="text-[12px] opacity-60 hover:opacity-100 font-mono"
-          title="搜索 (⌘⇧K)"
-        >
-          ⌘⇧K
         </button>
       </header>
 
