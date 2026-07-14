@@ -4,8 +4,8 @@ import { Repository } from '@/core/store/repositories';
 import { CairnTabsDB } from '@/core/store/db';
 import { SearchIndex } from '@/core/search';
 import { UndoManager } from '@/core/background/undo';
-import { registerTabListeners } from '@/core/background/tab-sync';
-import { registerGroupListeners } from '@/core/background/group-sync';
+import { registerTabListeners, reconcile } from '@/core/background/tab-sync';
+import { registerGroupListeners, reconcileGroups } from '@/core/background/group-sync';
 import { handleCommand, type CommandContext } from '@/core/background/commands';
 import { INBOX_ID } from '@/shared/types';
 import { duplicateMarks } from '@/shared/dedup';
@@ -200,6 +200,75 @@ describe('合并对失效/错位标签的健壮性', () => {
 
     expect(fake.tabsById.has(other)).toBe(true); // 没有误关 other
     expect(await repo.getTab(a1rec.id)).toBeUndefined(); // 错位幻影记录被清
+  });
+});
+
+describe('运行期对账自愈(回归 Bug:Cairn 有但浏览器没有 / 合并后打不开)', () => {
+  // 生产接线:REQUEST_SNAPSHOT / MERGE / ACTIVATE 会调 ctx.reconcile。
+  // 这里注入真实的 reconcile+reconcileGroups 以复现修复效果。
+  function withReconcile(): CommandContext {
+    return {
+      ...ctx,
+      reconcile: async () => {
+        await reconcile(repo, ctx.onChange);
+        await reconcileGroups(repo, ctx.onChange);
+      },
+    };
+  }
+
+  it('keeper 是陈旧(非空但已死)记录:合并先对账 → 保留真实存活标签,不误关', async () => {
+    const rctx = withReconcile();
+    const a1 = await fake.userOpenTab('https://x.com/same', { title: 'A1' });
+    const a2 = await fake.userOpenTab('https://x.com/same', { title: 'A2' });
+    // a2「最新打开」→ 旧逻辑会把它选作 keeper
+    const a2rec = (await snapshot()).tabs.find((t) => t.chromeTabId === a2)!;
+    await repo.updateTab(a2rec.id, { firstOpenedAt: Date.now() + 10_000 });
+    // a2 真实标签在 SW 休眠期被关闭、onRemoved 丢失 → a2 记录 chromeTabId 非空但已死
+    fake.tabsById.delete(a2);
+
+    await handleCommand({ type: 'MERGE_DUPLICATES' }, rctx);
+
+    expect(fake.tabsById.has(a1)).toBe(true); // 真实存活的 a1 未被误关
+    const tabs = (await snapshot()).tabs;
+    expect(tabs.some((t) => t.chromeTabId === a2)).toBe(false); // 陈旧幻影已清
+    expect(tabs.filter((t) => t.chromeTabId != null)).toHaveLength(1);
+  });
+
+  it('REQUEST_SNAPSHOT 对账:清除浏览器已不存在的幻影记录', async () => {
+    const rctx = withReconcile();
+    await fake.userOpenTab('https://a.com/1', { title: 'A' });
+    const rec = (await snapshot()).tabs[0]!;
+    fake.tabsById.delete(rec.chromeTabId!); // 休眠期被关,事件丢失
+
+    await handleCommand({ type: 'REQUEST_SNAPSHOT' }, rctx);
+
+    expect(await repo.getTab(rec.id)).toBeUndefined();
+    expect(await inboxTabIds()).toEqual([]);
+  });
+
+  it('两个相同网址、其一 url 陈旧 → 对账刷新后正确识别为重复', async () => {
+    const rctx = withReconcile();
+    await fake.userOpenTab('https://x.com/page', { title: 'P1' });
+    const t2 = await fake.userOpenTab('https://x.com/OLD', { title: 'P2' });
+    // t2 实际已导航到与 t1 相同的 url,但 SW 休眠期漏了 onUpdated → 记录 url 陈旧
+    fake.tabsById.get(t2)!.url = 'https://x.com/page';
+    expect(duplicateMarks((await snapshot()).tabs).size).toBe(0); // 对账前:url 不同,不算重复
+
+    await handleCommand({ type: 'REQUEST_SNAPSHOT' }, rctx);
+
+    expect(duplicateMarks((await snapshot()).tabs).size).toBe(2); // 刷新后一致 → keeper+redundant
+  });
+
+  it('ACTIVATE_TAB 点到幻影(标签已消失)→ 自愈清除,面板恢复一致', async () => {
+    const rctx = withReconcile();
+    await fake.userOpenTab('https://a.com/1', { title: 'A' });
+    const rec = (await snapshot()).tabs[0]!;
+    fake.tabsById.delete(rec.chromeTabId!); // 标签已消失,记录残留
+
+    await handleCommand({ type: 'ACTIVATE_TAB', tabRecordId: rec.id }, rctx);
+
+    expect(await repo.getTab(rec.id)).toBeUndefined(); // 幻影被清
+    expect(await inboxTabIds()).toEqual([]);
   });
 });
 

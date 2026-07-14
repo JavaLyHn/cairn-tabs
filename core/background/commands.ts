@@ -32,6 +32,12 @@ export interface CommandContext {
   };
   /** 自动挂起开关变化时的副作用(注册/取消 alarm);测试中可省略。 */
   onAutoDiscardChanged?: (enabled: boolean) => void;
+  /**
+   * 与真实标签全量对账(清除已消失的幻影记录、刷新陈旧 url)。force 跳过节流。
+   * 供 REQUEST_SNAPSHOT(聚焦自愈)/ MERGE_DUPLICATES(合并前净化)/ ACTIVATE_TAB(点到幻影自愈)调用。
+   * 测试中可省略(省略则相关命令退回旧行为,依赖 closeOrPurge 兜底)。
+   */
+  reconcile?: (force?: boolean) => Promise<void>;
   /** AI 整理(F-13);测试中可注入假实现,省略则相关命令降级。 */
   ai?: {
     status: () => AIStatus;
@@ -190,9 +196,12 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       return;
 
     case 'MERGE_DUPLICATES': {
+      // 先对账:清掉「非空但已死」的陈旧记录、刷新陈旧 url。否则死记录可能被选作 keeper,
+      // 导致合并关掉真实存活的那个、留下打不开的幻影(见 Bug 报告)。
+      await ctx.reconcile?.(true);
       const { tabs } = await repo.getSnapshot();
       const redundant = findDuplicateGroups(tabs).flatMap((g) => g.redundant);
-      // 逐个关闭真实的冗余标签,或清除已失效/错位的幻影记录(见 closeOrPurge)
+      // 逐个关闭真实的冗余标签,或清除已失效/错位的幻影记录(见 closeOrPurge,兜底)
       for (const r of redundant) await closeOrPurge(r, repo);
       onChange();
       return;
@@ -217,9 +226,15 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
         record = await repo.getTab(cmd.tabRecordId);
       }
       if (record?.chromeTabId != null) {
-        await chrome.tabs.update(record.chromeTabId, { active: true }).catch(() => {});
-        if (record.windowId != null) {
-          await chrome.windows.update(record.windowId, { focused: true }).catch(() => {});
+        try {
+          await chrome.tabs.update(record.chromeTabId, { active: true });
+          if (record.windowId != null) {
+            await chrome.windows.update(record.windowId, { focused: true }).catch(() => {});
+          }
+        } catch {
+          // 记录指向的标签已不存在(幻影,点了没反应)→ 对账清除,让面板与浏览器恢复一致
+          await ctx.reconcile?.(true);
+          onChange();
         }
       }
       return;
@@ -318,6 +333,8 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
     }
 
     case 'REQUEST_SNAPSHOT':
+      // 面板挂载/重新聚焦/可见时会发此命令 → 顺带对账(节流),自愈休眠期漏收事件留下的幻影
+      await ctx.reconcile?.();
       onChange();
       return;
 

@@ -179,8 +179,10 @@ export class FakeChrome {
       return { ...tab };
     },
     update: async (tabId: number, _props: Record<string, unknown>) => {
+      // 真实 Chrome:对不存在的标签 update 会 reject(与 get 一致)。ACTIVATE_TAB 靠此自愈幻影。
       const tab = this.tabsById.get(tabId);
-      return tab ? { ...tab } : undefined;
+      if (!tab) throw new Error(`No tab with id ${tabId}`);
+      return { ...tab };
     },
   };
 

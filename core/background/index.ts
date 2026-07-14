@@ -10,6 +10,7 @@ import { PenaltyStore } from './penalties';
 import { PortMappingStore, FlagsStore, MemoryStore, AISettingsStore } from './settings';
 import { PROVIDERS } from '../ai/provider';
 import { runDiscardScan } from './discard-scan';
+import { isSyncPaused } from './sync-lock';
 import { COMMAND_TYPES, type Command } from '@/shared/messaging';
 import { friendlyAIError } from '@/shared/ai';
 
@@ -67,6 +68,19 @@ function scheduleBroadcast(): void {
   }, 40);
 }
 
+// 运行期对账:清除「非空但已死」的幻影记录、刷新陈旧 url,让面板与真实标签一致。
+// 只在 hydrate 时对账不够——SW 休眠期漏收的 onRemoved/onUpdated 会留下幻影,直到下次冷启动。
+// 因此在面板聚焦(REQUEST_SNAPSHOT)、合并前、点到幻影时按需触发。节流避免聚焦事件连发时重复扫描。
+let lastReconcileAt = 0;
+async function reconcileNow(force = false): Promise<void> {
+  if (isSyncPaused()) return; // 收纳/恢复期间不对账,避免与同步锁内的批量增删打架
+  const now = Date.now();
+  if (!force && now - lastReconcileAt < 1200) return;
+  lastReconcileAt = now;
+  await reconcile(repository, scheduleBroadcast);
+  await reconcileGroups(repository, scheduleBroadcast);
+}
+
 const cmdCtx: CommandContext = {
   repo: repository,
   search,
@@ -85,6 +99,7 @@ const cmdCtx: CommandContext = {
     ensureDiscardAlarm(enabled);
     if (enabled) runScanNow(); // 立即扫一轮,不必等第一个 5 分钟周期
   },
+  reconcile: (force) => reconcileNow(force),
   ai: {
     status: () => aiSettings.status(),
     configured: () => aiSettings.configured(),
