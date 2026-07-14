@@ -4,6 +4,8 @@ import { INBOX_ID, type Context, type TabRecord } from '@/shared/types';
 import type { Event } from '@/shared/messaging';
 import { AIPlanDialog } from './components/AIPlanDialog';
 import type { AIPlan } from '@/shared/ai';
+import type { AIProviderId } from '@/shared/ai';
+import { PROVIDERS } from '@/core/ai/provider';
 import { duplicateMarks, redundantCount } from '@/shared/dedup';
 import { buildPortMap, localhostPort, suggestProjectName } from '@/shared/localhost';
 import { staleTabs } from '@/shared/stale';
@@ -269,6 +271,13 @@ export default function App() {
     setSettingsOpen(false);
     showFlash('已导出全部数据 (JSON)');
   };
+  const saveAi = async (provider: AIProviderId, key: string, model: string) => {
+    const origins = [PROVIDERS[provider].host];
+    const granted = await chrome.permissions.request({ origins });
+    if (!granted) throw new Error('需要授权访问 API 域名');
+    await dispatch({ type: 'SET_AI_SETTINGS', provider, key, model });
+  };
+
   const doUndo = async () => {
     if (undo) await dispatch({ type: 'UNDO', token: undo.token });
     clearUndo();
@@ -436,6 +445,8 @@ export default function App() {
       {settingsOpen && (
         <SettingsPanel
           flags={flags}
+          ai={ai}
+          onSaveAi={saveAi}
           onToggleAutoCluster={toggleAutoCluster}
           onToggleStaleHints={toggleStaleHints}
           onToggleAutoDiscard={toggleAutoDiscard}
