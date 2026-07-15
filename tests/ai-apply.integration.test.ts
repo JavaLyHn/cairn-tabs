@@ -8,6 +8,7 @@ import { registerTabListeners } from '@/core/background/tab-sync';
 import { registerGroupListeners } from '@/core/background/group-sync';
 import { handleCommand, type CommandContext } from '@/core/background/commands';
 import { INBOX_ID, DEFAULT_FLAGS, type Flags } from '@/shared/types';
+import { AICancelledError } from '@/shared/ai';
 
 let fake: FakeChrome;
 let repo: Repository;
@@ -46,6 +47,7 @@ describe('AI_ORGANIZE_INBOX (F-13)', () => {
         complete: async () => '', // 下面按需覆盖
         set: async () => {},
         test: async () => ({ ok: true, detail: 'ok' }),
+        cancel: () => {},
       },
     };
     await fake.userOpenTab('https://react.dev/x', { title: 'React' });
@@ -71,6 +73,7 @@ describe('AI_ORGANIZE_INBOX (F-13)', () => {
         },
         set: async () => {},
         test: async () => ({ ok: true, detail: 'ok' }),
+        cancel: () => {},
       },
     };
     await fake.userOpenTab('https://a.com', { title: 'A' });
@@ -87,6 +90,7 @@ describe('AI_ORGANIZE_INBOX (F-13)', () => {
         complete: async () => '{"newGroups":[],"assign":[]}',
         set: async () => {},
         test: async () => ({ ok: true, detail: 'ok' }),
+        cancel: () => {},
       },
     };
     // 未开任何标签,未分类为空
@@ -103,6 +107,7 @@ describe('AI_ORGANIZE_INBOX (F-13)', () => {
         complete: async () => 'not json at all',
         set: async () => {},
         test: async () => ({ ok: true, detail: 'ok' }),
+        cancel: () => {},
       },
     };
     await fake.userOpenTab('https://a.com', { title: 'A' });
@@ -129,6 +134,7 @@ describe('TEST_AI_CONNECTION (自定义中转站)', () => {
         complete: async () => 'OK',
         set: async () => {},
         test: async () => ({ ok: true, detail: '连接成功 · gpt-4o · 12ms' }),
+        cancel: () => {},
       },
     };
     const ev = await handleCommand({ type: 'TEST_AI_CONNECTION' }, aiCtx);
@@ -144,6 +150,7 @@ describe('TEST_AI_CONNECTION (自定义中转站)', () => {
         complete: async () => 'OK',
         set: async () => {},
         test: async () => ({ ok: false, detail: '认证失败(401)—— 检查 API key' }),
+        cancel: () => {},
       },
     };
     const ev = await handleCommand({ type: 'TEST_AI_CONNECTION' }, aiCtx);
@@ -162,6 +169,7 @@ describe('AI_SUGGEST_NAME (AI 改名)', () => {
         complete,
         set: async () => {},
         test: async () => ({ ok: true, detail: 'ok' }),
+        cancel: () => {},
       },
     };
   }
@@ -296,5 +304,64 @@ describe('APPLY_AI_PLAN (F-13)', () => {
 
     expect((await repo.getContext(target.id))!.tabOrder).toContain(id);
     expect(await looseTabIds()).toEqual([]);
+  });
+});
+
+describe('AI 取消', () => {
+  it('complete 抛 AICancelledError → AI_ERROR reason cancelled', async () => {
+    const aiCtx: CommandContext = {
+      ...ctx,
+      ai: {
+        status: () => ({ provider: 'anthropic', hasKey: true, model: 'x' }),
+        configured: () => true,
+        complete: async () => {
+          throw new AICancelledError();
+        },
+        set: async () => {},
+        test: async () => ({ ok: true, detail: 'ok' }),
+        cancel: () => {},
+      },
+    };
+    await fake.userOpenTab('https://a.com', { title: 'A' });
+    const ev = await handleCommand({ type: 'AI_ORGANIZE_INBOX' }, aiCtx);
+    expect(ev).toEqual({ type: 'AI_ERROR', reason: 'cancelled' });
+  });
+
+  it('普通错误仍归为 network(不与 cancelled 混)', async () => {
+    const aiCtx: CommandContext = {
+      ...ctx,
+      ai: {
+        status: () => ({ provider: 'anthropic', hasKey: true, model: 'x' }),
+        configured: () => true,
+        complete: async () => {
+          throw new Error('The operation was aborted'); // 超时:AbortError,非用户取消
+        },
+        set: async () => {},
+        test: async () => ({ ok: true, detail: 'ok' }),
+        cancel: () => {},
+      },
+    };
+    await fake.userOpenTab('https://a.com', { title: 'A' });
+    const ev = await handleCommand({ type: 'AI_ORGANIZE_INBOX' }, aiCtx);
+    expect(ev).toEqual({ type: 'AI_ERROR', reason: 'network' });
+  });
+
+  it('CANCEL_AI 调用 ctx.ai.cancel()', async () => {
+    let cancelled = false;
+    const aiCtx: CommandContext = {
+      ...ctx,
+      ai: {
+        status: () => ({ provider: 'anthropic', hasKey: true, model: 'x' }),
+        configured: () => true,
+        complete: async () => '',
+        set: async () => {},
+        test: async () => ({ ok: true, detail: 'ok' }),
+        cancel: () => {
+          cancelled = true;
+        },
+      },
+    };
+    await handleCommand({ type: 'CANCEL_AI' }, aiCtx);
+    expect(cancelled).toBe(true);
   });
 });

@@ -17,6 +17,7 @@ import {
   parseNameResponse,
 } from '../ai/organize';
 import type { AIProviderId, AIStatus } from '@/shared/ai';
+import { isAICancelled } from '@/shared/ai';
 
 export interface CommandContext {
   repo: Repository;
@@ -50,6 +51,8 @@ export interface CommandContext {
     complete: (system: string, user: string) => Promise<string>;
     set: (provider: AIProviderId, key?: string, model?: string, baseUrl?: string) => Promise<void>;
     test: () => Promise<{ ok: boolean; detail: string }>;
+    /** 中止当前在飞的 AI 请求(用户点「取消」)。 */
+    cancel: () => void;
   };
 }
 
@@ -363,7 +366,8 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       let raw: string;
       try {
         raw = await ctx.ai.complete(system, user);
-      } catch {
+      } catch (e) {
+        if (isAICancelled(e)) return { type: 'AI_ERROR', reason: 'cancelled' };
         return { type: 'AI_ERROR', reason: 'network' };
       }
       const name = parseNameResponse(raw);
@@ -384,6 +388,10 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       return { type: 'AI_TEST_RESULT', ok: r.ok, detail: r.detail };
     }
 
+    case 'CANCEL_AI':
+      ctx.ai?.cancel();
+      return;
+
     case 'AI_ORGANIZE_INBOX': {
       if (!ctx.ai || !ctx.ai.configured()) return { type: 'AI_ERROR', reason: 'no_key' };
       const { contexts, tabs } = await repo.getSnapshot();
@@ -397,7 +405,8 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       let raw: string;
       try {
         raw = await ctx.ai.complete(system, user);
-      } catch {
+      } catch (e) {
+        if (isAICancelled(e)) return { type: 'AI_ERROR', reason: 'cancelled' };
         return { type: 'AI_ERROR', reason: 'network' };
       }
       const plan = parseOrganizeResponse(

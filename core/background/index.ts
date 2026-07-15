@@ -24,6 +24,9 @@ const aiSettings = new AISettingsStore();
 
 const DISCARD_ALARM = 'discard-scan';
 
+/** 当前在飞的 AI 请求的 AbortController,用于实现 cancel()。 */
+let aiAbortController: AbortController | null = null;
+
 /** 读快照 → 重建搜索索引 → 广播 STATE_SNAPSHOT(侧边栏关闭时 sendMessage 失败,忽略)。 */
 async function broadcast(): Promise<void> {
   const { contexts, tabs } = await repository.getSnapshot();
@@ -108,6 +111,7 @@ const cmdCtx: CommandContext = {
       const key = aiSettings.keyFor();
       if (!key) return Promise.reject(new Error('no key'));
       const ctrl = new AbortController();
+      aiAbortController = ctrl;
       const timer = setTimeout(() => ctrl.abort(), 30_000);
       return PROVIDERS[p]
         .complete(
@@ -121,7 +125,10 @@ const cmdCtx: CommandContext = {
           },
           key,
         )
-        .finally(() => clearTimeout(timer));
+        .finally(() => {
+          clearTimeout(timer);
+          aiAbortController = null;
+        });
     },
     set: (provider, key, model, baseUrl) => aiSettings.set(provider, key, model, baseUrl),
     test: async () => {
@@ -151,6 +158,9 @@ const cmdCtx: CommandContext = {
       } finally {
         clearTimeout(timer);
       }
+    },
+    cancel: () => {
+      aiAbortController?.abort();
     },
   },
 };
