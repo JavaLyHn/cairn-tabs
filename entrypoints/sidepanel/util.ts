@@ -1,4 +1,5 @@
 import type { ContextColor, TabRecord } from '@/shared/types';
+import { registrableDomain } from '@/core/clustering/signals';
 
 /** 近似 Chrome 原生分组配色,用于侧边栏与原生 UI 视觉一致。 */
 const COLOR_HEX: Record<ContextColor, string> = {
@@ -40,6 +41,31 @@ export function hostname(url: string): string {
   } catch {
     return url;
   }
+}
+
+export interface Monogram {
+  letter: string;
+  color: string;
+}
+
+function firstAlnum(s: string): string {
+  const m = s.match(/[a-z0-9]/i);
+  return m ? m[0]!.toUpperCase() : '';
+}
+
+/**
+ * 缺失/加载失败 favicon 时的字母字标兜底:
+ * 域名(eTLD+1)首字母 + 域名哈希得到的稳定配色(同站永远同色);
+ * 拿不到域名(file:// / about: 等)则用 fallback(标题)。纯函数,可单测。
+ */
+export function monogram(url: string, fallback = ''): Monogram {
+  const host = hostname(url);
+  const domain = host ? registrableDomain(host) : '';
+  const key = domain || fallback.trim() || '?';
+  const letter = firstAlnum(domain) || firstAlnum(fallback) || '?';
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (Math.imul(h, 31) + key.charCodeAt(i)) >>> 0;
+  return { letter, color: `hsl(${h % 360} 52% 48%)` };
 }
 
 /** "github.com ×4  stackoverflow.com ×2"(取出现最多的前 3 个域名) */
