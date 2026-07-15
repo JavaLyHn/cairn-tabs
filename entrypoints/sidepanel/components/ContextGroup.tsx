@@ -158,7 +158,7 @@ export function ContextGroup({
                 }}
                 className="shrink-0 text-[11px] text-accent hover:underline disabled:opacity-40"
               >
-                {aiNaming ? '…' : '✦'}
+                {aiNaming ? '✦ …' : '✦ AI'}
               </button>
             )}
           </div>
