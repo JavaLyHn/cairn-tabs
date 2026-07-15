@@ -367,6 +367,7 @@ export default function App() {
     aiBusy,
     onAiOrganize: aiOrganize,
     onAiSuggestName: () => aiSuggestName(ctx.id),
+    onAiCancel: () => dispatch({ type: 'CANCEL_AI' }),
   });
 
   return (

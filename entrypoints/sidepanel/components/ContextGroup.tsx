@@ -28,6 +28,7 @@ interface Props {
   aiBusy?: boolean; // AI 整理进行中 → 按钮显示「分析中…」并禁用
   onAiOrganize?: () => void;
   onAiSuggestName?: () => Promise<string | null>; // AI 命名:返回建议名(不自动应用)
+  onAiCancel?: () => void; // 进行中点「✦ 取消」中止(复用 CANCEL_AI)
 }
 
 export function ContextGroup({
@@ -54,6 +55,7 @@ export function ContextGroup({
   aiBusy,
   onAiOrganize,
   onAiSuggestName,
+  onAiCancel,
 }: Props) {
   const [collapsed, setCollapsed] = useState(variant === 'archived');
   const [dragOver, setDragOver] = useState(false);
@@ -142,11 +144,15 @@ export function ContextGroup({
             />
             {aiEnabled && !isInbox && onAiSuggestName && (
               <button
-                title="AI 命名(据任务里的标签建议)"
-                disabled={aiNaming}
+                aria-label={aiNaming ? '取消 AI 命名' : 'AI 命名'}
+                title={aiNaming ? '点击取消' : 'AI 命名(据任务里的标签建议)'}
                 // mousedown 不让 input 失焦(否则会触发 commit 提前退出编辑)
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={async () => {
+                  if (aiNaming) {
+                    onAiCancel?.(); // 进行中 → 中止;promise 以 null 结束,不回填
+                    return;
+                  }
                   setAiNaming(true);
                   const name = await onAiSuggestName();
                   setAiNaming(false);
@@ -156,9 +162,9 @@ export function ContextGroup({
                     inputRef.current.select();
                   }
                 }}
-                className="shrink-0 text-[11px] text-accent hover:underline disabled:opacity-40"
+                className="shrink-0 text-[11px] text-accent hover:underline"
               >
-                {aiNaming ? '✦ …' : '✦ AI'}
+                {aiNaming ? '✦ 取消' : '✦ AI'}
               </button>
             )}
           </div>
