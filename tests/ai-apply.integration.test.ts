@@ -152,6 +152,50 @@ describe('TEST_AI_CONNECTION (自定义中转站)', () => {
   });
 });
 
+describe('AI_SUGGEST_NAME (AI 改名)', () => {
+  function aiCtx(complete: () => Promise<string>): CommandContext {
+    return {
+      ...ctx,
+      ai: {
+        status: () => ({ provider: 'anthropic', hasKey: true, model: 'm' }),
+        configured: () => true,
+        complete,
+        set: async () => {},
+        test: async () => ({ ok: true, detail: 'ok' }),
+      },
+    };
+  }
+
+  it('据任务标签给出建议名', async () => {
+    await fake.userOpenTab('https://github.com/a/b/pull/1', { title: 'Fix login' });
+    await handleCommand({ type: 'CREATE_CONTEXT', name: '新任务' }, ctx);
+    const cid = (await repo.getSnapshot()).contexts.find((c) => c.id !== INBOX_ID)!.id;
+    const [rid] = await looseTabIds();
+    await handleCommand({ type: 'MOVE_TAB', tabRecordId: rid!, toContextId: cid }, ctx);
+
+    const ev = await handleCommand(
+      { type: 'AI_SUGGEST_NAME', contextId: cid },
+      aiCtx(async () => '登录修复'),
+    );
+    expect(ev).toEqual({ type: 'AI_NAME', name: '登录修复' });
+  });
+
+  it('未配置 → no_key', async () => {
+    const ev = await handleCommand({ type: 'AI_SUGGEST_NAME', contextId: INBOX_ID }, ctx);
+    expect(ev).toEqual({ type: 'AI_ERROR', reason: 'no_key' });
+  });
+
+  it('任务无标签 → empty', async () => {
+    await handleCommand({ type: 'CREATE_CONTEXT', name: '空任务' }, ctx);
+    const cid = (await repo.getSnapshot()).contexts.find((c) => c.id !== INBOX_ID)!.id;
+    const ev = await handleCommand(
+      { type: 'AI_SUGGEST_NAME', contextId: cid },
+      aiCtx(async () => 'x'),
+    );
+    expect(ev).toEqual({ type: 'AI_ERROR', reason: 'empty' });
+  });
+});
+
 describe('APPLY_AI_PLAN (F-13)', () => {
   it('建新任务并把标签移入,新鲜标签离开未分类', async () => {
     await fake.userOpenTab('https://react.dev/x', { title: 'React' });

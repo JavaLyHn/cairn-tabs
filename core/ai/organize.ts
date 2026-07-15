@@ -34,9 +34,33 @@ export function buildOrganizePrompt(
   return { system, user };
 }
 
-function stripFences(s: string): string {
+export function stripFences(s: string): string {
   const m = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
   return (m ? m[1]! : s).trim();
+}
+
+/** AI 改名:据一组标签的标题+域名建议一个简短任务名。 */
+export function buildNamePrompt(tabs: { title: string; domain: string }[]): {
+  system: string;
+  user: string;
+} {
+  const system = [
+    '你为一组浏览器标签起一个简短的任务名。',
+    '规则:',
+    '- 概括这些标签共同的任务/主题。',
+    '- 简短:不超过 12 个字;不要引号、书名号、标点包裹;不要解释。',
+    '- 语言与标签标题一致。',
+    '- 只输出这个名字本身,一行。',
+  ].join('\n');
+  const user = JSON.stringify({ tabs: tabs.map((t) => ({ title: t.title, domain: t.domain })) });
+  return { system, user };
+}
+
+/** 解析 AI 改名响应:去围栏/首尾引号、取首行、截断;空则 null。 */
+export function parseNameResponse(raw: string): string | null {
+  const first = stripFences(raw).split('\n')[0] ?? '';
+  const name = first.trim().replace(/^["'「『《]+|["'」』》]+$/g, '').trim();
+  return name ? name.slice(0, 40) : null;
 }
 
 export function parseOrganizeResponse(

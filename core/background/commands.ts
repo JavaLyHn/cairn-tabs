@@ -10,7 +10,12 @@ import { INBOX_ID, DEFAULT_FLAGS, type Flags, type TabRecord } from '@/shared/ty
 import { findDuplicateGroups } from '@/shared/dedup';
 import { staleTabs } from '@/shared/stale';
 import { hostnameOf, registrableDomain } from '../clustering/signals';
-import { buildOrganizePrompt, parseOrganizeResponse } from '../ai/organize';
+import {
+  buildOrganizePrompt,
+  parseOrganizeResponse,
+  buildNamePrompt,
+  parseNameResponse,
+} from '../ai/organize';
 import type { AIProviderId, AIStatus } from '@/shared/ai';
 
 export interface CommandContext {
@@ -307,6 +312,25 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       await repo.setTabStarred(cmd.tabRecordId, cmd.starred);
       onChange();
       return;
+
+    case 'AI_SUGGEST_NAME': {
+      if (!ctx.ai || !ctx.ai.configured()) return { type: 'AI_ERROR', reason: 'no_key' };
+      const { tabs } = await repo.getSnapshot();
+      const own = tabs.filter((t) => t.contextId === cmd.contextId);
+      if (own.length === 0) return { type: 'AI_ERROR', reason: 'empty' };
+      const { system, user } = buildNamePrompt(
+        own.map((t) => ({ title: t.title, domain: registrableDomain(hostnameOf(t.url)) })),
+      );
+      let raw: string;
+      try {
+        raw = await ctx.ai.complete(system, user);
+      } catch {
+        return { type: 'AI_ERROR', reason: 'network' };
+      }
+      const name = parseNameResponse(raw);
+      if (!name) return { type: 'AI_ERROR', reason: 'parse' };
+      return { type: 'AI_NAME', name };
+    }
 
     case 'SET_AI_SETTINGS':
       await ctx.ai?.set(cmd.provider, cmd.key, cmd.model, cmd.baseUrl);
