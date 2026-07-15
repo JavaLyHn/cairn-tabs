@@ -60,3 +60,17 @@ describe('ContextGroup AI 改名取消', () => {
     expect(onAiCancel).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('ContextGroup 一键折叠', () => {
+  const t = {
+    id: 'x1', contextId: 'c1', url: 'https://a.com', title: 'A标签',
+    chromeTabId: 1, firstOpenedAt: 0, lastActiveAt: 0,
+  };
+  it('collapseAll 控制:false 显示标签、true 隐藏', () => {
+    const props = baseProps({ editing: false, tabs: [t] });
+    const { rerender } = render(<ContextGroup {...props} collapseAll={false} />);
+    expect(screen.getByText('A标签')).toBeTruthy();
+    rerender(<ContextGroup {...props} collapseAll={true} />);
+    expect(screen.queryByText('A标签')).toBeNull();
+  });
+});

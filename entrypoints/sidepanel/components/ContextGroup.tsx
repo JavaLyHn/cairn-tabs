@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Context, TabRecord } from '@/shared/types';
 import { INBOX_ID } from '@/shared/types';
 import { TabRow } from './TabRow';
@@ -29,6 +29,7 @@ interface Props {
   onAiOrganize?: () => void;
   onAiSuggestName?: () => Promise<string | null>; // AI 命名:返回建议名(不自动应用)
   onAiCancel?: () => void; // 进行中点「✦ 取消」中止(复用 CANCEL_AI)
+  collapseAll?: boolean; // 传了则折叠态随一键开关同步(归档组不传 → 不受影响)
 }
 
 export function ContextGroup({
@@ -56,8 +57,13 @@ export function ContextGroup({
   onAiOrganize,
   onAiSuggestName,
   onAiCancel,
+  collapseAll,
 }: Props) {
   const [collapsed, setCollapsed] = useState(variant === 'archived');
+  // 一键展开/折叠:App 传 collapseAll 时随之同步;归档组不传 → guard 使其不受影响
+  useEffect(() => {
+    if (collapseAll !== undefined) setCollapsed(collapseAll);
+  }, [collapseAll]);
   const [dragOver, setDragOver] = useState(false);
   const [aiNaming, setAiNaming] = useState(false);
   const cancelledRef = useRef(false);

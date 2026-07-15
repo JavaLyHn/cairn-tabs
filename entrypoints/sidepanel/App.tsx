@@ -63,6 +63,7 @@ export default function App() {
   const [ignoredDomains, setIgnoredDomains] = useState<Set<string>>(new Set());
   const activeOrderRef = useRef('');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [allCollapsed, setAllCollapsed] = useState(false); // 一键折叠开关(false=展开)
   const [exportTarget, setExportTarget] = useState<{ id: string; at: number } | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -406,6 +407,36 @@ export default function App() {
           + 新建
         </button>
         <button
+          onClick={() => setAllCollapsed((v) => !v)}
+          className="shrink-0 flex items-center justify-center w-7 h-7 rounded-md opacity-60 hover:opacity-100
+                     hover:bg-black/5 dark:hover:bg-white/10"
+          title={allCollapsed ? '全部展开' : '全部折叠'}
+          aria-label={allCollapsed ? '全部展开' : '全部折叠'}
+        >
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            {allCollapsed ? (
+              <>
+                <path d="M7 13l5 5 5-5" />
+                <path d="M7 6l5 5 5-5" />
+              </>
+            ) : (
+              <>
+                <path d="M7 11l5-5 5 5" />
+                <path d="M7 18l5-5 5 5" />
+              </>
+            )}
+          </svg>
+        </button>
+        <button
           onClick={() => setSettingsOpen((v) => !v)}
           className="shrink-0 flex items-center justify-center w-7 h-7 rounded-md opacity-60 hover:opacity-100
                      hover:bg-black/5 dark:hover:bg-white/10"
@@ -457,10 +488,12 @@ export default function App() {
         />
 
         {activeContexts.map((c) => (
-          <ContextGroup key={c.id} variant="active" {...groupProps(c)} />
+          <ContextGroup key={c.id} variant="active" collapseAll={allCollapsed} {...groupProps(c)} />
         ))}
 
-        {!isEmpty && inbox && <ContextGroup key={inbox.id} variant="inbox" {...groupProps(inbox)} />}
+        {!isEmpty && inbox && (
+          <ContextGroup key={inbox.id} variant="inbox" collapseAll={allCollapsed} {...groupProps(inbox)} />
+        )}
 
         {staleRecords.length > 0 && (
           <StaleGroup
