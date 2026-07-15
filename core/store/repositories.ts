@@ -66,7 +66,7 @@ export class Repository {
   async createContext(
     name: string,
     now: number,
-    opts?: { color?: ContextColor; nativeGroupId?: number },
+    opts?: { color?: ContextColor; nativeGroupId?: number; restoreTo?: string },
   ): Promise<Context> {
     const ctx: Context = {
       id: nanoid(),
@@ -78,6 +78,7 @@ export class Repository {
       createdAt: now,
       lastActiveAt: now,
       tabOrder: [],
+      ...(opts?.restoreTo ? { restoreTo: opts.restoreTo } : {}),
     };
     await this.db.contexts.put(ctx);
     return ctx;

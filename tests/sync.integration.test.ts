@@ -106,6 +106,26 @@ describe('未分类收纳全部(ARCHIVE_INBOX)', () => {
     expect(archived[0]!.tabOrder).toHaveLength(2);
     expect(archived[0]!.name.startsWith('暂存')).toBe(true);
   });
+
+  it('恢复暂存归档 → 标签回到未分类,不复活成「暂存」命名任务(回归 Bug)', async () => {
+    await fake.userOpenTab('https://a.com/1', { title: 'A' });
+    await fake.userOpenTab('https://b.com/2', { title: 'B' });
+    await handleCommand({ type: 'ARCHIVE_INBOX' }, ctx);
+    const stashId = (await snapshot()).contexts.find((c) => c.status === 'archived')!.id;
+
+    await handleCommand({ type: 'RESTORE_CONTEXT', contextId: stashId }, ctx);
+
+    // 标签回到未分类(不是复活成一个「暂存」任务)
+    expect((await inboxTabIds()).length).toBe(2);
+    // 浏览器里重新开了两个标签,且都未分组(未分类 = 不成组)
+    expect(fake.tabsById.size).toBe(2);
+    expect([...fake.tabsById.values()].every((t) => t.groupId < 0)).toBe(true);
+    // 暂存簇不复活:除未分类外没有任何任务残留
+    expect((await snapshot()).contexts.filter((c) => c.id !== INBOX_ID)).toHaveLength(0);
+    // 无幻影:未分类里的记录都有真实 chromeTabId
+    const inboxTabs = (await snapshot()).tabs.filter((t) => t.contextId === INBOX_ID);
+    expect(inboxTabs.every((t) => t.chromeTabId != null)).toBe(true);
+  });
 });
 
 describe('CREATE_CONTEXT 草稿去重', () => {

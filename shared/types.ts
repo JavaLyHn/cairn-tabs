@@ -41,6 +41,9 @@ export interface Context {
   archivedAt?: number;
   lastActiveAt: number;
   tabOrder: string[]; // TabRecord.id 有序列表
+  /** 临时暂存簇(未分类整批收纳「暂存」/ 陈旧收纳「陈旧」)标记:恢复时标签回到这个簇
+   *  (通常是未分类 INBOX_ID),暂存簇本身随即删除 —— 而不是作为一个命名任务复活。 */
+  restoreTo?: string;
 }
 
 export interface TabRecord {

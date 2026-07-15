@@ -6,7 +6,7 @@ import type { UndoManager } from './undo';
 import { pauseSync, resumeSync } from './sync-lock';
 import { ensureTabInContextGroup, groupTabsForContext, syncGroupTitle } from './group-sync';
 import { DRAFT_CONTEXT_NAME, type Command, type Event } from '@/shared/messaging';
-import { INBOX_ID, DEFAULT_FLAGS, type Flags, type TabRecord } from '@/shared/types';
+import { INBOX_ID, DEFAULT_FLAGS, type Flags, type TabRecord, type Context } from '@/shared/types';
 import { findDuplicateGroups } from '@/shared/dedup';
 import { staleTabs } from '@/shared/stale';
 import { hostnameOf, registrableDomain } from '../clustering/signals';
@@ -210,7 +210,8 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       // 移入一个新「暂存」任务再归档,未分类清空但仍保留。
       const inbox = await repo.getContext(INBOX_ID);
       if (!inbox || inbox.tabOrder.length === 0) return;
-      const ctx = await repo.createContext(stampedName('暂存', now), now);
+      // restoreTo=未分类:这是零散标签的临时暂存,恢复时标签应回到未分类,而不是变成一个「暂存」命名任务。
+      const ctx = await repo.createContext(stampedName('暂存', now), now, { restoreTo: INBOX_ID });
       for (const tabId of [...inbox.tabOrder]) {
         await repo.moveTab(tabId, ctx.id, now);
       }
@@ -226,7 +227,8 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       const staleDays = (flags?.get() ?? DEFAULT_FLAGS).staleDays;
       const stale = staleTabs(tabs, now, staleDays);
       if (stale.length === 0) return;
-      const ctx = await repo.createContext(stampedName('陈旧', now), now);
+      // 同「暂存」:陈旧收纳也是临时暂存,恢复时标签回未分类,不复活成「陈旧」命名任务。
+      const ctx = await repo.createContext(stampedName('陈旧', now), now, { restoreTo: INBOX_ID });
       for (const t of stale) await repo.moveTab(t.id, ctx.id, now);
       await archiveAndClose(ctx.id, repo, now);
       onChange();
@@ -432,10 +434,22 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
 }
 
 /** 整簇恢复(见设计文档 §7.2):限速重开 + 立即挂起 + 回填 chromeTabId。 */
+/**
+ * 临时暂存簇(未分类整批收纳的「暂存」、陈旧收纳的「陈旧」)恢复时应把标签放回目标簇
+ * (通常是未分类),而不是复活成一个命名任务。返回目标簇 id,普通任务返回 undefined。
+ * 除了新写入的 restoreTo 字段,也按名字前缀兜底识别本次修复前已归档的暂存/陈旧簇。
+ */
+function inboxStashTarget(context: Context): string | undefined {
+  if (context.restoreTo) return context.restoreTo;
+  if (/^(暂存|陈旧) · /.test(context.name)) return INBOX_ID;
+  return undefined;
+}
+
 async function restoreContext(contextId: string, ctx: CommandContext): Promise<void> {
   const { repo } = ctx;
   const context = await repo.getContext(contextId);
   if (!context || context.status !== 'archived') return;
+  const stashTarget = inboxStashTarget(context);
 
   let windowId: number | undefined;
   try {
@@ -458,16 +472,26 @@ async function restoreContext(contextId: string, ctx: CommandContext): Promise<v
         const created = await chrome.tabs.create({ url: record.url, active: false, windowId });
         if (created.id != null) {
           await repo.bindChromeTab(recordId, created.id, created.windowId ?? windowId ?? 0, Date.now());
-          createdIds.push(created.id);
+          if (stashTarget) {
+            // 暂存簇:标签回到目标簇(未分类=不成组),只有成功重开的才迁回(避免幻影记录)
+            await repo.moveTab(recordId, stashTarget, Date.now());
+          } else {
+            createdIds.push(created.id);
+          }
         }
       } catch {
         // 达到浏览器标签上限等 → 跳过该标签,继续恢复其余
       }
       await delay(RESTORE_STAGGER_MS);
     }
-    await repo.setContextActive(contextId);
-    // 把恢复的标签编成原生分组(与 §6.4 双向同步一致)
-    await groupTabsForContext(repo, contextId, createdIds);
+    if (stashTarget) {
+      // 标签已迁回目标簇;删除这个空的暂存簇(status=archived,deleteContext 会清掉未能重开的残余指针,不留幻影)
+      await repo.deleteContext(contextId, Date.now());
+    } else {
+      await repo.setContextActive(contextId);
+      // 把恢复的标签编成原生分组(与 §6.4 双向同步一致)
+      await groupTabsForContext(repo, contextId, createdIds);
+    }
   } finally {
     resumeSync();
   }
