@@ -10,6 +10,28 @@ export interface OrganizeTab {
 export interface OrganizeTask {
   id: string;
   name: string;
+  domains: string[];
+  samples: string[];
+}
+
+export interface TaskSignals {
+  domains: string[];
+  samples: string[];
+}
+
+/** 汇总一个任务里标签的内容信号:域名(按频次 top 5、去重)+ 示例标题(前 3)。供 AI 判断归属。 */
+export function summarizeTaskTabs(tabs: { title: string; domain: string }[]): TaskSignals {
+  const freq = new Map<string, number>();
+  for (const t of tabs) {
+    const d = t.domain.trim();
+    if (d) freq.set(d, (freq.get(d) ?? 0) + 1);
+  }
+  const domains = [...freq.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([d]) => d);
+  const samples = tabs.map((t) => t.title.trim()).filter((s) => s !== '').slice(0, 3);
+  return { domains, samples };
 }
 
 export function buildOrganizePrompt(
@@ -22,6 +44,7 @@ export function buildOrganizePrompt(
     '规则:',
     '- 保守:拿不准就不要归类(该标签不出现在输出里,自动留在未分类)。',
     '- 明显属于某个已有任务时,优先并入该任务而不是新建同类分组。',
+    '- 判断是否并入已有任务时,参考该任务的 domains(域名)与 samples(示例标题)是否与标签一致。',
     '- 新建分组名简短(不超过 16 字),语言与标签标题一致。',
     '- 只输出严格 JSON,不要任何解释、不要 Markdown 代码块。',
     'JSON 结构:',
@@ -29,7 +52,7 @@ export function buildOrganizePrompt(
   ].join('\n');
   const user = JSON.stringify({
     looseTabs: tabs.map((t) => ({ id: t.id, title: t.title, domain: t.domain })),
-    existingTasks: tasks.map((t) => ({ id: t.id, name: t.name })),
+    existingTasks: tasks.map((t) => ({ id: t.id, name: t.name, domains: t.domains, samples: t.samples })),
   });
   return { system, user };
 }

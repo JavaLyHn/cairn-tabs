@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildOrganizePrompt, parseOrganizeResponse } from '@/core/ai/organize';
+import { buildOrganizePrompt, parseOrganizeResponse, summarizeTaskTabs } from '@/core/ai/organize';
 
 const TABS = new Set(['t1', 't2', 't3']);
 const TASKS = new Set(['c1']);
@@ -8,12 +8,40 @@ describe('buildOrganizePrompt', () => {
   it('系统提示含 JSON 约束,user 含标签与任务', () => {
     const { system, user } = buildOrganizePrompt(
       [{ id: 't1', title: 'React hooks', domain: 'react.dev' }],
-      [{ id: 'c1', name: 'auth-service' }],
+      [{ id: 'c1', name: 'auth-service', domains: [], samples: [] }],
     );
     expect(system).toContain('JSON');
     expect(user).toContain('t1');
     expect(user).toContain('react.dev');
     expect(user).toContain('auth-service');
+  });
+  it('已有任务带上 domains 与 samples 供 AI 判断归属', () => {
+    const { user } = buildOrganizePrompt(
+      [{ id: 't1', title: 'x', domain: 'a.com' }],
+      [{ id: 'c1', name: '任务', domains: ['react.dev'], samples: ['React 文档'] }],
+    );
+    expect(user).toContain('react.dev');
+    expect(user).toContain('React 文档');
+  });
+});
+
+describe('summarizeTaskTabs', () => {
+  it('域名按频次取 top5、去重;标题取前 3', () => {
+    const s = summarizeTaskTabs([
+      { title: 'A', domain: 'x.com' },
+      { title: 'B', domain: 'x.com' },
+      { title: 'C', domain: 'y.com' },
+      { title: 'D', domain: 'z1.com' },
+      { title: 'E', domain: 'z2.com' },
+      { title: 'F', domain: 'z3.com' },
+      { title: 'G', domain: 'z4.com' },
+    ]);
+    expect(s.domains[0]).toBe('x.com'); // 频次最高在前
+    expect(s.domains).toHaveLength(5); // 至多 5
+    expect(s.samples).toEqual(['A', 'B', 'C']); // 前 3 标题
+  });
+  it('空输入 → 空', () => {
+    expect(summarizeTaskTabs([])).toEqual({ domains: [], samples: [] });
   });
 });
 

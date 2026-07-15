@@ -15,6 +15,7 @@ import {
   parseOrganizeResponse,
   buildNamePrompt,
   parseNameResponse,
+  summarizeTaskTabs,
 } from '../ai/organize';
 import type { AIProviderId, AIStatus } from '@/shared/ai';
 import { isAICancelled } from '@/shared/ai';
@@ -400,7 +401,13 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       const tasks = contexts.filter((c) => c.id !== INBOX_ID && c.status === 'active');
       const { system, user } = buildOrganizePrompt(
         loose.map((t) => ({ id: t.id, title: t.title, domain: registrableDomain(hostnameOf(t.url)) })),
-        tasks.map((c) => ({ id: c.id, name: c.name })),
+        tasks.map((c) => {
+          const own = tabs.filter((t) => t.contextId === c.id);
+          const sig = summarizeTaskTabs(
+            own.map((t) => ({ title: t.title, domain: registrableDomain(hostnameOf(t.url)) })),
+          );
+          return { id: c.id, name: c.name, domains: sig.domains, samples: sig.samples };
+        }),
       );
       let raw: string;
       try {
