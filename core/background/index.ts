@@ -12,7 +12,7 @@ import { PROVIDERS } from '../ai/provider';
 import { runDiscardScan } from './discard-scan';
 import { isSyncPaused } from './sync-lock';
 import { COMMAND_TYPES, type Command } from '@/shared/messaging';
-import { friendlyAIError } from '@/shared/ai';
+import { friendlyAIError, AICancelledError } from '@/shared/ai';
 
 const search = new SearchIndex();
 const undo = new UndoManager();
@@ -26,6 +26,8 @@ const DISCARD_ALARM = 'discard-scan';
 
 /** 当前在飞的 AI 请求的 AbortController,用于实现 cancel()。 */
 let aiAbortController: AbortController | null = null;
+// 区分「用户主动取消」与「超时」——两者都产生 AbortError,靠此标记区分。
+let aiUserCancelled = false;
 
 /** 读快照 → 重建搜索索引 → 广播 STATE_SNAPSHOT(侧边栏关闭时 sendMessage 失败,忽略)。 */
 async function broadcast(): Promise<void> {
@@ -110,8 +112,10 @@ const cmdCtx: CommandContext = {
       const p = aiSettings.provider();
       const key = aiSettings.keyFor();
       if (!key) return Promise.reject(new Error('no key'));
+      aiAbortController?.abort(); // 只允许一个在飞,防串
       const ctrl = new AbortController();
       aiAbortController = ctrl;
+      aiUserCancelled = false;
       const timer = setTimeout(() => ctrl.abort(), 30_000);
       return PROVIDERS[p]
         .complete(
@@ -125,9 +129,13 @@ const cmdCtx: CommandContext = {
           },
           key,
         )
+        .catch((e) => {
+          if (aiUserCancelled) throw new AICancelledError(); // 用户取消 → 可区分标记
+          throw e; // 超时/网络失败 → 原样上抛(命令层归为 network)
+        })
         .finally(() => {
           clearTimeout(timer);
-          aiAbortController = null;
+          if (aiAbortController === ctrl) aiAbortController = null; // 只清自己那次,避免误清后一次请求
         });
     },
     set: (provider, key, model, baseUrl) => aiSettings.set(provider, key, model, baseUrl),
@@ -160,7 +168,10 @@ const cmdCtx: CommandContext = {
       }
     },
     cancel: () => {
-      aiAbortController?.abort();
+      if (aiAbortController) {
+        aiUserCancelled = true;
+        aiAbortController.abort();
+      }
     },
   },
 };
