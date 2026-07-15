@@ -23,6 +23,7 @@ interface Props {
   onDropTab: (tabRecordId: string) => void;
   onActivateTab: (tabRecordId: string) => void;
   onCloseTab: (tabRecordId: string) => void;
+  onToggleStar?: (tabRecordId: string, starred: boolean) => void;
   aiEnabled?: boolean;
   onAiOrganize?: () => void;
 }
@@ -46,6 +47,7 @@ export function ContextGroup({
   onDropTab,
   onActivateTab,
   onCloseTab,
+  onToggleStar,
   aiEnabled,
   onAiOrganize,
 }: Props) {
@@ -250,6 +252,11 @@ export function ContextGroup({
                 portMap={portMap}
                 onActivate={() => onActivateTab(t.id)}
                 onClose={() => onCloseTab(t.id)}
+                onToggleStar={
+                  variant !== 'archived' && onToggleStar
+                    ? () => onToggleStar(t.id, !t.starred)
+                    : undefined
+                }
               />
             ))
           )}

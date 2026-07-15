@@ -16,6 +16,7 @@ import { usePanelStore, dispatch } from './store';
 import { StatsBar } from './components/StatsBar';
 import { ContextGroup } from './components/ContextGroup';
 import { StaleGroup } from './components/StaleGroup';
+import { StarredSection } from './components/StarredSection';
 import { SearchOverlay } from './components/SearchOverlay';
 import { UndoToast } from './components/UndoToast';
 import { PortBindSuggestions } from './components/PortBindSuggestions';
@@ -171,7 +172,9 @@ export default function App() {
   const tabsOf = (ctx: Context): TabRecord[] =>
     ctx.tabOrder
       .map((id) => tabsById.get(id))
-      .filter((t): t is TabRecord => t != null && (ctx.status === 'archived' || !staleIds.has(t.id)));
+      .filter((t): t is TabRecord => t != null && (ctx.status === 'archived' || !staleIds.has(t.id)))
+      // 重点标签浮到组顶(稳定排序,保留组内原有相对顺序)
+      .sort((a, b) => (a.starred ? 0 : 1) - (b.starred ? 0 : 1));
 
   const inbox = contexts.find((c) => c.id === INBOX_ID);
   const activeContexts = contexts
@@ -180,6 +183,11 @@ export default function App() {
   const archivedContexts = contexts
     .filter((c) => c.status === 'archived')
     .sort((a, b) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0));
+
+  const starredTabs = useMemo(
+    () => tabs.filter((t) => t.starred && t.chromeTabId != null),
+    [tabs],
+  );
 
   const openTabCount = tabs.filter((t) => t.chromeTabId != null).length;
   const archivedTabCount = archivedContexts.reduce((n, c) => n + c.tabOrder.length, 0);
@@ -268,6 +276,8 @@ export default function App() {
   const promoteDomain = (domain: string, tabIds: string[]) =>
     dispatch({ type: 'PROMOTE_SAME_DOMAIN', domain, tabIds });
   const ignoreDomain = (domain: string) => setIgnoredDomains((s) => new Set(s).add(domain));
+  const toggleStar = (tabRecordId: string, starred: boolean) =>
+    dispatch({ type: 'SET_TAB_STARRED', tabRecordId, starred });
   const setSameDomainSize = (size: number) =>
     dispatch({ type: 'SET_SAME_DOMAIN_PROMOTE_SIZE', size });
   const toggleAutoCluster = (enabled: boolean) => dispatch({ type: 'SET_AUTO_CLUSTER', enabled });
@@ -333,6 +343,7 @@ export default function App() {
     onDropTab: (tabId: string) => moveTab(tabId, ctx.id),
     onActivateTab: (tabId: string) => activate(tabId),
     onCloseTab: (tabId: string) => closeTab(tabId),
+    onToggleStar: toggleStar,
     aiEnabled: ai.hasKey,
     onAiOrganize: aiOrganize,
   });
@@ -413,6 +424,15 @@ export default function App() {
       {/* 主列表 */}
       <div className="flex-1 overflow-y-auto px-1.5 py-2">
         {isEmpty && <EmptyState onNew={createContext} />}
+
+        <StarredSection
+          tabs={starredTabs}
+          portMap={portMap}
+          onActivateTab={activate}
+          onCloseTab={closeTab}
+          onToggleStar={toggleStar}
+        />
+
         {activeContexts.map((c) => (
           <ContextGroup key={c.id} variant="active" {...groupProps(c)} />
         ))}

@@ -66,6 +66,18 @@ interface Props {
   ageLabel?: string; // 陈旧簇里显示「N 天前」
   onActivate: () => void;
   onClose: () => void;
+  onToggleStar?: () => void; // 提供则显示重点标注星按钮
+}
+
+// 重点标注(star)图标:filled=已加星
+function StarIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" width="13" height="13" fill={filled ? 'currentColor' : 'none'}
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      aria-hidden="true" className="shrink-0">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+    </svg>
+  );
 }
 
 // 休眠(已挂起)标记
@@ -78,7 +90,7 @@ function MoonIcon() {
   );
 }
 
-export function TabRow({ tab, dupState, portMap, ageLabel, onActivate, onClose }: Props) {
+export function TabRow({ tab, dupState, portMap, ageLabel, onActivate, onClose, onToggleStar }: Props) {
   const port = localhostPort(tab.url);
   const project = port != null ? projectFor(tab.url, portMap) : null;
   const gh = project == null ? parseGitHub(tab.url) : null; // localhost 优先,其余尝试 GitHub
@@ -144,6 +156,22 @@ export function TabRow({ tab, dupState, portMap, ageLabel, onActivate, onClose }
       <span className="hidden group-hover/row:inline font-mono text-[11px] opacity-40 shrink-0">
         {gh ? repoSlug(gh) : hostname(tab.url)}
       </span>
+      {onToggleStar && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleStar();
+          }}
+          className={`shrink-0 items-center justify-center w-4 h-4 rounded ${
+            tab.starred
+              ? 'flex text-amber-400 hover:text-amber-500'
+              : 'hidden group-hover/row:flex opacity-45 hover:opacity-90'
+          }`}
+          title={tab.starred ? '取消重点' : '标为重点'}
+        >
+          <StarIcon filled={tab.starred === true} />
+        </button>
+      )}
       <button
         onClick={(e) => {
           e.stopPropagation();
