@@ -204,6 +204,44 @@ describe('合并对失效/错位标签的健壮性', () => {
   });
 });
 
+describe('删除任务:解散原生分组、标签真正回未分类(回归 Bug)', () => {
+  it('删除活跃任务:标签脱离原生分组、回未分类、不被重新收编', async () => {
+    await fake.userOpenTab('https://a.com/1', { title: 'A' });
+    await handleCommand({ type: 'CREATE_CONTEXT', name: 'work' }, ctx);
+    const cid = await manualContextId();
+    const [rid] = await inboxTabIds();
+    await handleCommand({ type: 'MOVE_TAB', tabRecordId: rid!, toContextId: cid }, ctx);
+    const chromeId = (await repo.getTab(rid!))!.chromeTabId!;
+    expect(fake.tabsById.get(chromeId)!.groupId).toBeGreaterThanOrEqual(0); // 已成组
+
+    await handleCommand({ type: 'DELETE_CONTEXT', contextId: cid }, ctx);
+
+    expect((await repo.getTab(rid!))!.contextId).toBe(INBOX_ID); // 回未分类
+    expect(fake.tabsById.get(chromeId)!.groupId).toBe(-1); // 浏览器里已脱组(原生分组解散)
+    await reconcileGroups(repo, () => {});
+    expect((await repo.getTab(rid!))!.contextId).toBe(INBOX_ID); // 对账不复活到任务
+    expect((await snapshot()).contexts.filter((c) => c.id !== INBOX_ID)).toHaveLength(0); // 未被重新收编
+  });
+
+  it('删除后关闭该标签能真正关掉、不复活', async () => {
+    await fake.userOpenTab('https://a.com/1', { title: 'A' });
+    await handleCommand({ type: 'CREATE_CONTEXT', name: 'work' }, ctx);
+    const cid = await manualContextId();
+    const [rid] = await inboxTabIds();
+    await handleCommand({ type: 'MOVE_TAB', tabRecordId: rid!, toContextId: cid }, ctx);
+    const chromeId = (await repo.getTab(rid!))!.chromeTabId!;
+
+    await handleCommand({ type: 'DELETE_CONTEXT', contextId: cid }, ctx);
+    await handleCommand({ type: 'CLOSE_TAB', tabRecordId: rid! }, ctx);
+
+    expect(fake.tabsById.has(chromeId)).toBe(false); // 浏览器标签真的关了
+    expect(await repo.getTab(rid!)).toBeUndefined(); // 记录清除
+    await reconcile(repo, () => {});
+    await reconcileGroups(repo, () => {});
+    expect((await snapshot()).tabs.some((t) => t.chromeTabId === chromeId)).toBe(false); // 不复活
+  });
+});
+
 describe('重点标注(SET_TAB_STARRED)', () => {
   it('设置 starred 落库;收纳→恢复后保留', async () => {
     await fake.userOpenTab('https://a.com/1', { title: 'A' });

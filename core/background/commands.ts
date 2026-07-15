@@ -149,10 +149,30 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       return;
     }
 
-    case 'DELETE_CONTEXT':
+    case 'DELETE_CONTEXT': {
+      // 删除活跃命名簇前,先收集其活标签的 chromeTabId —— 删除后要把它们从原生分组解出。
+      // 否则原生分组会残留在标签栏,并被对账重新收编成一个新任务(标签「又回到任务下」)。
+      const target = await repo.getContext(cmd.contextId);
+      const liveIds: number[] = [];
+      if (target && target.status === 'active' && cmd.contextId !== INBOX_ID) {
+        for (const tabId of target.tabOrder) {
+          const t = await repo.getTab(tabId);
+          if (t?.chromeTabId != null) liveIds.push(t.chromeTabId);
+        }
+      }
       await repo.deleteContext(cmd.contextId, now);
+      if (liveIds.length) {
+        // 未分类 = 未分组:把标签从原生分组解出(原生分组随之解散);持锁避免事件回灌重新收编
+        pauseSync();
+        try {
+          await chrome.tabs.ungroup(liveIds as [number, ...number[]]).catch(() => {}); // 上面已保证非空
+        } finally {
+          resumeSync();
+        }
+      }
       onChange();
       return;
+    }
 
     case 'MOVE_TAB': {
       const before = await repo.getTab(cmd.tabRecordId);
