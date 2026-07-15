@@ -2,7 +2,7 @@
 // SW 是唯一写入方。收纳/恢复/分组操作期间用 sync-lock 抑制自身触发的事件回灌。
 
 import type { Repository } from '../store/repositories';
-import { INBOX_ID } from '@/shared/types';
+import { INBOX_ID, type TabRecord } from '@/shared/types';
 import { isSyncPaused } from './sync-lock';
 import { handleTabGroupChange, ensureTabInContextGroup } from './group-sync';
 import { resolveNewTabContext, maybePromoteInbox } from './clustering';
@@ -167,14 +167,14 @@ export async function reconcile(repo: Repository, onChange: OnChange): Promise<v
   for (const t of liveTabs) if (t.id != null) liveById.set(t.id, t);
 
   const { tabs: records } = await repo.getSnapshot();
-  const recordByChromeId = new Map<number, string>();
+  const recordByChromeId = new Map<number, TabRecord>();
   for (const r of records) {
     if (r.chromeTabId == null) continue;
     if (recordByChromeId.has(r.chromeTabId)) {
       // 同一 chromeTabId 的重复记录(加载期并发遗留)→ 清掉多余,保留先出现的
       await repo.removeTab(r.id);
     } else {
-      recordByChromeId.set(r.chromeTabId, r.id);
+      recordByChromeId.set(r.chromeTabId, r);
     }
   }
 
@@ -188,13 +188,15 @@ export async function reconcile(repo: Repository, onChange: OnChange): Promise<v
   //    (修复 discard/换 id 后记录 chromeTabId 错位残留的陈旧 url,避免误判重复)
   for (const [chromeId, tab] of liveById) {
     if (!isTrackable(tab)) continue;
-    const recId = recordByChromeId.get(chromeId);
-    if (recId) {
-      await repo.updateTab(recId, {
-        url: tab.url || tab.pendingUrl || '',
-        title: tabTitle(tab),
-        faviconUrl: tab.favIconUrl,
-      });
+    const rec = recordByChromeId.get(chromeId);
+    if (rec) {
+      // 仅在字段确有变化时才写(消除写放大:对账每次面板聚焦触发,重度用户上百标签)
+      const url = tab.url || tab.pendingUrl || '';
+      const title = tabTitle(tab);
+      const faviconUrl = tab.favIconUrl;
+      if (rec.url !== url || rec.title !== title || rec.faviconUrl !== faviconUrl) {
+        await repo.updateTab(rec.id, { url, title, faviconUrl });
+      }
     } else {
       await repo.addTab(
         {

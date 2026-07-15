@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { FakeChrome } from './fake-chrome';
 import { Repository } from '@/core/store/repositories';
 import { CairnTabsDB } from '@/core/store/db';
@@ -297,6 +297,25 @@ describe('加载期并发不产生重复记录(回归 Bug:开一个网站出现�
     await reconcile(repo, () => {});
 
     expect((await snapshot()).tabs.filter((t) => t.chromeTabId === id)).toHaveLength(1);
+  });
+});
+
+describe('reconcile 写放大(性能)', () => {
+  it('无字段变化 → 不写 updateTab', async () => {
+    await fake.userOpenTab('https://a.com/1', { title: 'A' });
+    const spy = vi.spyOn(repo, 'updateTab');
+    await reconcile(repo, () => {});
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it('标题/网址变化 → 才写', async () => {
+    const id = await fake.userOpenTab('https://a.com/1', { title: 'A' });
+    fake.tabsById.get(id)!.title = 'A 改了';
+    const spy = vi.spyOn(repo, 'updateTab');
+    await reconcile(repo, () => {});
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
   });
 });
 
