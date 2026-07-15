@@ -46,4 +46,19 @@ body {
   ::view-transition-new(root) {
     animation: none;
   }
+
+  /* 设置页作为整幅面板滑入 */
+  .settings-sheet {
+    animation: settings-sheet-in 0.18s cubic-bezier(0.2, 0, 0, 1);
+  }
+  @keyframes settings-sheet-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }
