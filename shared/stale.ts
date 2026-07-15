@@ -13,6 +13,7 @@ export function daysSince(ts: number, now: number): number {
 /** 是否陈旧:仍是打开的标签(有 chromeTabId)且超过 staleDays 未活跃。 */
 export function isStale(tab: TabRecord, now: number, staleDays: number): boolean {
   if (tab.chromeTabId == null) return false; // 已归档/已关闭的不算陈旧
+  if (tab.starred) return false; // 重点标签不下沉(用户显式保留)
   return now - tab.lastActiveAt >= staleDays * DAY_MS;
 }
 

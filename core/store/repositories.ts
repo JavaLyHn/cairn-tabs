@@ -157,6 +157,11 @@ export class Repository {
     await this.db.tabs.update(id, { pinned: true });
   }
 
+  /** 标为/取消「重点」(浮顶 + 免陈旧 + 免挂起)。 */
+  async setTabStarred(id: string, starred: boolean): Promise<void> {
+    await this.db.tabs.update(id, { starred });
+  }
+
   async touchTab(id: string, now: number): Promise<void> {
     const tab = await this.db.tabs.get(id);
     if (!tab) return;

@@ -22,6 +22,7 @@ export type Command =
   | { type: 'SET_DISCARD_SKIP_LOCALHOST'; enabled: boolean }
   | { type: 'SET_SAME_DOMAIN_PROMOTE_SIZE'; size: number }
   | { type: 'PROMOTE_SAME_DOMAIN'; domain: string; tabIds: string[] }
+  | { type: 'SET_TAB_STARRED'; tabRecordId: string; starred: boolean }
   | { type: 'UNDO'; token: string }
   | { type: 'ACTIVATE_TAB'; tabRecordId: string }
   | { type: 'CLOSE_TAB'; tabRecordId: string }
@@ -72,6 +73,7 @@ export const COMMAND_TYPES = new Set<Command['type']>([
   'SET_DISCARD_SKIP_LOCALHOST',
   'SET_SAME_DOMAIN_PROMOTE_SIZE',
   'PROMOTE_SAME_DOMAIN',
+  'SET_TAB_STARRED',
   'UNDO',
   'ACTIVATE_TAB',
   'CLOSE_TAB',

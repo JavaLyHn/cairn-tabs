@@ -29,6 +29,9 @@ describe('isStale', () => {
   it('已归档(无 chromeTabId)不算陈旧', () => {
     expect(isStale(tab({ chromeTabId: undefined, lastActiveAt: NOW - 30 * DAY }), NOW, 7)).toBe(false);
   });
+  it('重点标签(starred)永不陈旧', () => {
+    expect(isStale(tab({ starred: true, lastActiveAt: NOW - 90 * DAY }), NOW, 7)).toBe(false);
+  });
 });
 
 describe('staleTabs', () => {

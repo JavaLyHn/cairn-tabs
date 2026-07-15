@@ -54,6 +54,7 @@ export interface TabRecord {
   openerRecordId?: string; // 打开来源(构成任务树),聚簇 opener 信号用
   pinned?: boolean; // 人工移动过 → 引擎不再改动其归属
   discarded?: boolean; // 是否已被挂起(内存释放,点击自动重载;F-11)
+  starred?: boolean; // 用户标为「重点」→ 浮顶 + 免陈旧 + 免挂起(F-07 相关 UI)
   firstOpenedAt: number;
   lastActiveAt: number;
 }

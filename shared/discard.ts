@@ -20,6 +20,7 @@ export function shouldDiscard(
   opts: DiscardOptions,
 ): boolean {
   if (record.chromeTabId == null) return false; // 已归档,无对应标签
+  if (record.starred) return false; // 重点标签不自动挂起(用户显式保留)
   if (record.discarded) return false; // 已挂起
   if (!live) return false; // 找不到真实标签(可能刚被关闭)
   if (live.active || live.audible || live.pinned || live.discarded) return false; // 使用中 / 已挂起

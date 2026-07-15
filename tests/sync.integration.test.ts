@@ -204,6 +204,27 @@ describe('合并对失效/错位标签的健壮性', () => {
   });
 });
 
+describe('重点标注(SET_TAB_STARRED)', () => {
+  it('设置 starred 落库;收纳→恢复后保留', async () => {
+    await fake.userOpenTab('https://a.com/1', { title: 'A' });
+    await handleCommand({ type: 'CREATE_CONTEXT', name: 'work' }, ctx);
+    const cid = await manualContextId();
+    const [rid] = await inboxTabIds();
+    await handleCommand({ type: 'MOVE_TAB', tabRecordId: rid!, toContextId: cid }, ctx);
+
+    await handleCommand({ type: 'SET_TAB_STARRED', tabRecordId: rid!, starred: true }, ctx);
+    expect((await repo.getTab(rid!))!.starred).toBe(true);
+
+    await handleCommand({ type: 'ARCHIVE_CONTEXT', contextId: cid }, ctx);
+    expect((await repo.getTab(rid!))!.starred).toBe(true); // 归档保留
+    await handleCommand({ type: 'RESTORE_CONTEXT', contextId: cid }, ctx);
+    expect((await repo.getTab(rid!))!.starred).toBe(true); // 恢复保留
+
+    await handleCommand({ type: 'SET_TAB_STARRED', tabRecordId: rid!, starred: false }, ctx);
+    expect((await repo.getTab(rid!))!.starred).toBe(false);
+  });
+});
+
 describe('加载期并发不产生重复记录(回归 Bug:开一个网站出现三条)', () => {
   it('onCreated 与加载期 onUpdated 并发 → 同一 chromeTabId 只建一条记录', async () => {
     const id = 555;

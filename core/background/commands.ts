@@ -303,6 +303,11 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       return;
     }
 
+    case 'SET_TAB_STARRED':
+      await repo.setTabStarred(cmd.tabRecordId, cmd.starred);
+      onChange();
+      return;
+
     case 'SET_AI_SETTINGS':
       await ctx.ai?.set(cmd.provider, cmd.key, cmd.model, cmd.baseUrl);
       onChange();
