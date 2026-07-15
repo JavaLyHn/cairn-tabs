@@ -3,9 +3,26 @@
 
 import type { Repository } from '../store/repositories';
 import { INBOX_ID, type Context, type ContextColor } from '@/shared/types';
+import { DRAFT_CONTEXT_NAME } from '@/shared/messaging';
 import { withSyncPaused, isSyncPaused } from './sync-lock';
 
 const NONE = -1; // chrome.tabGroups.TAB_GROUP_ID_NONE
+
+/**
+ * 空壳任务回收:一个活跃的命名任务若已无标签,则删除它。
+ * 用于「原生分组在浏览器里被删/散、或最后一个标签被拖出」之后——否则侧边栏会残留一个空任务
+ * (见回归 Bug:删除分组后 tabs 里仍显示)。
+ * 只在确实无标签时删(空 tabOrder),避免把正在关闭的标签误移成未分类幻影;
+ * 并放过正在命名的新建草稿(空且名为「新任务」)。
+ */
+async function gcEmptyContext(repo: Repository, contextId: string): Promise<void> {
+  if (contextId === INBOX_ID) return;
+  const ctx = await repo.getContext(contextId);
+  if (!ctx || ctx.status !== 'active') return;
+  if (ctx.tabOrder.length > 0) return;
+  if (ctx.origin === 'manual' && ctx.name === DRAFT_CONTEXT_NAME) return;
+  await repo.deleteContext(contextId, Date.now());
+}
 
 /** 并发去重:同一 groupId 的收编只跑一次。 */
 const adoptionInFlight = new Map<number, Promise<Context>>();
@@ -128,8 +145,11 @@ export async function handleTabGroupChange(
   }
 
   if (record.contextId !== targetContextId) {
+    const from = record.contextId;
     await repo.moveTab(record.id, targetContextId, now);
     await repo.pinTab(record.id); // 原生 UI 的人工分组操作 → 锁定归属(PRD §6.4)
+    // 从某命名任务拖出最后一个标签(其原生分组随之解散)→ 清掉空壳任务,不在侧边栏残留
+    if (from !== INBOX_ID) await gcEmptyContext(repo, from);
     onChange();
   }
 }
@@ -151,11 +171,15 @@ export function registerGroupListeners(repo: Repository, onChange: () => void): 
     onChange();
   });
 
-  // 原生解散分组 → 保留 Context(数据不丢),仅清除 nativeGroupId
+  // 原生解散分组(用户在标签栏「删除/取消分组」)→ 移除对应的空壳任务,标签解组后各自回未分类(不丢)。
+  // 先解除分组引用;若标签迁移事件此刻尚未到达、任务还没空,则由那些事件触发的 GC 兜底删除。
   chrome.tabGroups.onRemoved.addListener(async (group) => {
     if (isSyncPaused()) return;
     const ctx = await repo.findContextByNativeGroupId(group.id);
-    if (ctx) await repo.setNativeGroupId(ctx.id, undefined);
+    if (ctx) {
+      await repo.setNativeGroupId(ctx.id, undefined);
+      await gcEmptyContext(repo, ctx.id);
+    }
     onChange();
   });
 }
@@ -164,12 +188,17 @@ export function registerGroupListeners(repo: Repository, onChange: () => void): 
 export async function reconcileGroups(repo: Repository, onChange: () => void): Promise<void> {
   const now = Date.now();
 
-  // 1) 清理指向已消失分组的 nativeGroupId
+  // 1) 分组在浏览器里已消失:空壳的活跃命名任务直接删除(补偿 SW 休眠期漏收的分组删除事件,
+  //    否则侧边栏残留空任务);仍有标签的只解除分组引用、保留任务。
   const liveGroupIds = new Set((await chrome.tabGroups.query({})).map((g) => g.id));
   const { contexts } = await repo.getSnapshot();
   for (const c of contexts) {
     if (c.nativeGroupId != null && !liveGroupIds.has(c.nativeGroupId)) {
-      await repo.setNativeGroupId(c.id, undefined);
+      if (c.id !== INBOX_ID && c.status === 'active' && c.tabOrder.length === 0) {
+        await repo.deleteContext(c.id, now);
+      } else {
+        await repo.setNativeGroupId(c.id, undefined);
+      }
     }
   }
 

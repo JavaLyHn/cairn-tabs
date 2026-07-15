@@ -84,12 +84,19 @@ export class FakeChrome {
     return newId;
   }
 
-  /** 模拟用户在浏览器里把标签拖出分组(触发 onUpdated groupId:-1)。 */
+  /** 模拟用户在浏览器里把标签拖出分组(触发 onUpdated groupId:-1;原分组若空了则解散并触发 groupOnRemoved)。 */
   async userUngroup(tabId: number): Promise<void> {
     const tab = this.tabsById.get(tabId);
     if (!tab) return;
+    const old = tab.groupId;
     tab.groupId = NONE;
     await this.onUpdated.emit(tabId, { groupId: NONE }, { ...tab });
+    // 真实 Chrome:拖出后原分组若已空 → 分组被移除并派发 tabGroups.onRemoved
+    if (old >= 0 && ![...this.tabsById.values()].some((t) => t.groupId === old) && this.groupsById.has(old)) {
+      const g = this.groupsById.get(old)!;
+      this.groupsById.delete(old);
+      await this.groupOnRemoved.emit({ ...g });
+    }
   }
 
   private removeFromGroupIfEmpty(groupId: number, windowId: number) {

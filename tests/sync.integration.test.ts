@@ -511,3 +511,46 @@ describe('原生 UI 把标签拖出分组(入站)', () => {
     expect((await inboxTabIds())).toContain(rid);
   });
 });
+
+describe('浏览器里解散分组 → 任务从侧边栏移除(回归 Bug:删除分组后 tabs 仍显示)', () => {
+  it('拖出唯一标签、分组解散 → 空壳任务被清除,标签回未分类', async () => {
+    await fake.userOpenTab('https://a.com/1', { title: 'A' });
+    await handleCommand({ type: 'CREATE_CONTEXT', name: 'work' }, ctx);
+    const cid = await manualContextId();
+    const [rid] = await inboxTabIds();
+    await handleCommand({ type: 'MOVE_TAB', tabRecordId: rid!, toContextId: cid }, ctx);
+    const chromeId = (await repo.getTab(rid!))!.chromeTabId!;
+    expect(fake.tabsById.get(chromeId)!.groupId).toBeGreaterThanOrEqual(0); // 已成组
+
+    await fake.userUngroup(chromeId); // 浏览器里把唯一标签拖出 → 分组解散
+
+    expect((await repo.getTab(rid!))!.contextId).toBe(INBOX_ID); // 标签回未分类,没丢
+    expect(await inboxTabIds()).toContain(rid);
+    expect((await snapshot()).contexts.filter((c) => c.id !== INBOX_ID)).toHaveLength(0); // 空壳任务已移除
+  });
+
+  it('多标签任务里只拖出一个 → 任务保留(不误删)', async () => {
+    await fake.userOpenTab('https://a.com/1', { title: 'A' });
+    await fake.userOpenTab('https://b.com/2', { title: 'B' });
+    await handleCommand({ type: 'CREATE_CONTEXT', name: 'work' }, ctx);
+    const cid = await manualContextId();
+    for (const r of [...(await inboxTabIds())]) {
+      await handleCommand({ type: 'MOVE_TAB', tabRecordId: r, toContextId: cid }, ctx);
+    }
+    expect((await repo.getContext(cid))!.tabOrder.length).toBe(2);
+    const first = (await repo.getContext(cid))!.tabOrder[0]!;
+    const chromeId = (await repo.getTab(first))!.chromeTabId!;
+
+    await fake.userUngroup(chromeId); // 只拖出其中一个
+
+    expect((await repo.getTab(first))!.contextId).toBe(INBOX_ID); // 被拖出的回未分类
+    expect((await repo.getContext(cid))!.tabOrder.length).toBe(1); // 任务仍在,剩另一个
+  });
+
+  it('对账兜底:分组已消失、任务空壳残留(SW 漏收事件)→ reconcileGroups 清除', async () => {
+    const stray = await repo.createContext('stray', Date.now(), { nativeGroupId: 99999 });
+    expect((await snapshot()).contexts.some((c) => c.id === stray.id)).toBe(true);
+    await reconcileGroups(repo, () => {});
+    expect((await snapshot()).contexts.some((c) => c.id === stray.id)).toBe(false); // 空壳被清
+  });
+});
