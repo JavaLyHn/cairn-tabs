@@ -69,10 +69,19 @@ export function parseOrganizeResponse(
   validTaskIds: Set<string>,
 ): AIPlan | null {
   let data: unknown;
+  const text = stripFences(raw);
   try {
-    data = JSON.parse(stripFences(raw));
+    data = JSON.parse(text);
   } catch {
-    return null;
+    // 容忍模型偶尔夹带说明文字:退而提取首个 {...} 再解析(温度已设 0,此为兜底)
+    const s = text.indexOf('{');
+    const e = text.lastIndexOf('}');
+    if (s < 0 || e <= s) return null;
+    try {
+      data = JSON.parse(text.slice(s, e + 1));
+    } catch {
+      return null;
+    }
   }
   if (!data || typeof data !== 'object') return null;
 

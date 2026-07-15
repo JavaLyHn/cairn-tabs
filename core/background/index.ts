@@ -119,6 +119,7 @@ const cmdCtx: CommandContext = {
               user,
               model: aiSettings.effectiveModel(),
               maxTokens: 1024,
+              temperature: 0, // 整理/命名求稳定可复现:同一批标签每次给同样的建议(否则时有时无)
               baseUrl: aiSettings.baseUrlFor(),
               signal,
             },

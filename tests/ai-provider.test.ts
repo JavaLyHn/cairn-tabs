@@ -39,6 +39,24 @@ describe('anthropicProvider', () => {
   });
 });
 
+describe('temperature 透传(用于稳定 AI 整理输出)', () => {
+  it('设了 temperature 就进请求体(anthropic),含 0', async () => {
+    const set = fakeFetch(200, { content: [{ text: 'x' }] });
+    await anthropicProvider.complete({ ...req, temperature: 0 }, 'k', set.fn);
+    expect(JSON.parse(set.calls[0]!.init.body as string).temperature).toBe(0);
+  });
+  it('没设 temperature 就不出现在请求体(anthropic)', async () => {
+    const unset = fakeFetch(200, { content: [{ text: 'x' }] });
+    await anthropicProvider.complete(req, 'k', unset.fn);
+    expect('temperature' in JSON.parse(unset.calls[0]!.init.body as string)).toBe(false);
+  });
+  it('设了 temperature 就进请求体(openai 兼容),含 0', async () => {
+    const s = fakeFetch(200, { choices: [{ message: { content: 'x' } }] });
+    await openaiProvider.complete({ ...req, temperature: 0 }, 'k', s.fn);
+    expect(JSON.parse(s.calls[0]!.init.body as string).temperature).toBe(0);
+  });
+});
+
 describe('openaiProvider', () => {
   it('请求塑形正确、取出文本', async () => {
     const { fn, calls } = fakeFetch(200, { choices: [{ message: { content: 'hi' } }] });

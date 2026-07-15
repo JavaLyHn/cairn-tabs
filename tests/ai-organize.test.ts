@@ -50,6 +50,10 @@ describe('parseOrganizeResponse', () => {
   it('JSON 解析失败 → null', () => {
     expect(parseOrganizeResponse('not json', TABS, TASKS)).toBeNull();
   });
+  it('容忍模型夹带说明文字(提取首个 {...} 再解析)', () => {
+    const raw = '好的,这是结果:\n{"newGroups":[{"name":"g","tabIds":["t1"]}],"assign":[]}\n希望有用';
+    expect(parseOrganizeResponse(raw, TABS, TASKS)?.newGroups[0]?.name).toBe('g');
+  });
   it('空结果 → null', () => {
     expect(parseOrganizeResponse('{"newGroups":[],"assign":[]}', TABS, TASKS)).toBeNull();
   });

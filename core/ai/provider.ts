@@ -7,6 +7,8 @@ export interface ChatRequest {
   user: string;
   model: string;
   maxTokens: number;
+  /** 采样温度。整理/命名用 0 求稳定可复现(不设则用服务商默认,方差大)。 */
+  temperature?: number;
   signal?: AbortSignal;
   /** 自定义中转站的接口地址(base,如 https://host/v1);仅 custom 使用。 */
   baseUrl?: string;
@@ -40,6 +42,7 @@ export const anthropicProvider: AIProvider = {
       body: JSON.stringify({
         model: req.model,
         max_tokens: req.maxTokens,
+        ...(req.temperature !== undefined && { temperature: req.temperature }),
         system: req.system,
         messages: [{ role: 'user', content: req.user }],
       }),
@@ -67,6 +70,7 @@ async function postOpenAIChat(
     body: JSON.stringify({
       model: req.model,
       max_tokens: req.maxTokens,
+      ...(req.temperature !== undefined && { temperature: req.temperature }),
       messages: [
         { role: 'system', content: req.system },
         { role: 'user', content: req.user },
