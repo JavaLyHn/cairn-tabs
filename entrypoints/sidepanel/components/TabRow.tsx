@@ -97,9 +97,9 @@ export function TabRow({ tab, dupState, portMap, ageLabel, onActivate, onClose, 
   const gh = project == null ? parseGitHub(tab.url) : null; // localhost 优先,其余尝试 GitHub
   const bb = project == null && !gh ? parseBitbucket(tab.url) : null;
   const codeRef = gh
-    ? { kind: gh.kind, label: badgeLabel(gh), slug: repoSlug(gh) }
+    ? { kind: gh.kind, label: badgeLabel(gh), slug: repoSlug(gh), number: gh.number }
     : bb
-      ? { kind: bb.kind, label: bitbucketBadgeLabel(bb), slug: bitbucketRepoSlug(bb) }
+      ? { kind: bb.kind, label: bitbucketBadgeLabel(bb), slug: bitbucketRepoSlug(bb), number: bb.number }
       : null;
   const displayTitle = project ?? (gh ? cleanGitHubTitle(tab.title, gh) : tab.title);
   const asleep = tab.discarded === true;
@@ -130,7 +130,7 @@ export function TabRow({ tab, dupState, portMap, ageLabel, onActivate, onClose, 
         <span
           className="shrink-0 inline-flex items-center gap-1 font-mono text-[11px]
                      px-1 py-0.5 rounded bg-accent/15 text-accent"
-          title={`${codeRef.kind === 'pr' ? 'Pull Request' : 'Issue'} ${codeRef.label} · ${codeRef.slug}`}
+          title={`${codeRef.kind === 'pr' ? 'Pull Request' : 'Issue'} #${codeRef.number} · ${codeRef.slug}`}
         >
           {codeRef.kind === 'pr' ? <PrIcon /> : <IssueIcon />}
           {codeRef.label}
