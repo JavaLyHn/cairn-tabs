@@ -133,12 +133,18 @@ export class Repository {
     now: number,
   ): Promise<TabRecord> {
     const contextId = partial.contextId ?? INBOX_ID;
-    const record: TabRecord = { ...partial, id: nanoid(), contextId };
-    await this.db.transaction('rw', this.db.contexts, this.db.tabs, async () => {
+    return this.db.transaction('rw', this.db.contexts, this.db.tabs, async () => {
+      // 幂等:同一 chromeTabId 已有记录则复用,绝不重复插。
+      // 事务串行化保证 check-then-insert 原子,挡住加载期 onCreated/onUpdated 并发建重复记录。
+      if (partial.chromeTabId != null) {
+        const existing = await this.db.tabs.where('chromeTabId').equals(partial.chromeTabId).first();
+        if (existing) return existing;
+      }
+      const record: TabRecord = { ...partial, id: nanoid(), contextId };
       await this.db.tabs.put(record);
       await this.appendToOrder(contextId, record.id, now);
+      return record;
     });
-    return record;
   }
 
   /** 更新标签的 url/title/favicon/活跃时间等运行态字段。 */

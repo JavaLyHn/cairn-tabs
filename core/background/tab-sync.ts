@@ -168,7 +168,15 @@ export async function reconcile(repo: Repository, onChange: OnChange): Promise<v
 
   const { tabs: records } = await repo.getSnapshot();
   const recordByChromeId = new Map<number, string>();
-  for (const r of records) if (r.chromeTabId != null) recordByChromeId.set(r.chromeTabId, r.id);
+  for (const r of records) {
+    if (r.chromeTabId == null) continue;
+    if (recordByChromeId.has(r.chromeTabId)) {
+      // 同一 chromeTabId 的重复记录(加载期并发遗留)→ 清掉多余,保留先出现的
+      await repo.removeTab(r.id);
+    } else {
+      recordByChromeId.set(r.chromeTabId, r.id);
+    }
+  }
 
   // 1) 活跃记录对应的 chrome 标签已不存在 → 休眠期被关闭,删记录
   for (const r of records) {

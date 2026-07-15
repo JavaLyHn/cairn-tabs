@@ -12,6 +12,7 @@ import { duplicateMarks } from '@/shared/dedup';
 
 let fake: FakeChrome;
 let repo: Repository;
+let db: CairnTabsDB;
 let ctx: CommandContext;
 let dbn = 0;
 
@@ -30,7 +31,7 @@ async function inboxTabIds(): Promise<string[]> {
 beforeEach(async () => {
   fake = new FakeChrome();
   fake.install();
-  const db = new CairnTabsDB(`itest-${dbn++}`);
+  db = new CairnTabsDB(`itest-${dbn++}`);
   await db.open();
   repo = new Repository(db);
   await repo.ensureInbox(Date.now());
@@ -200,6 +201,43 @@ describe('合并对失效/错位标签的健壮性', () => {
 
     expect(fake.tabsById.has(other)).toBe(true); // 没有误关 other
     expect(await repo.getTab(a1rec.id)).toBeUndefined(); // 错位幻影记录被清
+  });
+});
+
+describe('加载期并发不产生重复记录(回归 Bug:开一个网站出现三条)', () => {
+  it('onCreated 与加载期 onUpdated 并发 → 同一 chromeTabId 只建一条记录', async () => {
+    const id = 555;
+    const tab = {
+      id,
+      url: 'https://newapi.elevatesphere.com/',
+      title: 'newapi.elevatesphere.com',
+      windowId: 1,
+      groupId: -1,
+      active: false,
+      discarded: false,
+    };
+    fake.tabsById.set(id, tab);
+    // 真实 Chrome:onCreated 与加载期的多次 onUpdated 并发派发(异步监听器不串行)
+    await Promise.all([
+      fake.onCreated.emit({ ...tab }),
+      fake.onUpdated.emit(id, { title: 'ElevateSphere AIG' }, { ...tab, title: 'ElevateSphere AIG' }),
+      fake.onUpdated.emit(id, { status: 'complete' }, { ...tab, title: 'ElevateSphere AIG' }),
+    ]);
+    const dup = (await snapshot()).tabs.filter((t) => t.chromeTabId === id);
+    expect(dup).toHaveLength(1);
+    expect((await inboxTabIds()).length).toBe(1);
+  });
+
+  it('reconcile 清除历史遗留的同 chromeTabId 重复记录', async () => {
+    const id = await fake.userOpenTab('https://x.com/', { title: 'X' });
+    const rec = (await snapshot()).tabs.find((t) => t.chromeTabId === id)!;
+    // 绕过幂等,直接塞一条同 chromeTabId 的重复记录(模拟修复前遗留)
+    await db.tabs.put({ ...rec, id: 'dup-legacy' });
+    expect((await snapshot()).tabs.filter((t) => t.chromeTabId === id)).toHaveLength(2);
+
+    await reconcile(repo, () => {});
+
+    expect((await snapshot()).tabs.filter((t) => t.chromeTabId === id)).toHaveLength(1);
   });
 });
 
