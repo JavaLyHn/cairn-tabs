@@ -29,6 +29,42 @@ MVP 核心闭环、v1.1 程序员特化、v1.5 AI 均已实现并跑通:
 
 尚未实现(见设计文档 Roadmap):Firefox 适配、跨设备同步。
 
+## 本地安装使用
+
+未上架商店,自己构建一次、以「已解压扩展」加载即可长期使用(无账号、无服务器、数据全在本地)。
+
+**前置**:[Node](https://nodejs.org) 20+ 与 [pnpm](https://pnpm.io)(`npm i -g pnpm`)。
+
+**1. 构建**
+
+```bash
+git clone https://github.com/JavaLyHn/cairn-tabs.git
+cd cairn-tabs
+pnpm install
+pnpm build          # 产物在 .output/chrome-mv3
+```
+
+**2. 加载进浏览器**(Chrome / Edge)
+
+1. 打开 `chrome://extensions`(Edge 为 `edge://extensions`)
+2. 右上角开启 **开发者模式**
+3. 点 **「加载已解压的扩展程序」**,选择项目里的 **`.output/chrome-mv3`** 目录
+4. 建议把工具栏图标 **固定**;点它即可打开侧边栏(或用快捷键 `⌘⇧K` / `Ctrl+Shift+K` 唤起搜索)
+
+> ⚠️ 一定选 **`.output/chrome-mv3`**(生产版,自包含、装上即用)。`.output/chrome-mv3-dev` 是开发版,**必须** `pnpm dev` 一直运行才不白屏,普通使用请勿加载它。
+
+**3. 更新到新版本**
+
+```bash
+git pull && pnpm build
+```
+
+然后到 `chrome://extensions`,点该扩展的 **刷新 ↻**(不必删除重加)。
+
+**4.(可选)开启 AI**:设置 ⚙ → AI 整理 → 选服务商填 API key(或自定义中转站的地址+key+模型)→ 点「测试连接」确认 → 保存。默认关闭,只发标签标题+域名+任务名。
+
+**数据与备份**:所有任务/标签存于浏览器本地 IndexedDB,不上传。设置里「导出全部数据 (JSON)」可随时备份/迁移。
+
 ## 技术栈
 
 WXT (Manifest V3) · React 19 · TypeScript · Tailwind CSS · Dexie (IndexedDB) · Zustand · fuse.js · Vitest
@@ -45,7 +81,7 @@ pnpm compile    # 类型检查 (tsc --noEmit)
 pnpm test       # 运行 Vitest
 ```
 
-手动加载:`chrome://extensions` → 开启开发者模式 → 加载 `.output/chrome-mv3`(或 dev 模式的 `.output/chrome-mv3-dev`)。
+普通使用见上方「[本地安装使用](#本地安装使用)」。开发时用 `pnpm dev` 并加载 `.output/chrome-mv3-dev`(支持热更新,但需 dev server 常驻,否则白屏)。
 
 ## 目录结构
 
