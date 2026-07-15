@@ -87,4 +87,16 @@ describe('TabRow', () => {
     );
     expect(screen.getByRole('button', { name: '取消重点' })).toBeTruthy();
   });
+
+  it('Bitbucket PR → 徽章', () => {
+    render(
+      <TabRow
+        tab={tab({ url: 'https://bitbucket.org/acme/app/pull-requests/42', title: 'Fix bug' })}
+        portMap={{}}
+        onActivate={noop}
+        onClose={noop}
+      />,
+    );
+    expect(screen.getByText('PR #42')).toBeTruthy();
+  });
 });

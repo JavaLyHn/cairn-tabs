@@ -3,6 +3,7 @@ import type { TabRecord } from '@/shared/types';
 import { hostname, monogram } from '../util';
 import { localhostPort, projectFor } from '@/shared/localhost';
 import { parseGitHub, badgeLabel, repoSlug, cleanGitHubTitle } from '@/shared/github';
+import { parseBitbucket, bitbucketBadgeLabel, bitbucketRepoSlug } from '@/shared/bitbucket';
 
 /** favicon:有图正常显示;缺图或加载失败(裂图)→ 域名字母字标兜底。 */
 function Favicon({
@@ -94,6 +95,12 @@ export function TabRow({ tab, dupState, portMap, ageLabel, onActivate, onClose, 
   const port = localhostPort(tab.url);
   const project = port != null ? projectFor(tab.url, portMap) : null;
   const gh = project == null ? parseGitHub(tab.url) : null; // localhost 优先,其余尝试 GitHub
+  const bb = project == null && !gh ? parseBitbucket(tab.url) : null;
+  const codeRef = gh
+    ? { kind: gh.kind, label: badgeLabel(gh), slug: repoSlug(gh) }
+    : bb
+      ? { kind: bb.kind, label: bitbucketBadgeLabel(bb), slug: bitbucketRepoSlug(bb) }
+      : null;
   const displayTitle = project ?? (gh ? cleanGitHubTitle(tab.title, gh) : tab.title);
   const asleep = tab.discarded === true;
   return (
@@ -119,14 +126,14 @@ export function TabRow({ tab, dupState, portMap, ageLabel, onActivate, onClose, 
           休眠
         </span>
       )}
-      {gh && (
+      {codeRef && (
         <span
           className="shrink-0 inline-flex items-center gap-1 font-mono text-[11px]
                      px-1 py-0.5 rounded bg-accent/15 text-accent"
-          title={`${gh.kind === 'pr' ? 'Pull Request' : 'Issue'} #${gh.number} · ${repoSlug(gh)}`}
+          title={`${codeRef.kind === 'pr' ? 'Pull Request' : 'Issue'} ${codeRef.label} · ${codeRef.slug}`}
         >
-          {gh.kind === 'pr' ? <PrIcon /> : <IssueIcon />}
-          {badgeLabel(gh)}
+          {codeRef.kind === 'pr' ? <PrIcon /> : <IssueIcon />}
+          {codeRef.label}
         </span>
       )}
       {port != null && (
@@ -154,7 +161,7 @@ export function TabRow({ tab, dupState, portMap, ageLabel, onActivate, onClose, 
         <span className="font-mono text-[11px] opacity-40 shrink-0">{ageLabel}</span>
       )}
       <span className="hidden group-hover/row:inline font-mono text-[11px] opacity-40 shrink-0">
-        {gh ? repoSlug(gh) : hostname(tab.url)}
+        {codeRef ? codeRef.slug : hostname(tab.url)}
       </span>
       {onToggleStar && (
         <button
