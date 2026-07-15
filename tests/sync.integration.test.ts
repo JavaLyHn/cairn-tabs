@@ -438,21 +438,14 @@ describe('CLOSE_TAB 对失效标签的健壮性', () => {
 });
 
 describe('自动聚簇(F-07)', () => {
-  it('未分类里 opener 树 ≥3 → 自动升格为新命名簇并成组', async () => {
+  it('未分类里 opener 树 ≥3 不再自动升格,标签留在未分类(成组须用户确认)', async () => {
     const root = await fake.userOpenTab('https://github.com/a/b/issues/1', { title: 'Fix login' });
     await fake.userOpenTab('https://stackoverflow.com/q/1', { title: 'SO 1', openerTabId: root });
-    // 第 3 个出现时触发升格
     await fake.userOpenTab('https://stackoverflow.com/q/2', { title: 'SO 2', openerTabId: root });
 
     const named = (await snapshot()).contexts.filter((c) => c.id !== INBOX_ID);
-    expect(named).toHaveLength(1);
-    expect(named[0]!.name).toBe('Fix login');
-    expect(named[0]!.tabOrder).toHaveLength(3);
-    expect(await inboxTabIds()).toEqual([]);
-    // 三个标签被编入同一个原生分组
-    const gids = new Set([...fake.tabsById.values()].map((t) => t.groupId));
-    expect(gids.size).toBe(1);
-    expect([...gids][0]).toBeGreaterThanOrEqual(0);
+    expect(named).toHaveLength(0); // 不再自动升格成新任务
+    expect((await inboxTabIds()).length).toBe(3); // 三个都留在未分类,等确认建议
   });
 
   it('从命名簇内标签点开的新标签,经原生分组归入该簇', async () => {

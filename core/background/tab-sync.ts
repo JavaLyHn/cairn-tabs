@@ -5,7 +5,7 @@ import type { Repository } from '../store/repositories';
 import { INBOX_ID, type TabRecord } from '@/shared/types';
 import { isSyncPaused } from './sync-lock';
 import { handleTabGroupChange, ensureTabInContextGroup } from './group-sync';
-import { resolveNewTabContext, maybePromoteInbox } from './clustering';
+import { resolveNewTabContext } from './clustering';
 import type { Penalties } from '../clustering/rules';
 
 type OnChange = () => void;
@@ -72,9 +72,8 @@ export function registerTabListeners(
 
     if (contextId !== INBOX_ID) {
       await ensureTabInContextGroup(repo, contextId, tab.id); // 引擎归入命名簇 → 同步进原生分组
-    } else if (autoCluster) {
-      await maybePromoteInbox(repo, now); // 未分类累积出 opener 树 → 自动升格
     }
+    // 注:不再自动升格未分类里的 opener 树成新任务 —— 成组一律走「同站归类建议」由用户确认。
     onChange();
   });
 
