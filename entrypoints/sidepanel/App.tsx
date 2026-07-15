@@ -98,18 +98,22 @@ export default function App() {
     showFlash('已应用 AI 整理');
   };
   const aiSuggestName = async (contextId: string): Promise<string | null> => {
-    const ev = await dispatch({ type: 'AI_SUGGEST_NAME', contextId });
-    if (ev?.type === 'AI_NAME') return ev.name;
-    if (ev?.type === 'AI_ERROR') {
-      const msg: Record<string, string> = {
-        no_key: '请先在设置里填 AI API key',
-        empty: '这个任务里没有标签可参考',
-        network: 'AI 调用失败,请稍后重试',
-        parse: 'AI 没给出可用的名字',
-        permission: '未授权访问 API 域名',
-        cancelled: '已取消',
-      };
-      showFlash(msg[ev.reason] ?? 'AI 调用失败');
+    try {
+      const ev = await dispatch({ type: 'AI_SUGGEST_NAME', contextId });
+      if (ev?.type === 'AI_NAME') return ev.name;
+      if (ev?.type === 'AI_ERROR') {
+        const msg: Record<string, string> = {
+          no_key: '请先在设置里填 AI API key',
+          empty: '这个任务里没有标签可参考',
+          network: 'AI 调用失败,请稍后重试',
+          parse: 'AI 没给出可用的名字',
+          permission: '未授权访问 API 域名',
+          cancelled: '已取消',
+        };
+        showFlash(msg[ev.reason] ?? 'AI 调用失败');
+      }
+    } catch {
+      showFlash('AI 调用失败,请稍后重试'); // 如 SW 未就绪导致 sendMessage 失败
     }
     return null;
   };

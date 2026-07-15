@@ -154,12 +154,15 @@ export function ContextGroup({
                     return;
                   }
                   setAiNaming(true);
-                  const name = await onAiSuggestName();
-                  setAiNaming(false);
-                  if (name && inputRef.current) {
-                    inputRef.current.value = name;
-                    inputRef.current.focus();
-                    inputRef.current.select();
+                  try {
+                    const name = await onAiSuggestName();
+                    if (name && inputRef.current) {
+                      inputRef.current.value = name;
+                      inputRef.current.focus();
+                      inputRef.current.select();
+                    }
+                  } finally {
+                    setAiNaming(false); // 无论成功/失败/异常都复位,避免按钮卡在「✦ 取消」
                   }
                 }}
                 className="shrink-0 text-[11px] text-accent hover:underline"
