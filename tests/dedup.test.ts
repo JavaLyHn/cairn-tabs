@@ -1,17 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { dedupKey, findDuplicateGroups, duplicateMarks, redundantCount } from '@/shared/dedup';
-import type { TabRecord } from '@/shared/types';
+import { INBOX_ID, type TabRecord } from '@/shared/types';
 
 const NOW = 1_700_000_000_000;
 
 function tab(
   id: string,
   url: string,
-  opts: { chromeTabId?: number; firstOpenedAt?: number } = {},
+  opts: { chromeTabId?: number; firstOpenedAt?: number; contextId?: string } = {},
 ): TabRecord {
   return {
     id,
-    contextId: 'c1',
+    contextId: opts.contextId ?? 'c1',
     url,
     title: url,
     chromeTabId: 'chromeTabId' in opts ? opts.chromeTabId : 1,
@@ -41,6 +41,27 @@ describe('findDuplicateGroups', () => {
     expect(groups).toHaveLength(1);
     expect(groups[0]!.keeper.id).toBe('t2');
     expect(groups[0]!.redundant.map((r) => r.id).sort()).toEqual(['t1', 't3']);
+  });
+
+  it('优先保留已在任务里的副本(而非未分类里更新打开的那个)', () => {
+    // 场景:站点已在某任务里(较早打开),又在未分类新开了一个同址标签(更新)。
+    // 合并应保留任务里的、关掉未分类那个——而不是反过来把结果留在未分类。
+    const tabs = [
+      tab('loose', 'https://x.com/a', { contextId: INBOX_ID, firstOpenedAt: NOW + 500 }),
+      tab('grouped', 'https://x.com/a', { contextId: 'task-1', firstOpenedAt: NOW + 1 }),
+    ];
+    const groups = findDuplicateGroups(tabs);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.keeper.id).toBe('grouped');
+    expect(groups[0]!.redundant.map((r) => r.id)).toEqual(['loose']);
+  });
+
+  it('多个副本都在未分类时,仍按最新打开选 keeper(行为不变)', () => {
+    const tabs = [
+      tab('older', 'https://y.com/a', { contextId: INBOX_ID, firstOpenedAt: NOW + 1 }),
+      tab('newer', 'https://y.com/a', { contextId: INBOX_ID, firstOpenedAt: NOW + 9 }),
+    ];
+    expect(findDuplicateGroups(tabs)[0]!.keeper.id).toBe('newer');
   });
 
   it('跨 Context 的同一网址也算重复', () => {
