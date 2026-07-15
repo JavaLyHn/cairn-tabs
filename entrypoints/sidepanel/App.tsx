@@ -76,8 +76,7 @@ export default function App() {
   const [aiBusy, setAiBusy] = useState(false);
   const aiOrganize = async () => {
     if (aiBusy) return;
-    setAiBusy(true);
-    showFlash('✦ AI 分析中…');
+    setAiBusy(true); // 持久「分析中」指示见下方 pill(AI 调用可能超过 flash 的 1.8s)
     const ev = await dispatch({ type: 'AI_ORGANIZE_INBOX' });
     setAiBusy(false);
     if (ev?.type === 'AI_PLAN') setAiPlan({ plan: ev.plan, tabs: ev.tabs });
@@ -363,6 +362,7 @@ export default function App() {
     onCloseTab: (tabId: string) => closeTab(tabId),
     onToggleStar: toggleStar,
     aiEnabled: ai.hasKey,
+    aiBusy,
     onAiOrganize: aiOrganize,
     onAiSuggestName: () => aiSuggestName(ctx.id),
   });
@@ -506,6 +506,16 @@ export default function App() {
                      bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
         >
           {flash}
+        </div>
+      )}
+
+      {aiBusy && !flash && (
+        <div
+          className="absolute bottom-16 left-1/2 -translate-x-1/2 px-3 py-2 rounded-lg text-[12px] shadow-lg
+                     inline-flex items-center gap-2 bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
+        >
+          <span className="inline-block w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
+          ✦ AI 分析中…
         </div>
       )}
 

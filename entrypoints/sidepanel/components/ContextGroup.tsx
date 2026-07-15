@@ -25,6 +25,7 @@ interface Props {
   onCloseTab: (tabRecordId: string) => void;
   onToggleStar?: (tabRecordId: string, starred: boolean) => void;
   aiEnabled?: boolean;
+  aiBusy?: boolean; // AI 整理进行中 → 按钮显示「分析中…」并禁用
   onAiOrganize?: () => void;
   onAiSuggestName?: () => Promise<string | null>; // AI 命名:返回建议名(不自动应用)
 }
@@ -50,6 +51,7 @@ export function ContextGroup({
   onCloseTab,
   onToggleStar,
   aiEnabled,
+  aiBusy,
   onAiOrganize,
   onAiSuggestName,
 }: Props) {
@@ -202,10 +204,11 @@ export function ContextGroup({
               {isInbox && aiEnabled && tabs.length > 0 && (
                 <button
                   onClick={onAiOrganize}
-                  className="text-[11px] text-accent hover:underline"
+                  disabled={aiBusy}
+                  className="text-[11px] text-accent hover:underline disabled:opacity-60 disabled:no-underline"
                   title="用 AI 把零散标签分组"
                 >
-                  ✦ AI 整理
+                  {aiBusy ? '✦ 分析中…' : '✦ AI 整理'}
                 </button>
               )}
               {isInbox && tabs.length > 0 && (
