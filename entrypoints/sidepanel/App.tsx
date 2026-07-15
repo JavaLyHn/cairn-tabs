@@ -87,6 +87,7 @@ export default function App() {
         network: 'AI 调用失败,请稍后重试',
         parse: 'AI 没能给出可用的分组建议,已保持原样',
         empty: '未分类里没有可整理的标签',
+        cancelled: '已取消 AI 整理',
       };
       showFlash(msg[ev.reason] ?? 'AI 调用失败');
     }
@@ -106,6 +107,7 @@ export default function App() {
         network: 'AI 调用失败,请稍后重试',
         parse: 'AI 没给出可用的名字',
         permission: '未授权访问 API 域名',
+        cancelled: '已取消',
       };
       showFlash(msg[ev.reason] ?? 'AI 调用失败');
     }
@@ -517,6 +519,13 @@ export default function App() {
         >
           <span className="inline-block w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
           ✦ AI 分析中…
+          <button
+            onClick={() => dispatch({ type: 'CANCEL_AI' })}
+            aria-label="取消 AI 整理"
+            className="ml-1 px-1.5 py-0.5 rounded text-[11px] underline underline-offset-2 opacity-80 hover:opacity-100"
+          >
+            取消
+          </button>
         </div>
       )}
 
