@@ -34,7 +34,8 @@ export type Command =
   | { type: 'AI_ORGANIZE_INBOX' }
   | { type: 'APPLY_AI_PLAN'; plan: AIPlan }
   | { type: 'SET_AI_SETTINGS'; provider: AIProviderId; key?: string; model?: string; baseUrl?: string }
-  | { type: 'TEST_AI_CONNECTION' };
+  | { type: 'TEST_AI_CONNECTION' }
+  | { type: 'CANCEL_AI' };
 
 export type Event =
   | {
@@ -89,6 +90,7 @@ export const COMMAND_TYPES = new Set<Command['type']>([
   'APPLY_AI_PLAN',
   'SET_AI_SETTINGS',
   'TEST_AI_CONNECTION',
+  'CANCEL_AI',
   'AI_SUGGEST_NAME',
 ]);
 

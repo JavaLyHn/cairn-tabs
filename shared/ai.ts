@@ -16,7 +16,20 @@ export interface AIStatus {
   baseUrl?: string;
 }
 
-export type AIErrorReason = 'no_key' | 'permission' | 'network' | 'parse' | 'empty';
+export type AIErrorReason = 'no_key' | 'permission' | 'network' | 'parse' | 'empty' | 'cancelled';
+
+/** 用户主动取消在飞 AI 请求的标记错误 —— 与超时/网络失败(同为 AbortError)区分。 */
+export class AICancelledError extends Error {
+  constructor() {
+    super('cancelled');
+    this.name = 'AICancelledError';
+  }
+}
+
+/** 判定是否用户主动取消(按 name,跨模块打包稳)。 */
+export function isAICancelled(e: unknown): boolean {
+  return e instanceof Error && e.name === 'AICancelledError';
+}
 
 /**
  * 把底层调用错误(状态码 / abort / 网络)翻成中文人话,用于「测试连接」的即时反馈。
