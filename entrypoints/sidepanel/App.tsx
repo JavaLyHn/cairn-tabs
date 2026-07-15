@@ -409,6 +409,7 @@ export default function App() {
           className="shrink-0 flex items-center justify-center w-7 h-7 rounded-md opacity-60 hover:opacity-100
                      hover:bg-black/5 dark:hover:bg-white/10"
           title="设置"
+          aria-label="设置"
         >
           <svg
             width="15"
@@ -520,6 +521,7 @@ export default function App() {
           <span className="inline-block w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
           ✦ AI 分析中…
           <button
+            type="button"
             onClick={() => dispatch({ type: 'CANCEL_AI' })}
             aria-label="取消 AI 整理"
             className="ml-1 px-1.5 py-0.5 rounded text-[11px] underline underline-offset-2 opacity-80 hover:opacity-100"

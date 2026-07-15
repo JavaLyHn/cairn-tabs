@@ -168,6 +168,7 @@ export function TabRow({ tab, dupState, portMap, ageLabel, onActivate, onClose, 
               : 'hidden group-hover/row:flex opacity-45 hover:opacity-90'
           }`}
           title={tab.starred ? '取消重点' : '标为重点'}
+          aria-label={tab.starred ? '取消重点' : '标为重点'}
         >
           <StarIcon filled={tab.starred === true} />
         </button>
@@ -180,6 +181,7 @@ export function TabRow({ tab, dupState, portMap, ageLabel, onActivate, onClose, 
         className="hidden group-hover/row:flex items-center justify-center w-4 h-4 shrink-0
                    rounded opacity-50 hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10"
         title="关闭标签"
+        aria-label="关闭标签"
       >
         ×
       </button>

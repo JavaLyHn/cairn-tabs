@@ -71,4 +71,20 @@ describe('TabRow', () => {
     );
     expect(screen.getByTitle('取消重点')).toBeTruthy();
   });
+
+  it('关闭按钮有无障碍名称', () => {
+    render(<TabRow tab={tab()} portMap={{}} onActivate={noop} onClose={noop} />);
+    expect(screen.getByRole('button', { name: '关闭标签' })).toBeTruthy();
+  });
+
+  it('重点按钮名称随 starred 切换', () => {
+    const { rerender } = render(
+      <TabRow tab={tab({ starred: false })} portMap={{}} onActivate={noop} onClose={noop} onToggleStar={noop} />,
+    );
+    expect(screen.getByRole('button', { name: '标为重点' })).toBeTruthy();
+    rerender(
+      <TabRow tab={tab({ starred: true })} portMap={{}} onActivate={noop} onClose={noop} onToggleStar={noop} />,
+    );
+    expect(screen.getByRole('button', { name: '取消重点' })).toBeTruthy();
+  });
 });
