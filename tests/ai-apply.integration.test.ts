@@ -307,6 +307,58 @@ describe('APPLY_AI_PLAN (F-13)', () => {
   });
 });
 
+describe('AI_ORGANIZE_INBOX prompt 隐私约束(F-13)', () => {
+  it('发给 AI 的 user 只含 eTLD+1 域名,不含原始路径或 query', async () => {
+    // 1. 未分类中放一个带 chromeTabId 的松散标签(使 AI_ORGANIZE_INBOX 不返回 empty)
+    await fake.userOpenTab('https://example.com', { title: 'Example' });
+
+    // 2. 建一个已有任务,并直接向库中插入一个 url 含路径+query 的标签
+    await handleCommand({ type: 'CREATE_CONTEXT', name: '前端任务' }, ctx);
+    const { contexts } = await repo.getSnapshot();
+    const task = contexts.find((c) => c.name === '前端任务')!;
+    // 直接写库:模拟该任务已有一个 url 带路径+query 的历史标签(无需 chromeTabId)
+    await repo.addTab(
+      {
+        url: 'https://react.dev/learn/thinking-in-react?tab=1',
+        title: 'Thinking in React',
+        contextId: task.id,
+        chromeTabId: undefined,
+        windowId: undefined,
+        firstOpenedAt: Date.now(),
+        lastActiveAt: Date.now(),
+        pinned: false,
+        starred: false,
+      },
+      Date.now(),
+    );
+
+    // 3. 构建 aiCtx,fake complete 捕获 user 参数
+    let captured = '';
+    const aiCtx: CommandContext = {
+      ...ctx,
+      ai: {
+        status: () => ({ provider: 'anthropic', hasKey: true, model: 'm' }),
+        configured: () => true,
+        complete: async (_system: string, user: string) => {
+          captured = user;
+          return '{"newGroups":[],"assign":[]}';
+        },
+        set: async () => {},
+        test: async () => ({ ok: true, detail: 'ok' }),
+        cancel: () => {},
+      },
+    };
+
+    // 4. 触发 AI_ORGANIZE_INBOX
+    await handleCommand({ type: 'AI_ORGANIZE_INBOX' }, aiCtx);
+
+    // 5. 断言:prompt 中含 eTLD+1,不含路径段或 query 参数
+    expect(captured).toContain('react.dev');           // eTLD+1 域名必须出现
+    expect(captured).not.toContain('thinking-in-react'); // 路径不得出现
+    expect(captured).not.toContain('tab=1');             // query 不得出现
+  });
+});
+
 describe('AI 取消', () => {
   it('complete 抛 AICancelledError → AI_ERROR reason cancelled', async () => {
     const aiCtx: CommandContext = {
