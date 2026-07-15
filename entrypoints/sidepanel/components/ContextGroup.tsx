@@ -26,6 +26,7 @@ interface Props {
   onToggleStar?: (tabRecordId: string, starred: boolean) => void;
   aiEnabled?: boolean;
   onAiOrganize?: () => void;
+  onAiSuggestName?: () => Promise<string | null>; // AI 命名:返回建议名(不自动应用)
 }
 
 export function ContextGroup({
@@ -50,10 +51,13 @@ export function ContextGroup({
   onToggleStar,
   aiEnabled,
   onAiOrganize,
+  onAiSuggestName,
 }: Props) {
   const [collapsed, setCollapsed] = useState(variant === 'archived');
   const [dragOver, setDragOver] = useState(false);
+  const [aiNaming, setAiNaming] = useState(false);
   const cancelledRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const isInbox = context.id === INBOX_ID;
   const canDrop = variant !== 'archived';
@@ -111,28 +115,51 @@ export function ContextGroup({
         </svg>
 
         {editing ? (
-          <input
-            autoFocus
-            defaultValue={context.name}
-            onClick={(e) => e.stopPropagation()}
-            onFocus={(e) => e.target.select()}
-            onBlur={(e) => {
-              if (cancelledRef.current) {
-                cancelledRef.current = false;
-                onCancelEdit();
-              } else {
-                onCommitName(e.target.value);
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') e.currentTarget.blur();
-              if (e.key === 'Escape') {
-                cancelledRef.current = true;
-                e.currentTarget.blur();
-              }
-            }}
-            className="flex-1 bg-transparent outline-none border-b border-accent"
-          />
+          <div className="flex-1 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            <input
+              ref={inputRef}
+              autoFocus
+              defaultValue={context.name}
+              onFocus={(e) => e.target.select()}
+              onBlur={(e) => {
+                if (cancelledRef.current) {
+                  cancelledRef.current = false;
+                  onCancelEdit();
+                } else {
+                  onCommitName(e.target.value);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur();
+                if (e.key === 'Escape') {
+                  cancelledRef.current = true;
+                  e.currentTarget.blur();
+                }
+              }}
+              className="flex-1 min-w-0 bg-transparent outline-none border-b border-accent"
+            />
+            {aiEnabled && !isInbox && onAiSuggestName && (
+              <button
+                title="AI 命名(据任务里的标签建议)"
+                disabled={aiNaming}
+                // mousedown 不让 input 失焦(否则会触发 commit 提前退出编辑)
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={async () => {
+                  setAiNaming(true);
+                  const name = await onAiSuggestName();
+                  setAiNaming(false);
+                  if (name && inputRef.current) {
+                    inputRef.current.value = name;
+                    inputRef.current.focus();
+                    inputRef.current.select();
+                  }
+                }}
+                className="shrink-0 text-[11px] text-accent hover:underline disabled:opacity-40"
+              >
+                {aiNaming ? '…' : '✦'}
+              </button>
+            )}
+          </div>
         ) : (
           <span className={`flex-1 truncate font-medium ${variant === 'archived' ? 'opacity-60' : ''}`}>
             {context.name}
