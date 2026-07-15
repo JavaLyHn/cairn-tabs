@@ -14,7 +14,7 @@ export default defineConfig({
   }),
   manifest: {
     name: 'Cairn Tabs',
-    description: '面向程序员的标签页上下文管理器 (MVP 核心闭环)',
+    description: '面向程序员的标签页上下文管理器 —— 按任务归类、归档恢复、秒搜。本地优先、无账号。',
     permissions: ['tabs', 'tabGroups', 'storage', 'sidePanel', 'alarms'],
     // 官方两档 + 自定义中转站(任意 https host,运行时按所填地址派生 origin、带用户手势申请)
     optional_host_permissions: ['https://api.anthropic.com/*', 'https://api.openai.com/*', 'https://*/*'],
