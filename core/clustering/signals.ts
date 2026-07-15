@@ -1,10 +1,19 @@
 // 聚簇信号提取(纯函数,见 PRD §6.2)。
 
-// 已知的多段公共后缀(近似 eTLD;完整实现需 Public Suffix List,MVP 够用)
+// 精简版公共后缀表(近似 eTLD;完整需 Public Suffix List,但那要 ~200KB,对扩展过重)。
+// 两类:① 国家/地区二级后缀;② 程序员常开的托管平台后缀 —— 后者让 alice.github.io 与
+// bob.github.io 被识别为不同站点(各自 eTLD+1),避免聚簇/去重/同域升格把它们当成同一站。
 const MULTI_SUFFIX = new Set([
+  // 国家/地区
   'co.uk', 'org.uk', 'ac.uk', 'gov.uk',
   'com.cn', 'net.cn', 'org.cn', 'gov.cn',
   'co.jp', 'com.au', 'net.au', 'co.nz', 'com.br', 'com.hk', 'co.in', 'com.tw', 'com.sg',
+  'co.kr', 'com.mx', 'co.za', 'com.tr', 'co.id', 'com.vn', 'co.th', 'com.ua',
+  // 托管平台(用户/项目子域各自独立)
+  'github.io', 'gitlab.io', 'pages.dev', 'workers.dev', 'vercel.app', 'netlify.app',
+  'web.app', 'firebaseapp.com', 'herokuapp.com', 'azurewebsites.net', 'fly.dev',
+  'onrender.com', 'pythonanywhere.com', 'glitch.me', 'surge.sh', 'readthedocs.io',
+  'gitpod.io', 'ngrok.io',
 ]);
 
 export function hostnameOf(url: string): string {
