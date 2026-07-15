@@ -138,16 +138,16 @@ export function SettingsPanel({
         </div>
 
         <ToggleRow
-          title="自动聚簇"
-          desc="自动把相关新标签归入任务、并在标签栏建组。关闭后新标签只进「未分类」,由你手动整理。"
+          title="自动归类"
+          desc="把相关新标签自动归入任务,并在标签栏建立对应分组。关闭后新标签只进「未分类」,由你手动整理。"
           on={flags.autoCluster}
           onToggle={() => onToggleAutoCluster(!flags.autoCluster)}
         />
         {flags.autoCluster && (
           <div className="border-t border-black/5 dark:border-white/5">
             <StepperRow
-              title="同域成簇建议"
-              desc="未分类里同一站点的标签达到这个数,就在顶部给一条「成簇」建议(你确认才生效)。"
+              title="同站归类建议"
+              desc="未分类里同一网站的标签达到这个数,就建议归成一个任务(你确认才生效)。"
               value={flags.sameDomainPromoteSize}
               min={2}
               max={8}
@@ -158,8 +158,8 @@ export function SettingsPanel({
 
         <div className="border-t border-black/10 dark:border-white/10">
           <ToggleRow
-            title={`陈旧提示 · ${flags.staleDays} 天`}
-            desc="超过阈值天数未访问的标签下沉到底部,给一个「全部归档」入口。只展示,不主动动你的标签。"
+            title="陈旧提示"
+            desc="很久没访问的标签下沉到底部,给一个「全部归档」入口;只提示,不动你的标签。"
             on={flags.staleHints}
             onToggle={() => onToggleStaleHints(!flags.staleHints)}
           />
@@ -167,7 +167,7 @@ export function SettingsPanel({
             <div className="border-t border-black/5 dark:border-white/5">
               <StepperRow
                 title="陈旧阈值 · 天"
-                desc="超过这么多天未访问就算陈旧、下沉到底部(重点标签除外)。"
+                desc="超过这么多天没访问就算陈旧(重点标签除外)。"
                 value={flags.staleDays}
                 min={1}
                 max={90}
@@ -179,16 +179,16 @@ export function SettingsPanel({
 
         <div className="border-t border-black/10 dark:border-white/10">
           <ToggleRow
-            title={`自动挂起 · ${flags.discardAfterMinutes} 分钟`}
-            desc="闲置超过阈值的标签释放内存(标签保留,点击自动重载)。默认关闭 —— 想省内存再打开。"
+            title="自动休眠"
+            desc="很久没用的标签自动释放内存,标签保留、点击自动重载;默认关闭,想省内存再开。"
             on={flags.autoDiscard}
             onToggle={() => onToggleAutoDiscard(!flags.autoDiscard)}
           />
           {flags.autoDiscard && (
             <div className="border-t border-black/5 dark:border-white/5">
               <StepperRow
-                title="挂起阈值 · 分钟"
-                desc="闲置超过这么多分钟就释放内存(重点标签、localhost 除外)。"
+                title="休眠阈值 · 分钟"
+                desc="超过这么多分钟没用就释放内存(重点标签、localhost 除外)。"
                 value={flags.discardAfterMinutes}
                 min={5}
                 max={480}
@@ -197,8 +197,8 @@ export function SettingsPanel({
               />
               <div className="border-t border-black/5 dark:border-white/5">
                 <ToggleRow
-                  title="localhost 不挂起"
-                  desc="保护 dev server 页面 —— 本地开发地址永不被自动挂起,避免丢失页面状态。"
+                  title="localhost 不休眠"
+                  desc="本地开发地址永不自动休眠,保护 dev server 的页面状态。"
                   on={flags.discardSkipsLocalhost}
                   onToggle={() => onToggleDiscardSkipsLocalhost(!flags.discardSkipsLocalhost)}
                 />
@@ -218,7 +218,7 @@ export function SettingsPanel({
           >
             <div className="text-[12.5px]">导出全部数据 (JSON)</div>
             <div className="text-[11px] opacity-50 leading-snug mt-0.5">
-              下载所有任务与标签的备份文件,用于迁移或存档。
+              导出所有任务与标签,用于备份或迁移。
             </div>
           </button>
         </div>
@@ -304,9 +304,9 @@ function AISection({
 
   return (
     <div className="px-3 py-2.5">
-      <div className="text-[12.5px] mb-1">AI 整理(BYO Key)</div>
+      <div className="text-[12.5px] mb-1">AI 整理(自带 API key)</div>
       <div className="text-[11px] opacity-50 leading-snug mb-2">
-        默认关闭。开启后仅把标签标题+域名+任务名发给你选的服务商,用你的 key 直连,绝不发完整网址/页面内容。
+        默认关闭。只把标签标题、域名、任务名发给你选的服务商,用你的 key 直连;绝不发完整网址或页面内容。
         {ai.hasKey && (
           <span className="text-accent"> 当前:{PROVIDER_LABELS[ai.provider]} 已配置。</span>
         )}
@@ -338,7 +338,7 @@ function AISection({
                        bg-transparent outline-none focus:border-accent font-mono"
           />
           <div className="text-[11px] opacity-45 leading-snug mb-1.5">
-            OpenAI 兼容中转站。中转站是第三方,数据会经过它——请填你信任的地址。
+            OpenAI 兼容的中转站。它是第三方,数据会经过它,请填你信任的地址。
           </div>
         </>
       )}

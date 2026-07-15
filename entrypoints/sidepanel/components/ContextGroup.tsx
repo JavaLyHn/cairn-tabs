@@ -215,9 +215,9 @@ export function ContextGroup({
                 <button
                   onClick={onArchiveAll}
                   className="text-[11px] opacity-60 hover:opacity-100"
-                  title="收纳全部零散标签(存为一个暂存任务)"
+                  title="把全部零散标签归档(存为一个任务)"
                 >
-                  收纳全部
+                  全部归档
                 </button>
               )}
               {!isInbox && (
@@ -242,9 +242,9 @@ export function ContextGroup({
                 <button
                   onClick={onArchive}
                   className="text-[11px] opacity-60 hover:opacity-100"
-                  title="收纳(归档并关闭)"
+                  title="归档(关闭标签,之后可一键恢复)"
                 >
-                  收纳
+                  归档
                 </button>
               )}
               {!isInbox && (

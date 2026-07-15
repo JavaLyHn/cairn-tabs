@@ -1,4 +1,4 @@
-// 同域升格建议(F-07):未分类里同域标签够阈值 → 一条「成簇 / 忽略」建议。
+// 同站归类建议(F-07):未分类里同域标签够阈值 → 一条「归类 / 忽略」建议。
 // 交互与 PortBindSuggestions 一致:非侵入,用户确认才落地。
 
 interface Suggestion {
@@ -26,7 +26,7 @@ export function DomainPromoteSuggestions({ suggestions, onPromote, onIgnore }: P
             onClick={() => onPromote(s.domain, s.tabIds)}
             className="shrink-0 text-accent text-[11px] hover:underline"
           >
-            成簇
+            归类
           </button>
           <button
             onClick={() => onIgnore(s.domain)}

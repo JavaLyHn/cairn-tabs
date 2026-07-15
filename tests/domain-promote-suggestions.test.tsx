@@ -26,7 +26,7 @@ describe('DomainPromoteSuggestions', () => {
     expect(screen.getByText('stripe.com')).toBeTruthy();
     expect(screen.getByText(/3 个/)).toBeTruthy();
 
-    fireEvent.click(screen.getByText('成簇'));
+    fireEvent.click(screen.getByText('归类'));
     expect(onPromote).toHaveBeenCalledWith('stripe.com', ['a', 'b', 'c']);
 
     fireEvent.click(screen.getByText('忽略'));

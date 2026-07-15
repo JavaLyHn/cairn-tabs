@@ -463,6 +463,7 @@ export default function App() {
             tabs={staleRecords}
             portMap={portMap}
             now={now}
+            staleDays={flags.staleDays}
             onArchiveAll={archiveStale}
             onActivateTab={activate}
             onCloseTab={closeTab}
@@ -493,7 +494,7 @@ export default function App() {
 
       {undo && (
         <UndoToast
-          label="已收纳"
+          label="已归档"
           ttlMs={undo.ttlMs}
           onUndo={doUndo}
           onDismiss={clearUndo}

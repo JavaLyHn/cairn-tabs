@@ -7,13 +7,14 @@ interface Props {
   tabs: TabRecord[]; // 陈旧标签,最久未访问在前
   portMap: Record<number, string>;
   now: number;
+  staleDays: number;
   onArchiveAll: () => void;
   onActivateTab: (tabRecordId: string) => void;
   onCloseTab: (tabRecordId: string) => void;
 }
 
-/** 陈旧标签下沉簇(F-10):降饱和度、沉到列表底部,带「全部归档」。不弹通知。 */
-export function StaleGroup({ tabs, portMap, now, onArchiveAll, onActivateTab, onCloseTab }: Props) {
+/** 陈旧标签下沉区(F-10):降饱和度、沉到列表底部,带「全部归档」。不弹通知。 */
+export function StaleGroup({ tabs, portMap, now, staleDays, onArchiveAll, onActivateTab, onCloseTab }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   if (tabs.length === 0) return null;
 
@@ -49,7 +50,9 @@ export function StaleGroup({ tabs, portMap, now, onArchiveAll, onActivateTab, on
           <path d="M12 7v5l3 3" />
         </svg>
 
-        <span className="flex-1 truncate text-[12.5px] font-medium opacity-70">陈旧 · 7 天未访问</span>
+        <span className="flex-1 truncate text-[12.5px] font-medium opacity-70">
+          陈旧 · {staleDays} 天没访问
+        </span>
         <span className="font-mono text-[11px] opacity-40 shrink-0">{tabs.length}</span>
 
         <button
@@ -59,7 +62,7 @@ export function StaleGroup({ tabs, portMap, now, onArchiveAll, onActivateTab, on
           }}
           className="shrink-0 text-[11px] px-1.5 py-0.5 rounded opacity-70 hover:opacity-100
                      hover:bg-black/5 dark:hover:bg-white/10"
-          title="把全部陈旧标签整批收纳(可撤销)"
+          title="把全部陈旧标签整批归档(可撤销)"
         >
           全部归档
         </button>
