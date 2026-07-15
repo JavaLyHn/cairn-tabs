@@ -70,21 +70,28 @@ function stampedName(prefix: string, now: number): string {
  * 关键:只有当真实标签的 url 与记录一致时才关闭,避免因 id 陈旧/错位误关别的标签
  * (Chrome 会 discard/换 id,尤其图片等重标签)。
  */
-async function closeOrPurge(record: TabRecord, repo: Repository): Promise<void> {
+async function closeOrPurge(
+  record: TabRecord,
+  repo: Repository,
+  trustId = false,
+): Promise<void> {
   if (record.chromeTabId == null) {
     await repo.removeTab(record.id);
     return;
   }
   try {
     const live = await chrome.tabs.get(record.chromeTabId);
-    if (live && live.url === record.url) {
-      await chrome.tabs.remove(record.chromeTabId); // 真实对应标签 → 关闭(onRemoved 清记录)
+    // trustId(用户点某行的 ×):标签存在即关 —— 会话内 tab id 不复用,导航过也仍是同一标签,
+    //   否则记录 url 一陈旧就关不掉(见回归测试)。
+    // 非 trustId(MERGE 自动批量):保守,仅当 url 也一致才关,避免误关别的标签。
+    if (live && (trustId || live.url === record.url)) {
+      await chrome.tabs.remove(record.chromeTabId); // onRemoved 清记录
       return;
     }
   } catch {
     /* 标签已不存在 */
   }
-  await repo.removeTab(record.id); // id 陈旧/错位 → 直接清幻影记录,绝不误关其它标签
+  await repo.removeTab(record.id); // id 已消失/错位 → 清幻影记录,绝不误关其它标签
 }
 
 /** 收纳一个 Context 的活跃标签(持锁关闭,避免脱组/关闭事件回灌幻影)。 */
@@ -280,7 +287,7 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
     case 'CLOSE_TAB': {
       const record = await repo.getTab(cmd.tabRecordId);
       if (!record) return;
-      await closeOrPurge(record, repo);
+      await closeOrPurge(record, repo, true); // 用户直接关这一行 → 标签存在即关
       onChange();
       return;
     }
