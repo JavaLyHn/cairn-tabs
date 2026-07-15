@@ -8,7 +8,9 @@ interface Props {
   onToggleAutoCluster: (enabled: boolean) => void;
   onSetSameDomainSize: (size: number) => void;
   onToggleStaleHints: (enabled: boolean) => void;
+  onSetStaleDays: (days: number) => void;
   onToggleAutoDiscard: (enabled: boolean) => void;
+  onSetDiscardAfterMinutes: (minutes: number) => void;
   onToggleDiscardSkipsLocalhost: (enabled: boolean) => void;
   onSaveAi: (
     provider: AIProviderId,
@@ -68,6 +70,7 @@ function StepperRow({
   value,
   min,
   max,
+  step = 1,
   onChange,
 }: {
   title: string;
@@ -75,6 +78,7 @@ function StepperRow({
   value: number;
   min: number;
   max: number;
+  step?: number;
   onChange: (v: number) => void;
 }) {
   const set = (v: number) => onChange(Math.max(min, Math.min(max, v)));
@@ -86,7 +90,7 @@ function StepperRow({
       </div>
       <div className="flex items-center gap-1 pt-0.5 shrink-0">
         <button
-          onClick={() => set(value - 1)}
+          onClick={() => set(value - step)}
           disabled={value <= min}
           className="w-6 h-6 rounded-md text-[13px] leading-none border border-black/15 dark:border-white/20
                      hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-30"
@@ -95,7 +99,7 @@ function StepperRow({
         </button>
         <span className="w-5 text-center font-mono text-[12.5px]">{value}</span>
         <button
-          onClick={() => set(value + 1)}
+          onClick={() => set(value + step)}
           disabled={value >= max}
           className="w-6 h-6 rounded-md text-[13px] leading-none border border-black/15 dark:border-white/20
                      hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-30"
@@ -113,7 +117,9 @@ export function SettingsPanel({
   onToggleAutoCluster,
   onSetSameDomainSize,
   onToggleStaleHints,
+  onSetStaleDays,
   onToggleAutoDiscard,
+  onSetDiscardAfterMinutes,
   onToggleDiscardSkipsLocalhost,
   onSaveAi,
   onTestAi,
@@ -157,6 +163,18 @@ export function SettingsPanel({
             on={flags.staleHints}
             onToggle={() => onToggleStaleHints(!flags.staleHints)}
           />
+          {flags.staleHints && (
+            <div className="border-t border-black/5 dark:border-white/5">
+              <StepperRow
+                title="陈旧阈值 · 天"
+                desc="超过这么多天未访问就算陈旧、下沉到底部(重点标签除外)。"
+                value={flags.staleDays}
+                min={1}
+                max={90}
+                onChange={onSetStaleDays}
+              />
+            </div>
+          )}
         </div>
 
         <div className="border-t border-black/10 dark:border-white/10">
@@ -168,12 +186,23 @@ export function SettingsPanel({
           />
           {flags.autoDiscard && (
             <div className="border-t border-black/5 dark:border-white/5">
-              <ToggleRow
-                title="localhost 不挂起"
-                desc="保护 dev server 页面 —— 本地开发地址永不被自动挂起,避免丢失页面状态。"
-                on={flags.discardSkipsLocalhost}
-                onToggle={() => onToggleDiscardSkipsLocalhost(!flags.discardSkipsLocalhost)}
+              <StepperRow
+                title="挂起阈值 · 分钟"
+                desc="闲置超过这么多分钟就释放内存(重点标签、localhost 除外)。"
+                value={flags.discardAfterMinutes}
+                min={5}
+                max={480}
+                step={5}
+                onChange={onSetDiscardAfterMinutes}
               />
+              <div className="border-t border-black/5 dark:border-white/5">
+                <ToggleRow
+                  title="localhost 不挂起"
+                  desc="保护 dev server 页面 —— 本地开发地址永不被自动挂起,避免丢失页面状态。"
+                  on={flags.discardSkipsLocalhost}
+                  onToggle={() => onToggleDiscardSkipsLocalhost(!flags.discardSkipsLocalhost)}
+                />
+              </div>
             </div>
           )}
         </div>

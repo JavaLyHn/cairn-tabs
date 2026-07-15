@@ -255,6 +255,24 @@ describe('APPLY_AI_PLAN (F-13)', () => {
     ]);
   });
 
+  it('SET_STALE_DAYS / SET_DISCARD_AFTER_MINUTES:clamp', async () => {
+    const patches: Partial<Flags>[] = [];
+    const fctx: CommandContext = {
+      ...ctx,
+      flags: { get: () => DEFAULT_FLAGS, patch: async (p) => void patches.push(p) },
+    };
+    await handleCommand({ type: 'SET_STALE_DAYS', days: 999 }, fctx);
+    await handleCommand({ type: 'SET_STALE_DAYS', days: 0 }, fctx);
+    await handleCommand({ type: 'SET_DISCARD_AFTER_MINUTES', minutes: 9999 }, fctx);
+    await handleCommand({ type: 'SET_DISCARD_AFTER_MINUTES', minutes: 1 }, fctx);
+    expect(patches).toEqual([
+      { staleDays: 90 },
+      { staleDays: 1 },
+      { discardAfterMinutes: 480 },
+      { discardAfterMinutes: 5 },
+    ]);
+  });
+
   it('并入已有任务;忽略非法 tabId 与不存在任务', async () => {
     await fake.userOpenTab('https://a.com', { title: 'A' });
     const [id] = await looseTabIds();

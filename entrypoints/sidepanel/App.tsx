@@ -297,7 +297,10 @@ export default function App() {
     dispatch({ type: 'SET_SAME_DOMAIN_PROMOTE_SIZE', size });
   const toggleAutoCluster = (enabled: boolean) => dispatch({ type: 'SET_AUTO_CLUSTER', enabled });
   const toggleStaleHints = (enabled: boolean) => dispatch({ type: 'SET_STALE_HINTS', enabled });
+  const setStaleDays = (days: number) => dispatch({ type: 'SET_STALE_DAYS', days });
   const toggleAutoDiscard = (enabled: boolean) => dispatch({ type: 'SET_AUTO_DISCARD', enabled });
+  const setDiscardAfterMinutes = (minutes: number) =>
+    dispatch({ type: 'SET_DISCARD_AFTER_MINUTES', minutes });
   const toggleDiscardSkipsLocalhost = (enabled: boolean) =>
     dispatch({ type: 'SET_DISCARD_SKIP_LOCALHOST', enabled });
   const archiveStale = async () => {
@@ -525,7 +528,9 @@ export default function App() {
           onToggleAutoCluster={toggleAutoCluster}
           onSetSameDomainSize={setSameDomainSize}
           onToggleStaleHints={toggleStaleHints}
+          onSetStaleDays={setStaleDays}
           onToggleAutoDiscard={toggleAutoDiscard}
+          onSetDiscardAfterMinutes={setDiscardAfterMinutes}
           onToggleDiscardSkipsLocalhost={toggleDiscardSkipsLocalhost}
           onExportAll={exportAllData}
           onClose={() => setSettingsOpen(false)}

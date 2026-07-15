@@ -323,6 +323,16 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       onChange();
       return;
 
+    case 'SET_STALE_DAYS':
+      await flags?.patch({ staleDays: Math.max(1, Math.min(90, Math.round(cmd.days))) });
+      onChange();
+      return;
+
+    case 'SET_DISCARD_AFTER_MINUTES':
+      await flags?.patch({ discardAfterMinutes: Math.max(5, Math.min(480, Math.round(cmd.minutes))) });
+      onChange();
+      return;
+
     case 'SET_SAME_DOMAIN_PROMOTE_SIZE':
       await flags?.patch({ sameDomainPromoteSize: Math.max(2, Math.min(20, Math.round(cmd.size))) });
       onChange();
