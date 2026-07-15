@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 import type { Flags } from '@/shared/types';
 import type { AIProviderId, AIStatus } from '@/shared/ai';
 
@@ -310,7 +310,15 @@ function AISection({
   const [baseUrl, setBaseUrl] = useState(ai.baseUrl ?? '');
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [msg, setMsg] = useState('');
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const msgTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // 成功提示约 2.5s 自动消失;失败保留(方便看清)。切档/再次保存或测试时照旧清除。
+  const showMsg = (text: string, ok: boolean) => {
+    if (msgTimer.current) clearTimeout(msgTimer.current);
+    setMsg({ text, ok });
+    if (ok) msgTimer.current = setTimeout(() => setMsg(null), 2500);
+  };
+  useEffect(() => () => { if (msgTimer.current) clearTimeout(msgTimer.current); }, []);
   const [result, setResult] = useState<{ ok: boolean; detail: string } | null>(null);
 
   const isCustom = provider === 'custom';
@@ -328,21 +336,21 @@ function AISection({
 
   const save = async () => {
     setSaving(true);
-    setMsg('');
+    setMsg(null);
     setResult(null);
     try {
       await onSave(provider, keyArg(), model, isCustom ? baseUrl : undefined);
       setKey('');
-      setMsg('已保存');
+      showMsg('已保存', true);
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : '保存失败');
+      showMsg(e instanceof Error ? e.message : '保存失败', false);
     }
     setSaving(false);
   };
 
   const test = async () => {
     setTesting(true);
-    setMsg('');
+    setMsg(null);
     setResult(null);
     try {
       // 先把当前表单存下(key 留空则保留已存的),再测——含权限申请
@@ -374,7 +382,7 @@ function AISection({
             onClick={() => {
               setProvider(p);
               setResult(null);
-              setMsg('');
+              setMsg(null);
             }}
             className={`px-2 py-0.5 rounded text-[12px] ${
               provider === p ? 'bg-accent/15 text-accent' : 'opacity-60 hover:opacity-100'
@@ -429,7 +437,15 @@ function AISection({
         >
           {testing ? '测试中…' : '测试连接'}
         </button>
-        {msg && <span className="text-[11px] opacity-60">{msg}</span>}
+        {msg && (
+          <span
+            className={`text-[11px] ${
+              msg.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+            }`}
+          >
+            {msg.text}
+          </span>
+        )}
       </div>
       {result && (
         <div
