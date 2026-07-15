@@ -266,17 +266,13 @@ export default function App() {
     }
   };
 
-  /** 结束改名:命名有效则保留改名;若是被放弃的空草稿则删除。 */
+  /** 结束改名(失焦):有效命名则改名。空的「新任务」草稿失焦时保留(可拖标签进来 / 改名 / × 删),
+   *  不再自动删除——否则点别处准备拖标签时草稿就没了,拖不进去。放弃请用 Esc 或 ×。 */
   const commitName = (c: Context, value: string) => {
     const name = value.trim();
     const meaningful = name !== '' && name !== '新任务';
-    if (meaningful) {
-      rename(c.id, name);
-      if (draftId === c.id) setDraftId(null); // 已确认,不再是草稿
-    } else if (draftId === c.id && c.tabOrder.length === 0) {
-      del(c.id); // 空草稿未命名 → 放弃删除
-      setDraftId(null);
-    }
+    if (meaningful) rename(c.id, name);
+    if (draftId === c.id) setDraftId(null); // 失焦即定稿,不再当空草稿删除
     setEditingId(null);
   };
 
