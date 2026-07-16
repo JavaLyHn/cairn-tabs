@@ -115,25 +115,28 @@ async function assignTab(
   toContextId: string,
   repo: Repository,
   now: number,
+  opts?: { pin?: boolean },
 ): Promise<void> {
   const rec = await repo.getTab(tabRecordId);
   if (!rec) return;
   await repo.moveTab(tabRecordId, toContextId, now);
-  await repo.pinTab(tabRecordId);
+  if (opts?.pin !== false) await repo.pinTab(tabRecordId);
   const after = await repo.getTab(tabRecordId);
   if (after?.chromeTabId != null) await ensureTabInContextGroup(repo, toContextId, after.chromeTabId);
 }
 
-/** 新建一个命名簇,把给定标签移入并锁定 + 同步原生分组标题(AI 建组 / 同域升格共用)。 */
+/** 新建一个命名簇,把给定标签移入(默认锁定)+ 同步原生分组标题。返回新建 contextId。 */
 async function createClusterFromTabs(
   name: string,
   tabIds: string[],
   repo: Repository,
   now: number,
-): Promise<void> {
+  opts?: { pin?: boolean },
+): Promise<string> {
   const created = await repo.createContext(name, now);
-  for (const tabId of tabIds) await assignTab(tabId, created.id, repo, now);
+  for (const tabId of tabIds) await assignTab(tabId, created.id, repo, now, opts);
   await syncGroupTitle(repo, created.id, name);
+  return created.id;
 }
 
 export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<Event | void> {
