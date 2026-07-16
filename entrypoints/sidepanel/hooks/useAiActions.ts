@@ -4,17 +4,18 @@ import type { AIPlan, AIProviderId } from '@/shared/ai';
 import type { TabRecord } from '@/shared/types';
 import { permissionOriginFor } from '@/core/ai/provider';
 
-export function useAiActions(deps: { showFlash: (msg: string) => void }): {
+export function useAiActions(deps: { showFlash: (msg: string) => void; setUndo: (u: { action: string; token: string; ttlMs: number }) => void }): {
   aiBusy: boolean;
-  aiPlan: { plan: AIPlan; tabs: TabRecord[] } | null;
-  setAiPlan: (v: { plan: AIPlan; tabs: TabRecord[] } | null) => void;
+  aiPlan: { plan: AIPlan; tabs: TabRecord[]; scope: 'inbox' | 'all' } | null;
+  setAiPlan: (v: { plan: AIPlan; tabs: TabRecord[]; scope: 'inbox' | 'all' } | null) => void;
   aiOrganize: () => Promise<void>;
-  applyAiPlan: (plan: AIPlan) => void;
+  aiOrganizeAll: () => Promise<void>;
+  applyAiPlan: (plan: AIPlan, opts?: { global?: boolean }) => void;
   aiSuggestName: (contextId: string) => Promise<string | null>;
   saveAi: (provider: AIProviderId, key: string | undefined, model: string, baseUrl?: string) => Promise<void>;
   testAi: () => Promise<{ ok: boolean; detail: string }>;
 } {
-  const [aiPlan, setAiPlan] = useState<{ plan: AIPlan; tabs: TabRecord[] } | null>(null);
+  const [aiPlan, setAiPlan] = useState<{ plan: AIPlan; tabs: TabRecord[]; scope: 'inbox' | 'all' } | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
 
   const aiOrganize = async () => {
@@ -22,7 +23,7 @@ export function useAiActions(deps: { showFlash: (msg: string) => void }): {
     setAiBusy(true); // 持久「分析中」指示见下方 pill(AI 调用可能超过 flash 的 1.8s)
     const ev = await dispatch({ type: 'AI_ORGANIZE_INBOX' });
     setAiBusy(false);
-    if (ev?.type === 'AI_PLAN') setAiPlan({ plan: ev.plan, tabs: ev.tabs });
+    if (ev?.type === 'AI_PLAN') setAiPlan({ plan: ev.plan, tabs: ev.tabs, scope: 'inbox' });
     else if (ev?.type === 'AI_ERROR') {
       const msg: Record<string, string> = {
         no_key: '请先在设置里填 AI API key',
@@ -36,10 +37,34 @@ export function useAiActions(deps: { showFlash: (msg: string) => void }): {
     }
   };
 
-  const applyAiPlan = (plan: AIPlan) => {
-    dispatch({ type: 'APPLY_AI_PLAN', plan });
+  const aiOrganizeAll = async () => {
+    if (aiBusy) return;
+    setAiBusy(true);
+    const ev = await dispatch({ type: 'AI_ORGANIZE_ALL' });
+    setAiBusy(false);
+    if (ev?.type === 'AI_PLAN') setAiPlan({ plan: ev.plan, tabs: ev.tabs, scope: 'all' });
+    else if (ev?.type === 'AI_ERROR') {
+      const msg: Record<string, string> = {
+        no_key: '请先在设置里填 AI API key',
+        permission: '未授权访问 API 域名',
+        network: 'AI 调用失败,请稍后重试',
+        parse: 'AI 没能给出可用的分组建议,已保持原样',
+        empty: '没有可整理的标签(★重点和手动分好的不动)',
+        cancelled: '已取消 AI 整理',
+      };
+      deps.showFlash(msg[ev.reason] ?? 'AI 调用失败');
+    }
+  };
+
+  const applyAiPlan = async (plan: AIPlan, opts?: { global?: boolean }) => {
+    const ev = await dispatch({ type: 'APPLY_AI_PLAN', plan, global: opts?.global });
     setAiPlan(null);
-    deps.showFlash('已应用 AI 整理');
+    if (opts?.global && ev?.type === 'UNDOABLE') {
+      deps.setUndo({ action: ev.action, token: ev.token, ttlMs: ev.ttlMs });
+      deps.showFlash('已整理全部');
+    } else {
+      deps.showFlash('已应用 AI 整理');
+    }
   };
 
   const aiSuggestName = async (contextId: string): Promise<string | null> => {
@@ -82,5 +107,5 @@ export function useAiActions(deps: { showFlash: (msg: string) => void }): {
     return { ok: false, detail: '测试失败' };
   };
 
-  return { aiBusy, aiPlan, setAiPlan, aiOrganize, applyAiPlan, aiSuggestName, saveAi, testAi };
+  return { aiBusy, aiPlan, setAiPlan, aiOrganize, aiOrganizeAll, applyAiPlan, aiSuggestName, saveAi, testAi };
 }

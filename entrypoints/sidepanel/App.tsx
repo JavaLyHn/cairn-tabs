@@ -63,8 +63,8 @@ export default function App() {
   const [exportTarget, setExportTarget] = useState<{ id: string; at: number } | null>(null);
   const { flash, showFlash } = useFlash();
 
-  const { aiBusy, aiPlan, setAiPlan, aiOrganize, applyAiPlan, aiSuggestName, saveAi, testAi } =
-    useAiActions({ showFlash });
+  const { aiBusy, aiPlan, setAiPlan, aiOrganize, aiOrganizeAll, applyAiPlan, aiSuggestName, saveAi, testAi } =
+    useAiActions({ showFlash, setUndo });
 
   // 订阅 SW 广播 + 首屏拉取 + ⌘⇧K 挂载态
   useEffect(() => {
@@ -250,6 +250,17 @@ export default function App() {
         >
           + 新建
         </button>
+        {ai.hasKey && (
+          <button
+            onClick={aiOrganizeAll}
+            disabled={aiBusy}
+            className="shrink-0 px-2 py-1.5 rounded-md text-[12px] text-accent hover:bg-accent/10
+                       disabled:opacity-50"
+            title="用 AI 把所有标签重新精准分组(★重点和手动分好的不动)"
+          >
+            {aiBusy ? '✦ 整理中…' : '✦ 整理全部'}
+          </button>
+        )}
         <button
           onClick={() => setAllCollapsed((v) => !v)}
           className="shrink-0 flex items-center justify-center w-7 h-7 rounded-md opacity-60 hover:opacity-100
@@ -414,7 +425,7 @@ export default function App() {
           plan={aiPlan.plan}
           tabs={aiPlan.tabs}
           taskNames={Object.fromEntries(contexts.map((c) => [c.id, c.name]))}
-          onApply={applyAiPlan}
+          onApply={(plan) => applyAiPlan(plan, { global: aiPlan.scope === 'all' })}
           onClose={() => setAiPlan(null)}
         />
       )}
