@@ -13,6 +13,7 @@ import { staleTabs } from '@/shared/stale';
 import { formatReclaimed } from '@/shared/discard';
 import { exportAllJSON } from '@/shared/export';
 import { usePanelStore, dispatch } from './store';
+import { useFlash } from './hooks/useFlash';
 import { StatsBar } from './components/StatsBar';
 import { ContextGroup } from './components/ContextGroup';
 import { StaleGroup } from './components/StaleGroup';
@@ -65,13 +66,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [allCollapsed, setAllCollapsed] = useState(false); // 一键折叠开关(false=展开)
   const [exportTarget, setExportTarget] = useState<{ id: string; at: number } | null>(null);
-  const [flash, setFlash] = useState<string | null>(null);
-  const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const showFlash = (msg: string) => {
-    setFlash(msg);
-    if (flashTimer.current) clearTimeout(flashTimer.current);
-    flashTimer.current = setTimeout(() => setFlash(null), 1800);
-  };
+  const { flash, showFlash } = useFlash();
 
   const [aiPlan, setAiPlan] = useState<{ plan: AIPlan; tabs: TabRecord[] } | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
