@@ -4,6 +4,7 @@
 import type { Repository } from '../store/repositories';
 import { shouldDiscard, BYTES_PER_DISCARD, type DiscardOptions } from '@/shared/discard';
 import { withSyncPaused } from './sync-lock';
+import { logDebug } from '@/shared/log';
 
 /**
  * 执行一轮挂起扫描,返回本轮挂起的标签数。
@@ -31,8 +32,8 @@ export async function runDiscardScan(
         // discard 可能返回新 id(旧版 Chrome 会换 id);一并回填,避免记录陈旧
         await repo.updateTab(rec.id, { discarded: true, chromeTabId: t?.id ?? rec.chromeTabId });
         count++;
-      } catch {
-        /* 标签可能刚被关闭 */
+      } catch (e) {
+        logDebug('runDiscardScan: 挂起失败(标签可能刚被关闭)', e);
       }
     });
   }

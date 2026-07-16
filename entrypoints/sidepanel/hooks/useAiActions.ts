@@ -3,6 +3,7 @@ import { dispatch } from '../store';
 import type { AIPlan, AIProviderId } from '@/shared/ai';
 import type { TabRecord } from '@/shared/types';
 import { permissionOriginFor } from '@/core/ai/provider';
+import { logError } from '@/shared/log';
 
 export function useAiActions(deps: {
   showFlash: (msg: string) => void;
@@ -94,8 +95,9 @@ export function useAiActions(deps: {
         };
         deps.showFlash(msg[ev.reason] ?? 'AI 调用失败');
       }
-    } catch {
-      deps.showFlash('AI 调用失败,请稍后重试'); // 如 SW 未就绪导致 sendMessage 失败
+    } catch (e) {
+      logError('aiSuggestName', e); // 如 SW 未就绪导致 sendMessage 失败
+      deps.showFlash('AI 调用失败,请稍后重试');
     }
     return null;
   };

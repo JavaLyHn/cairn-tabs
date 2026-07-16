@@ -5,6 +5,7 @@ import type { Repository } from '../store/repositories';
 import { INBOX_ID, type Context, type ContextColor } from '@/shared/types';
 import { DRAFT_CONTEXT_NAME } from '@/shared/messaging';
 import { withSyncPaused, isSyncPaused } from './sync-lock';
+import { logDebug } from '@/shared/log';
 
 const NONE = -1; // chrome.tabGroups.TAB_GROUP_ID_NONE
 
@@ -40,8 +41,8 @@ function adoptGroup(repo: Repository, groupId: number, now: number): Promise<Con
       const g = await chrome.tabGroups.get(groupId);
       title = g.title?.trim() || title;
       color = g.color as ContextColor;
-    } catch {
-      /* 分组已消失,用默认值 */
+    } catch (e) {
+      logDebug('adoptGroup: 分组已消失,用默认值', e);
     }
     return repo.createContext(title, now, { color, nativeGroupId: groupId });
   })().finally(() => adoptionInFlight.delete(groupId));
@@ -70,7 +71,8 @@ export async function ensureTabInContextGroup(
       // 校验分组是否仍存在
       try {
         await chrome.tabGroups.get(groupId);
-      } catch {
+      } catch (e) {
+        logDebug('ensureTabInContextGroup: 原生分组已不存在,改为新建', e);
         groupId = undefined;
       }
     }
@@ -82,8 +84,8 @@ export async function ensureTabInContextGroup(
         await repo.setNativeGroupId(contextId, groupId);
       }
       await chrome.tabGroups.update(groupId, { title: ctx.name, color: ctx.color });
-    } catch {
-      /* 标签可能已关闭 */
+    } catch (e) {
+      logDebug('ensureTabInContextGroup: 标签可能已关闭', e);
     }
   });
 }
@@ -103,8 +105,8 @@ export async function groupTabsForContext(
       const groupId = await chrome.tabs.group({ tabIds });
       await repo.setNativeGroupId(contextId, groupId);
       await chrome.tabGroups.update(groupId, { title: ctx.name, color: ctx.color });
-    } catch {
-      /* 忽略 */
+    } catch (e) {
+      logDebug('groupTabsForContext: 编组失败(标签可能已关闭)', e);
     }
   });
 }

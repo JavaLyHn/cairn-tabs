@@ -2,6 +2,7 @@
 
 import { bumpPenalty, type Penalties } from '../clustering/rules';
 import { registrableDomain, hostnameOf } from '../clustering/signals';
+import { logError } from '@/shared/log';
 
 const STORAGE_KEY = 'clustering:penalties';
 
@@ -28,8 +29,8 @@ export class PenaltyStore {
     this.data = bumpPenalty(this.data, domain, contextId);
     try {
       await chrome.storage.local.set({ [STORAGE_KEY]: this.data });
-    } catch {
-      /* 忽略写入失败 */
+    } catch (e) {
+      logError('penalties.persist', e);
     }
   }
 }

@@ -6,6 +6,7 @@ import { INBOX_ID, type TabRecord } from '@/shared/types';
 import { isSyncPaused } from './sync-lock';
 import { handleTabGroupChange, ensureTabInContextGroup } from './group-sync';
 import { resolveNewTabContext } from './clustering';
+import { logDebug } from '@/shared/log';
 import type { Penalties } from '../clustering/rules';
 
 type OnChange = () => void;
@@ -91,7 +92,8 @@ export function registerTabListeners(
         // 防御:仅为确实仍存在的标签补建记录,避免为正在关闭的标签回填幻影
         try {
           await chrome.tabs.get(tabId);
-        } catch {
+        } catch (e) {
+          logDebug('onUpdated: 标签已不存在,跳过补建', e);
           return;
         }
         const now = Date.now();
