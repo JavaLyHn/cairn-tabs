@@ -2,7 +2,7 @@
 
 import type { Repository } from '../store/repositories';
 import type { SearchIndex } from '../search';
-import type { UndoManager } from './undo';
+import type { UndoManager, ReorgUndo } from './undo';
 import { pauseSync, resumeSync } from './sync-lock';
 import { ensureTabInContextGroup, groupTabsForContext, syncGroupTitle } from './group-sync';
 import { DRAFT_CONTEXT_NAME, type Command, type Event } from '@/shared/messaging';
@@ -139,6 +139,27 @@ async function createClusterFromTabs(
   return created.id;
 }
 
+/** 撤销「整理全部」:重建被删空组 → 把标签移回原组 → 删掉本次新建的空组。 */
+async function undoReorg(reorg: ReorgUndo, repo: Repository, now: number): Promise<void> {
+  const idMap = new Map<string, string>(); // 旧被删组 id → 重建后新 id
+  for (const c of reorg.recreate) {
+    const fresh = await repo.createContext(c.name, now, { color: c.color });
+    idMap.set(c.id, fresh.id);
+    await syncGroupTitle(repo, fresh.id, c.name);
+  }
+  for (const m of reorg.moves) {
+    const target = idMap.get(m.toContextId) ?? m.toContextId;
+    const exists = await repo.getContext(target);
+    if (!exists) continue; // 目标既不存在也未重建 → 跳过(极端兜底)
+    await repo.moveTab(m.tabId, target, now); // 不打锁,忠实还原
+    const t = await repo.getTab(m.tabId);
+    if (t?.chromeTabId != null) await ensureTabInContextGroup(repo, target, t.chromeTabId);
+  }
+  for (const id of reorg.deleteContextIds) {
+    await repo.deleteContext(id, now); // 标签已移回,应为空;deleteContext 会把残余标签兜回未分类
+  }
+}
+
 export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<Event | void> {
   const { repo, search, undo, onChange, recordNegative, ports, flags } = ctx;
   const now = Date.now();
@@ -261,9 +282,15 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
     }
 
     case 'UNDO': {
-      const contextId = undo.consume(cmd.token);
-      if (contextId) {
-        await restoreContext(contextId, ctx);
+      const e = undo.consume(cmd.token);
+      if (!e) return;
+      if (e.reorg) {
+        await undoReorg(e.reorg, repo, now);
+        onChange();
+        return;
+      }
+      if (e.contextId) {
+        await restoreContext(e.contextId, ctx);
         onChange();
       }
       return;

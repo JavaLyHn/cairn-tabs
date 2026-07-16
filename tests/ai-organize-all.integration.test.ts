@@ -114,3 +114,43 @@ describe('AI_ORGANIZE_ALL 采集', () => {
     expect((ev as { tabs: { id: string }[] }).tabs.map((t) => t.id)).toContain(id);
   });
 });
+
+describe('undoReorg(UNDO 处理 reorg)', () => {
+  it('重建被删组 + 移回标签 + 删掉新建空组', async () => {
+    // 目标组 B(标签要移回它);新建组 C(撤销时删)
+    await handleCommand({ type: 'CREATE_CONTEXT', name: 'B组' }, ctx);
+    await handleCommand({ type: 'CREATE_CONTEXT', name: 'C组' }, ctx);
+    const snap = await repo.getSnapshot();
+    const B = snap.contexts.find((c) => c.name === 'B组')!;
+    const C = snap.contexts.find((c) => c.name === 'C组')!;
+    // 一个打开的标签,当前放在 C(模拟"被整理进新建组")
+    await fake.userOpenTab('https://a.com', { title: 'A' });
+    const [tid] = (await repo.getContext(INBOX_ID))!.tabOrder;
+    await repo.moveTab(tid!, C.id, Date.now());
+
+    // 手工注册一个 reorg:把 tid 移回 B;重建一个被删组 'gone';撤销时删 C
+    const { token } = ctx.undo.registerReorg(
+      { moves: [{ tabId: tid!, toContextId: B.id }], recreate: [{ id: 'gone', name: '旧组', color: 'blue' }], deleteContextIds: [C.id] },
+      5000,
+    );
+    await handleCommand({ type: 'UNDO', token }, ctx);
+
+    const after = await repo.getSnapshot();
+    expect((await repo.getTab(tid!))!.contextId).toBe(B.id); // 移回 B
+    expect(after.contexts.find((c) => c.name === '旧组')).toBeTruthy(); // 重建
+    expect(after.contexts.find((c) => c.id === C.id)).toBeUndefined(); // C 被删
+  });
+
+  it('原分组被删时:标签移回重建后的组(新 id)', async () => {
+    await fake.userOpenTab('https://a.com', { title: 'A' });
+    const [tid] = (await repo.getContext(INBOX_ID))!.tabOrder;
+    // 原分组 old 已不存在,recreate 之;move 目标指向 old.id → 应落到重建后的新组
+    const { token } = ctx.undo.registerReorg(
+      { moves: [{ tabId: tid!, toContextId: 'old' }], recreate: [{ id: 'old', name: '重建组', color: 'red' }], deleteContextIds: [] },
+      5000,
+    );
+    await handleCommand({ type: 'UNDO', token }, ctx);
+    const rebuilt = (await repo.getSnapshot()).contexts.find((c) => c.name === '重建组')!;
+    expect((await repo.getTab(tid!))!.contextId).toBe(rebuilt.id);
+  });
+});
