@@ -159,37 +159,69 @@ export function registerTabListeners(
  * 与 chrome.tabs.query 全量对账(见设计文档风险表)。
  * 在 hydrate/启动时执行,补偿 SW 休眠期间丢失的事件。
  */
-export async function reconcile(repo: Repository, onChange: OnChange): Promise<void> {
+export async function reconcile(
+  repo: Repository,
+  onChange: OnChange,
+  opts?: { purge?: boolean },
+): Promise<void> {
+  const purge = opts?.purge !== false;
   const now = Date.now();
   const liveTabs = await chrome.tabs.query({});
   const liveById = new Map<number, chrome.tabs.Tab>();
   for (const t of liveTabs) if (t.id != null) liveById.set(t.id, t);
 
   const { tabs: records } = await repo.getSnapshot();
+
+  // 存活记录(chromeTabId 仍在实时标签中);同 id 重复 → 清多余。死 id 收集起来待重绑。
   const recordByChromeId = new Map<number, TabRecord>();
+  const deadRecords: TabRecord[] = [];
   for (const r of records) {
-    if (r.chromeTabId == null) continue;
+    if (r.chromeTabId == null) continue; // 归档标签,不动
+    if (!liveById.has(r.chromeTabId)) {
+      deadRecords.push(r);
+      continue;
+    }
     if (recordByChromeId.has(r.chromeTabId)) {
-      // 同一 chromeTabId 的重复记录(加载期并发遗留)→ 清掉多余,保留先出现的
-      await repo.removeTab(r.id);
+      await repo.removeTab(r.id); // 同一 chromeTabId 的重复记录 → 清多余,保留先出现的
     } else {
       recordByChromeId.set(r.chromeTabId, r);
     }
   }
 
-  // 1) 活跃记录对应的 chrome 标签已不存在 → 休眠期被关闭,删记录
-  for (const r of records) {
-    if (r.chromeTabId != null && !liveById.has(r.chromeTabId)) {
-      await repo.removeTab(r.id);
+  // 重绑趟:重启后 chromeTabId 全变 —— 死记录按 url 找未占用的同 URL 实时标签,回填新 id(元数据保留)
+  const stillDead: TabRecord[] = [];
+  for (const rec of deadRecords) {
+    let matchedId: number | undefined;
+    for (const [id, tab] of liveById) {
+      if (recordByChromeId.has(id)) continue; // 已被占用
+      if (!isTrackable(tab)) continue;
+      if ((tab.url || tab.pendingUrl || '') === rec.url) {
+        matchedId = id;
+        break;
+      }
+    }
+    if (matchedId != null) {
+      const tab = liveById.get(matchedId)!;
+      await repo.updateTab(rec.id, { chromeTabId: matchedId, windowId: tab.windowId });
+      recordByChromeId.set(matchedId, rec);
+    } else {
+      stillDead.push(rec);
     }
   }
-  // 2) 遍历真实标签:无记录则补建;已有记录则用真实标签校正 url/title/favicon
-  //    (修复 discard/换 id 后记录 chromeTabId 错位残留的陈旧 url,避免误判重复)
+
+  // 清删趟:重绑不上的死记录 → 仅在 purge 且实时标签非空时删。
+  // 空集保护:调用方显式传 opts(重启恢复场景)且实时无标签但库有记录 = 会话恢复尚未就绪,
+  // 跳过清删,留给之后的对账。不传 opts 为常规 SW 唤醒对账,不启用保护。
+  const restoreIncomplete = opts !== undefined && liveTabs.length === 0 && records.some((r) => r.chromeTabId != null);
+  if (purge && !restoreIncomplete) {
+    for (const rec of stillDead) await repo.removeTab(rec.id);
+  }
+
+  // 补建 / 校正:遍历真实标签 —— 未占用则补建,已有记录则校正 url/title/favicon(仅有变化才写)
   for (const [chromeId, tab] of liveById) {
     if (!isTrackable(tab)) continue;
     const rec = recordByChromeId.get(chromeId);
     if (rec) {
-      // 仅在字段确有变化时才写(消除写放大:对账每次面板聚焦触发,重度用户上百标签)
       const url = tab.url || tab.pendingUrl || '';
       const title = tabTitle(tab);
       const faviconUrl = tab.favIconUrl;
