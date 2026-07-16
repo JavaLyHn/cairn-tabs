@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseBitbucket, bitbucketRepoSlug, bitbucketBadgeLabel } from '@/shared/bitbucket';
+import { parseBitbucket, bitbucketRepoSlug, bitbucketBadgeLabel, cleanBitbucketTitle } from '@/shared/bitbucket';
 
 describe('parseBitbucket', () => {
   it('解析 PR', () => {
@@ -37,4 +37,19 @@ describe('bitbucketRepoSlug / bitbucketBadgeLabel', () => {
   it('slug', () => expect(bitbucketRepoSlug(pr)).toBe('acme/app'));
   it('PR label', () => expect(bitbucketBadgeLabel(pr)).toBe('PR #42'));
   it('Issue label', () => expect(bitbucketBadgeLabel(issue)).toBe('#7'));
+});
+
+describe('cleanBitbucketTitle', () => {
+  const pr = parseBitbucket('https://bitbucket.org/antalphadev/ai-skills-library/pull-requests/1022')!;
+  it('剥掉「— repo — Bitbucket」尾', () => {
+    const raw = 'fix(hermes): set default so requests stop truncating — ai-skills-library — Bitbucket';
+    expect(cleanBitbucketTitle(raw, pr)).toBe('fix(hermes): set default so requests stop truncating');
+  });
+  it('尾部不匹配 → 原样返回', () => {
+    expect(cleanBitbucketTitle('普通标题没有尾', pr)).toBe('普通标题没有尾');
+  });
+  it('剥完为空 → 返回原标题', () => {
+    const raw = '— ai-skills-library — Bitbucket';
+    expect(cleanBitbucketTitle(raw, pr)).toBe(raw);
+  });
 });

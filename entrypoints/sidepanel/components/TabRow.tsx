@@ -3,7 +3,7 @@ import type { TabRecord } from '@/shared/types';
 import { hostname, monogram } from '../util';
 import { localhostPort, projectFor } from '@/shared/localhost';
 import { parseGitHub, badgeLabel, repoSlug, cleanGitHubTitle } from '@/shared/github';
-import { parseBitbucket, bitbucketBadgeLabel, bitbucketRepoSlug } from '@/shared/bitbucket';
+import { parseBitbucket, bitbucketBadgeLabel, bitbucketRepoSlug, cleanBitbucketTitle } from '@/shared/bitbucket';
 
 /** favicon:有图正常显示;缺图或加载失败(裂图)→ 域名字母字标兜底。 */
 function Favicon({
@@ -101,7 +101,9 @@ export function TabRow({ tab, dupState, portMap, ageLabel, onActivate, onClose, 
     : bb
       ? { kind: bb.kind, label: bitbucketBadgeLabel(bb), slug: bitbucketRepoSlug(bb), number: bb.number }
       : null;
-  const displayTitle = project ?? (gh ? cleanGitHubTitle(tab.title, gh) : tab.title);
+  const displayTitle =
+    project ??
+    (gh ? cleanGitHubTitle(tab.title, gh) : bb ? cleanBitbucketTitle(tab.title, bb) : tab.title);
   const asleep = tab.discarded === true;
   return (
     <div

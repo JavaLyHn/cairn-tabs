@@ -38,3 +38,19 @@ export function bitbucketRepoSlug(ref: BitbucketRef): string {
 export function bitbucketBadgeLabel(ref: BitbucketRef): string {
   return ref.kind === 'pr' ? `PR #${ref.number}` : `#${ref.number}`;
 }
+
+function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * 从 Bitbucket 标签页标题剥掉固定尾部,只留真正标题。
+ *   "fix: X — my-repo — Bitbucket" → "fix: X"
+ * 尾部锚定「— repo — Bitbucket」(em/en dash 均可);匹配不上则原样返回(不猜、不误删)。
+ */
+export function cleanBitbucketTitle(title: string, ref: BitbucketRef): string {
+  const t = (title || '').trim();
+  const tail = new RegExp(`\\s*[—–]\\s*${escapeRe(ref.repo)}\\s*[—–]\\s*Bitbucket\\s*$`, 'i');
+  const stripped = t.replace(tail, '').trim();
+  return stripped || t;
+}
