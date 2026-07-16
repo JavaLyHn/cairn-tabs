@@ -209,11 +209,10 @@ export async function reconcile(
     }
   }
 
-  // 清删趟:重绑不上的死记录 → 仅在 purge 且实时标签非空时删。
-  // 空集保护:调用方显式传 opts(重启恢复场景)且实时无标签但库有记录 = 会话恢复尚未就绪,
-  // 跳过清删,留给之后的对账。不传 opts 为常规 SW 唤醒对账,不启用保护。
-  const restoreIncomplete = opts !== undefined && liveTabs.length === 0 && records.some((r) => r.chromeTabId != null);
-  if (purge && !restoreIncomplete) {
+  // 清删趟:重绑不上的死记录 → 仅在 purge 时删。
+  // 冷启动 hydrate 传 purge:false(只重绑不清删),恢复未就绪期不会误删;purge:true 仅在
+  // 面板聚焦等用户交互时触发(此时会话恢复已完成),空 liveTabs 即真的没标签,应清幻影。
+  if (purge) {
     for (const rec of stillDead) await repo.removeTab(rec.id);
   }
 

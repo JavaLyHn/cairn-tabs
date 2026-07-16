@@ -62,7 +62,6 @@ describe('reconcile 按 URL 重绑', () => {
   it('purge:false 保留重绑不上的死记录;purge:true 删除', async () => {
     await fake.userOpenTab('https://gone.com', { title: 'Gone' });
     await fake.userOpenTab('https://live.com', { title: 'Live' });
-    const inbox = (await repo.getContext(INBOX_ID))!.tabOrder;
     const goneRec = (await repo.getSnapshot()).tabs.find((t) => t.url === 'https://gone.com')!;
     // 关掉 gone(直接从 fake 移除,不触发事件),live 仍在
     fake.tabsById.delete(goneRec.chromeTabId!);
@@ -72,15 +71,14 @@ describe('reconcile 按 URL 重绑', () => {
 
     await reconcile(repo, () => {}, { purge: true });
     expect(await repo.getTab(goneRec.id)).toBeUndefined(); // 删除
-    expect(inbox.length).toBe(2);
+    expect((await repo.getContext(INBOX_ID))!.tabOrder.length).toBe(1); // gone 删除后只剩 live
   });
 
-  it('空集保护:实时标签为空但库有记录 → 即便 purge:true 也不删', async () => {
+  it('purge:false(冷启动 hydrate 用):实时标签为空也不删记录', async () => {
     await fake.userOpenTab('https://a.com', { title: 'A' });
     const [rid] = (await repo.getContext(INBOX_ID))!.tabOrder;
-    fake.tabsById.clear(); // 恢复未就绪:一个实时标签都没有
-
-    await reconcile(repo, () => {}, { purge: true });
-    expect(await repo.getTab(rid!)).toBeTruthy(); // 未删
+    fake.tabsById.clear(); // 会话恢复未就绪:无实时标签
+    await reconcile(repo, () => {}, { purge: false });
+    expect(await repo.getTab(rid!)).toBeTruthy(); // purge:false → 保留
   });
 });
