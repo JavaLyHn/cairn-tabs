@@ -154,3 +154,73 @@ describe('undoReorg(UNDO 处理 reorg)', () => {
     expect((await repo.getTab(tid!))!.contextId).toBe(rebuilt.id);
   });
 });
+
+describe('APPLY_AI_PLAN {global:true}', () => {
+  it('跨组移动:标签从 A 移到 B;移动后 pinned 仍为 false(可反复跑)', async () => {
+    await handleCommand({ type: 'CREATE_CONTEXT', name: 'A' }, ctx);
+    await handleCommand({ type: 'CREATE_CONTEXT', name: 'B' }, ctx);
+    const snap = await repo.getSnapshot();
+    const A = snap.contexts.find((c) => c.name === 'A')!;
+    const B = snap.contexts.find((c) => c.name === 'B')!;
+    await fake.userOpenTab('https://a.com', { title: 'A tab' });
+    const [tid] = (await repo.getContext(INBOX_ID))!.tabOrder;
+    await repo.moveTab(tid!, A.id, Date.now()); // 现在在 A(未打锁)
+
+    const ev = await handleCommand(
+      { type: 'APPLY_AI_PLAN', global: true, plan: { newGroups: [], assign: [{ taskId: B.id, tabIds: [tid!] }] } },
+      ctx,
+    );
+
+    expect((await repo.getTab(tid!))!.contextId).toBe(B.id);
+    expect((await repo.getTab(tid!))!.pinned).toBeFalsy(); // 不打锁
+    expect(ev).toMatchObject({ type: 'UNDOABLE', action: 'reorg' });
+  });
+
+  it('重排后变空的原有组被删除', async () => {
+    await handleCommand({ type: 'CREATE_CONTEXT', name: '将空组' }, ctx);
+    const empty = (await repo.getSnapshot()).contexts.find((c) => c.name === '将空组')!;
+    await fake.userOpenTab('https://a.com', { title: 'only' });
+    const [tid] = (await repo.getContext(INBOX_ID))!.tabOrder;
+    await repo.moveTab(tid!, empty.id, Date.now()); // 该组只有这一个标签
+
+    // 计划:把这唯一标签移进新建组 → 原组变空
+    await handleCommand(
+      { type: 'APPLY_AI_PLAN', global: true, plan: { newGroups: [{ name: '新家', tabIds: [tid!] }], assign: [] } },
+      ctx,
+    );
+    expect((await repo.getSnapshot()).contexts.find((c) => c.id === empty.id)).toBeUndefined();
+  });
+
+  it('撤销:整批移动还原到原组', async () => {
+    await handleCommand({ type: 'CREATE_CONTEXT', name: 'src' }, ctx);
+    const src = (await repo.getSnapshot()).contexts.find((c) => c.name === 'src')!;
+    await fake.userOpenTab('https://a.com', { title: 'A' });
+    const [tid] = (await repo.getContext(INBOX_ID))!.tabOrder;
+    await repo.moveTab(tid!, src.id, Date.now());
+
+    const ev = await handleCommand(
+      { type: 'APPLY_AI_PLAN', global: true, plan: { newGroups: [{ name: '别处', tabIds: [tid!] }], assign: [] } },
+      ctx,
+    );
+    // src 变空被删,标签在"别处"
+    expect((await repo.getTab(tid!))!.contextId).not.toBe(src.id);
+    const token = (ev as { token: string }).token;
+    await handleCommand({ type: 'UNDO', token }, ctx);
+    // 撤销后:标签回到一个名为 src 的组(重建,新 id),"别处"被删
+    const after = await repo.getSnapshot();
+    const restored = after.contexts.find((c) => c.name === 'src')!;
+    expect((await repo.getTab(tid!))!.contextId).toBe(restored.id);
+    expect(after.contexts.find((c) => c.name === '别处')).toBeUndefined();
+  });
+
+  it('非 global 保持原行为:不返回 UNDOABLE、移动打锁', async () => {
+    await fake.userOpenTab('https://a.com', { title: 'A' });
+    const [tid] = (await repo.getContext(INBOX_ID))!.tabOrder;
+    const ev = await handleCommand(
+      { type: 'APPLY_AI_PLAN', plan: { newGroups: [{ name: 'g', tabIds: [tid!] }], assign: [] } },
+      ctx,
+    );
+    expect(ev).toBeUndefined();
+    expect((await repo.getTab(tid!))!.pinned).toBe(true);
+  });
+});

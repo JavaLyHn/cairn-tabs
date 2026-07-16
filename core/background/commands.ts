@@ -490,16 +490,53 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
     }
 
     case 'APPLY_AI_PLAN': {
+      const global = cmd.global === true;
+      // global:先记下 plan 涉及标签的原 contextId,以及当前活跃命名组集合(用于删空组 + 撤销)
+      const before = new Map<string, string>();
+      const beforeCtxIds: string[] = [];
+      if (global) {
+        const planTabIds = new Set<string>([
+          ...cmd.plan.newGroups.flatMap((g) => g.tabIds),
+          ...cmd.plan.assign.flatMap((a) => a.tabIds),
+        ]);
+        for (const id of planTabIds) {
+          const t = await repo.getTab(id);
+          if (t) before.set(id, t.contextId);
+        }
+        const { contexts } = await repo.getSnapshot();
+        for (const c of contexts) if (c.id !== INBOX_ID && c.status === 'active') beforeCtxIds.push(c.id);
+      }
+
+      const createdIds: string[] = [];
       for (const g of cmd.plan.newGroups) {
-        await createClusterFromTabs(g.name, g.tabIds, repo, now);
+        createdIds.push(await createClusterFromTabs(g.name, g.tabIds, repo, now, { pin: !global }));
       }
       for (const a of cmd.plan.assign) {
         const target = await repo.getContext(a.taskId);
         if (!target || target.status !== 'active') continue;
-        for (const tabId of a.tabIds) await assignTab(tabId, a.taskId, repo, now);
+        for (const tabId of a.tabIds) await assignTab(tabId, a.taskId, repo, now, { pin: !global });
       }
       onChange();
-      return;
+      if (!global) return;
+
+      // 删空组:重排后变空的"原有"命名活跃组,记录以便撤销重建
+      const recreate: ReorgUndo['recreate'] = [];
+      for (const id of beforeCtxIds) {
+        const c = await repo.getContext(id);
+        if (c && c.status === 'active' && c.tabOrder.length === 0) {
+          recreate.push({ id, name: c.name, color: c.color });
+          await repo.deleteContext(id, now);
+        }
+      }
+      // moves:真正发生移动的(原 != 现),撤销时移回原 contextId
+      const moves: ReorgUndo['moves'] = [];
+      for (const [tabId, orig] of before) {
+        const cur = (await repo.getTab(tabId))?.contextId;
+        if (cur && cur !== orig) moves.push({ tabId, toContextId: orig });
+      }
+      onChange();
+      const { token, ttlMs } = undo.registerReorg({ moves, recreate, deleteContextIds: createdIds }, UNDO_TTL_MS);
+      return { type: 'UNDOABLE', action: 'reorg', token, ttlMs };
     }
 
     case 'REQUEST_SNAPSHOT':

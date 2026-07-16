@@ -33,7 +33,7 @@ export type Command =
   | { type: 'SEARCH'; query: string }
   | { type: 'AI_ORGANIZE_INBOX' }
   | { type: 'AI_ORGANIZE_ALL' }
-  | { type: 'APPLY_AI_PLAN'; plan: AIPlan }
+  | { type: 'APPLY_AI_PLAN'; plan: AIPlan; global?: boolean }
   | { type: 'SET_AI_SETTINGS'; provider: AIProviderId; key?: string; model?: string; baseUrl?: string }
   | { type: 'TEST_AI_CONNECTION' }
   | { type: 'CANCEL_AI' };
