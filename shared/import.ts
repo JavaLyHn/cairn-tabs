@@ -53,6 +53,7 @@ function isValidTab(v: unknown): v is TabRecord {
     isStr(v.id) &&
     v.id.length > 0 &&
     isStr(v.contextId) &&
+    v.contextId.length > 0 &&
     isStr(v.url) &&
     isStr(v.title) &&
     isNum(v.firstOpenedAt) &&

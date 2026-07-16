@@ -248,21 +248,24 @@ export class Repository {
   ): Promise<{ contexts: number; tabs: number }> {
     return this.db.transaction('rw', this.db.contexts, this.db.tabs, async () => {
       const importedIds = new Set<string>();
+      const importedContexts: Context[] = [];
       let cCount = 0;
       for (const c of contexts) {
         if (c.id === INBOX_ID) continue; // 不碰内置未分类
         if (await this.db.contexts.get(c.id)) continue; // 已存在则跳过(纯增量)
-        await this.db.contexts.put({
+        const stored: Context = {
           ...c,
           status: 'archived',
           archivedAt: c.archivedAt ?? now,
           nativeGroupId: undefined,
           restoreTo: undefined,
-        });
+        };
+        await this.db.contexts.put(stored);
         importedIds.add(c.id);
+        importedContexts.push(stored);
         cCount++;
       }
-      let tCount = 0;
+      const persisted = new Set<string>();
       for (const t of tabs) {
         if (!importedIds.has(t.contextId)) continue; // 只收本次新导入任务的标签
         if (await this.db.tabs.get(t.id)) continue;
@@ -272,9 +275,16 @@ export class Repository {
           windowId: undefined,
           discarded: undefined,
         });
-        tCount++;
+        persisted.add(t.id);
       }
-      return { contexts: cCount, tabs: tCount };
+      // 修剪 tabOrder:剔除被过滤/冲突而未落库的悬空 id,避免归档标签数虚高
+      for (const c of importedContexts) {
+        const pruned = c.tabOrder.filter((id) => persisted.has(id));
+        if (pruned.length !== c.tabOrder.length) {
+          await this.db.contexts.update(c.id, { tabOrder: pruned });
+        }
+      }
+      return { contexts: cCount, tabs: persisted.size };
     });
   }
 

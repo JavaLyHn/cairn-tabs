@@ -89,6 +89,18 @@ describe('ContextGroup a11y — 折叠头键盘可达', () => {
     expect(screen.getByRole('button', { expanded: false })).toBeTruthy();
     expect(screen.queryByText('A标签')).toBeNull();
   });
+
+  it('改名输入框里空格不被折叠头拦截(回归 C1:可输入多词任务名)', () => {
+    render(
+      <I18nProvider initialLocale="zh-CN">
+        <ContextGroup {...baseProps({ editing: true })} />
+      </I18nProvider>,
+    );
+    const input = screen.getByRole('textbox');
+    // fireEvent 返回 false 表示事件被 preventDefault 取消;空格必须不被取消
+    const notCanceled = fireEvent.keyDown(input, { key: ' ' });
+    expect(notCanceled).toBe(true);
+  });
 });
 
 describe('ContextGroup 一键折叠', () => {

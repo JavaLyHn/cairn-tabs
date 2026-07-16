@@ -119,6 +119,7 @@ export function ContextGroup({
         className="group/head flex items-center gap-2 px-2 py-1.5 cursor-pointer select-none"
         onClick={toggleCollapsed}
         onKeyDown={(e) => {
+          if (editing) return; // 编辑中:键盘事件从改名输入框冒泡上来,别拦(否则空格打不进任务名)
           if (e.key === 'Enter') {
             toggleCollapsed();
           } else if (e.key === ' ') {
