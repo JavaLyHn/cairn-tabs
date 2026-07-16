@@ -13,8 +13,10 @@ export default defineConfig({
     plugins: [tailwindcss()],
   }),
   manifest: {
-    name: 'Cairn Tabs',
-    description: '面向程序员的标签页上下文管理器 —— 按任务归类、归档恢复、秒搜。本地优先、无账号。',
+    // 名称/描述/命令描述经 _locales 本地化(default_locale=en);见 public/_locales/*
+    default_locale: 'en',
+    name: '__MSG_appName__',
+    description: '__MSG_appDesc__',
     permissions: ['tabs', 'tabGroups', 'storage', 'sidePanel', 'alarms'],
     // 官方两档 + 自定义中转站(任意 https host,运行时按所填地址派生 origin、带用户手势申请)
     optional_host_permissions: [
@@ -34,11 +36,11 @@ export default defineConfig({
     commands: {
       'open-panel': {
         suggested_key: { default: 'Ctrl+Shift+O', mac: 'Command+Shift+O' },
-        description: '打开 Cairn Tabs 面板',
+        description: '__MSG_cmdOpenPanel__',
       },
       'open-search': {
         suggested_key: { default: 'Ctrl+Shift+K', mac: 'Command+Shift+K' },
-        description: '打开 Cairn Tabs 搜索',
+        description: '__MSG_cmdOpenSearch__',
       },
     },
   },

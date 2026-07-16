@@ -1,0 +1,8 @@
+{
+  "appName": { "message": "Cairn Tabs" },
+  "appDesc": {
+    "message": "開発者のためのタブコンテキストマネージャー — タスクごとに整理、アーカイブと復元、瞬時に検索。ローカル優先、アカウント不要。"
+  },
+  "cmdOpenPanel": { "message": "Cairn Tabs パネルを開く" },
+  "cmdOpenSearch": { "message": "Cairn Tabs 検索を開く" }
+}
