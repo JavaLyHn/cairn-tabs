@@ -13,6 +13,7 @@ import { exportAllJSON } from '@/shared/export';
 import { usePanelStore, dispatch } from './store';
 import { useFlash } from './hooks/useFlash';
 import { useAiActions } from './hooks/useAiActions';
+import { useDraftNaming } from './hooks/useDraftNaming';
 import { StatsBar } from './components/StatsBar';
 import { ContextGroup } from './components/ContextGroup';
 import { StaleGroup } from './components/StaleGroup';
@@ -53,10 +54,8 @@ export default function App() {
   const openSearch = usePanelStore((s) => s.openSearch);
   const closeSearch = usePanelStore((s) => s.closeSearch);
 
-  // 正在改名的簇 id(受控:新建后自动进入、双击或点「改名」进入)
-  const [editingId, setEditingId] = useState<string | null>(null);
-  // 刚新建、尚未确认的草稿簇 id(未命名且无标签时被放弃则删除)
-  const [draftId, setDraftId] = useState<string | null>(null);
+  const { editingId, setEditingId, draftId, createContext, commitName, cancelEdit } = useDraftNaming();
+
   // 本次会话内被忽略的端口建议
   const [ignoredPorts, setIgnoredPorts] = useState<Set<number>>(new Set());
   // 本次会话内被忽略的同域升格建议
@@ -203,40 +202,11 @@ export default function App() {
     if (ev?.type === 'UNDOABLE') setUndo({ action: ev.action, token: ev.token, ttlMs: ev.ttlMs });
   };
   const restore = (contextId: string) => dispatch({ type: 'RESTORE_CONTEXT', contextId });
-  const rename = (contextId: string, name: string) =>
-    dispatch({ type: 'RENAME_CONTEXT', contextId, name });
   const del = (contextId: string) => dispatch({ type: 'DELETE_CONTEXT', contextId });
   const moveTab = (tabRecordId: string, toContextId: string) =>
     dispatch({ type: 'MOVE_TAB', tabRecordId, toContextId });
   const activate = (tabRecordId: string) => dispatch({ type: 'ACTIVATE_TAB', tabRecordId });
   const closeTab = (tabRecordId: string) => dispatch({ type: 'CLOSE_TAB', tabRecordId });
-  const createContext = async () => {
-    // 至多一个「新任务」草稿:SW 复用已存在的,返回其 id;新建后直接进入改名
-    const ev = await dispatch({ type: 'CREATE_CONTEXT', name: '新任务' });
-    if (ev?.type === 'CONTEXT_CREATED') {
-      setDraftId(ev.contextId);
-      setEditingId(ev.contextId);
-    }
-  };
-
-  /** 结束改名(失焦):有效命名则改名。空的「新任务」草稿失焦时保留(可拖标签进来 / 改名 / × 删),
-   *  不再自动删除——否则点别处准备拖标签时草稿就没了,拖不进去。放弃请用 Esc 或 ×。 */
-  const commitName = (c: Context, value: string) => {
-    const name = value.trim();
-    const meaningful = name !== '' && name !== '新任务';
-    if (meaningful) rename(c.id, name);
-    if (draftId === c.id) setDraftId(null); // 失焦即定稿,不再当空草稿删除
-    setEditingId(null);
-  };
-
-  /** Esc 取消:空草稿直接删除,否则仅退出编辑。 */
-  const cancelEdit = (c: Context) => {
-    if (draftId === c.id && c.tabOrder.length === 0) {
-      del(c.id);
-      setDraftId(null);
-    }
-    setEditingId(null);
-  };
   const mergeDuplicates = () => dispatch({ type: 'MERGE_DUPLICATES' });
   const bindPort = (port: number, project: string) => {
     if (project.trim()) dispatch({ type: 'SET_PORT_MAPPING', port, project });
