@@ -1,4 +1,4 @@
-import { useEffect, type RefObject } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 
 const FOCUSABLE =
   'a[href],button:not([disabled]),textarea,input,select,[tabindex]:not([tabindex="-1"])';
@@ -13,6 +13,8 @@ export function useDialog(
   opts: { esc?: boolean } = {},
 ): void {
   const esc = opts.esc !== false;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose; // 每次渲染刷新为最新,避免把 onClose 放进 effect 依赖导致重订阅/焦点被抢
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
     const el = ref.current;
@@ -23,7 +25,7 @@ export function useDialog(
     const onKey = (e: KeyboardEvent) => {
       if (esc && e.key === 'Escape') {
         e.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key === 'Tab' && el) {
@@ -48,5 +50,5 @@ export function useDialog(
       window.removeEventListener('keydown', onKey);
       prev?.focus?.(); // 关闭:焦点还回去
     };
-  }, [ref, onClose, esc]);
+  }, [ref, esc]);
 }

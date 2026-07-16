@@ -35,4 +35,22 @@ describe('useDialog', () => {
     expect(d.getAttribute('aria-modal')).toBe('true');
     expect(d.getAttribute('aria-label')).toBe('测试弹窗');
   });
+  it('父组件重渲染(onClose 换新)不抢回焦点', () => {
+    function MultiDialog({ onClose }: { onClose: () => void }) {
+      const ref = useRef<HTMLDivElement>(null);
+      useDialog(ref, onClose);
+      return (
+        <div ref={ref} role="dialog" aria-modal="true" aria-label="t">
+          <button>first</button>
+          <input aria-label="second" />
+        </div>
+      );
+    }
+    const { rerender } = render(<MultiDialog onClose={() => {}} />);
+    const input = screen.getByLabelText('second');
+    input.focus();
+    expect(document.activeElement).toBe(input);
+    rerender(<MultiDialog onClose={() => {}} />); // 新的 onClose 身份
+    expect(document.activeElement).toBe(input); // 焦点没被抢回 first
+  });
 });
