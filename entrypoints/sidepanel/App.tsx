@@ -425,6 +425,16 @@ export default function App() {
           plan={aiPlan.plan}
           tabs={aiPlan.tabs}
           taskNames={Object.fromEntries(contexts.map((c) => [c.id, c.name]))}
+          sourceNames={
+            aiPlan.scope === 'all'
+              ? Object.fromEntries(
+                  aiPlan.tabs.map((t) => [
+                    t.id,
+                    contexts.find((c) => c.id === t.contextId)?.name ?? '未分类',
+                  ]),
+                )
+              : undefined
+          }
           onApply={(plan) => applyAiPlan(plan, { global: aiPlan.scope === 'all' })}
           onClose={() => setAiPlan(null)}
         />

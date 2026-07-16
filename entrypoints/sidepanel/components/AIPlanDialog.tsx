@@ -7,12 +7,13 @@ interface Props {
   plan: AIPlan;
   tabs: TabRecord[]; // 未分类零散标签,供渲染标题/favicon
   taskNames: Record<string, string>; // contextId → 任务名
+  sourceNames?: Record<string, string>; // tabId → 原组名(仅"整理全部"时传,显示"从哪搬来")
   onApply: (plan: AIPlan) => void;
   onClose: () => void;
 }
 
 // Fix 1: module-scope component so it's a stable type across renders
-function TabItem({ tab, onRemove }: { tab: TabRecord; onRemove: () => void }) {
+function TabItem({ tab, source, onRemove }: { tab: TabRecord; source?: string; onRemove: () => void }) {
   return (
     <div className="group/r flex items-center gap-2 px-2 py-1 rounded hover:bg-black/5 dark:hover:bg-white/5">
       {tab.faviconUrl ? (
@@ -21,6 +22,7 @@ function TabItem({ tab, onRemove }: { tab: TabRecord; onRemove: () => void }) {
         <div className="w-4 h-4 shrink-0 rounded-sm bg-black/10 dark:bg-white/10" />
       )}
       <span className="flex-1 truncate text-[12.5px]">{tab.title}</span>
+      {source && <span className="shrink-0 text-[10.5px] opacity-40">原 {source}</span>}
       <button
         onClick={onRemove}
         className="hidden group-hover/r:block text-[11px] opacity-50 hover:opacity-100"
@@ -44,7 +46,7 @@ interface LocalAssign {
   tabIds: string[];
 }
 
-export function AIPlanDialog({ plan, tabs, taskNames, onApply, onClose }: Props) {
+export function AIPlanDialog({ plan, tabs, taskNames, sourceNames, onApply, onClose }: Props) {
   const byId = new Map(tabs.map((t) => [t.id, t]));
   const panelRef = useRef<HTMLDivElement>(null);
   useDialog(panelRef, onClose);
@@ -122,7 +124,7 @@ export function AIPlanDialog({ plan, tabs, taskNames, onApply, onClose }: Props)
                   {g.tabIds.map((id) => {
                     const t = byId.get(id);
                     if (!t) return null;
-                    return <TabItem key={id} tab={t} onRemove={() => dropFromGroup(i, id)} />;
+                    return <TabItem key={id} tab={t} source={sourceNames?.[id]} onRemove={() => dropFromGroup(i, id)} />;
                   })}
                 </div>
               ))}
@@ -152,7 +154,7 @@ export function AIPlanDialog({ plan, tabs, taskNames, onApply, onClose }: Props)
                   {a.tabIds.map((id) => {
                     const t = byId.get(id);
                     if (!t) return null;
-                    return <TabItem key={id} tab={t} onRemove={() => dropFromAssign(i, id)} />;
+                    return <TabItem key={id} tab={t} source={sourceNames?.[id]} onRemove={() => dropFromAssign(i, id)} />;
                   })}
                 </div>
               ))}
