@@ -37,12 +37,19 @@ export function summarizeTaskTabs(tabs: { title: string; domain: string }[]): Ta
 export function buildOrganizePrompt(
   tabs: OrganizeTab[],
   tasks: OrganizeTask[],
+  opts?: { aggressive?: boolean },
 ): { system: string; user: string } {
+  const classifyRule = opts?.aggressive
+    ? [
+        '- 尽量给每个标签找到最合适的归属;只有实在与任何任务/主题都无关的,才不归类。',
+        '- 这些标签可能来自不同的已有分组;可以把明显更合适别处的标签跨组移动、也可以重新平衡已有分组。',
+      ]
+    : ['- 保守:拿不准就不要归类(该标签不出现在输出里,自动留在未分类)。'];
   const system = [
     '你是帮程序员整理浏览器标签的助手。',
     '把「零散标签」按任务/主题归类:可新建命名分组,或并入某个「已有任务」。',
     '规则:',
-    '- 保守:拿不准就不要归类(该标签不出现在输出里,自动留在未分类)。',
+    ...classifyRule,
     '- 明显属于某个已有任务时,优先并入该任务而不是新建同类分组。',
     '- 判断是否并入已有任务时,参考该任务的 domains(域名)与 samples(示例标题)是否与标签一致。',
     '- 新建分组名简短(不超过 16 字),语言与标签标题一致。',

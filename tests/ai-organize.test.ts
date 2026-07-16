@@ -23,6 +23,18 @@ describe('buildOrganizePrompt', () => {
     expect(user).toContain('react.dev');
     expect(user).toContain('React 文档');
   });
+  it('激进档:提示"尽量归类 + 可跨组移动";默认档不含', () => {
+    const args: [Parameters<typeof buildOrganizePrompt>[0], Parameters<typeof buildOrganizePrompt>[1]] = [
+      [{ id: 't1', title: 'x', domain: 'a.com' }],
+      [{ id: 'c1', name: '任务', domains: [], samples: [] }],
+    ];
+    const conservative = buildOrganizePrompt(...args);
+    const aggressive = buildOrganizePrompt(...args, { aggressive: true });
+    expect(conservative.system).toContain('保守');
+    expect(aggressive.system).not.toContain('保守');
+    expect(aggressive.system).toContain('尽量');
+    expect(aggressive.system).toContain('跨组');
+  });
 });
 
 describe('summarizeTaskTabs', () => {
