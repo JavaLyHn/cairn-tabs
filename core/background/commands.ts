@@ -516,8 +516,10 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
         if (!target || target.status !== 'active') continue;
         for (const tabId of a.tabIds) await assignTab(tabId, a.taskId, repo, now, { pin: !global });
       }
-      onChange();
-      if (!global) return;
+      if (!global) {
+        onChange();
+        return;
+      }
 
       // 删空组:重排后变空的"原有"命名活跃组,记录以便撤销重建
       const recreate: ReorgUndo['recreate'] = [];

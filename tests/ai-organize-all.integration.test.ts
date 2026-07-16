@@ -66,7 +66,7 @@ describe('AI_ORGANIZE_ALL 采集', () => {
       return '{"newGroups":[],"assign":[]}';
     }));
 
-    // parse 空 plan → parse 错误(无 newGroups/assign)→ AI_ERROR parse;但 user 已捕获
+    // 空 plan(newGroups/assign 皆空)→ parseOrganizeResponse 视为无可用建议 → AI_ERROR;此处只借它捕获出网 user
     expect(ev?.type).toBe('AI_ERROR');
     const looseTitles = (JSON.parse(captured).looseTabs as { title: string }[]).map((t) => t.title);
     expect(looseTitles).toContain('React A');
