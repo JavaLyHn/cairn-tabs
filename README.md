@@ -1,105 +1,117 @@
+<div align="center">
+
+<img src="./.github/assets/logo.svg" width="88" height="88" alt="Cairn Tabs logo" />
+
 # Cairn Tabs
 
-面向程序员的浏览器标签页上下文管理器 —— 自动把标签按任务归类,一键归档、恢复整个任务、全局秒搜。Chrome/Edge 侧边栏插件,本地优先、无账号。
+**A tab context manager for developers.** Automatically groups your browser tabs by task, archives and restores whole tasks in one click, and searches everything instantly. A Chrome / Edge side-panel extension — local-first, no account.
 
-> Cairn(玛尼堆)是山道上用石块垒成的路标 —— 为你散乱的标签立个路标。
-> 产品代号原为 TabCtx,详见 [`tabctx-prd-tech-spec.md`](./tabctx-prd-tech-spec.md)。
+English · [简体中文](./README.zh-CN.md) · [日本語](./README.ja.md) · [한국어](./README.ko.md)
 
-## 当前状态
+</div>
 
-MVP 核心闭环、v1.1 程序员特化、v1.5 AI 均已实现并跑通(当前 1.0):
+---
 
-- **侧边栏**:按任务分组实时展示当前标签;统计条 / 底部状态栏;头部一键**展开 / 折叠全部**(活跃任务 + 未分类)
-- **手动任务**:创建 / 重命名 / 删除;拖拽标签归属
-- **整任务归档 / 恢复**:一键归档并关闭、一键限速恢复,5 秒可撤销
-- **重复检测合并**(F-05):同 URL 标出重复,一键合并(保留最近活跃的)
-- **全局搜索**(`⌘⇧K`):fuse.js 模糊匹配打开与已归档标签,`↵` 直达、`⌘↵` 恢复整个任务
-- **原生 tabGroups 双向同步**(F-06):未分类 = 未分组;每个命名任务 = 一个原生分组,标题/颜色一一对应;原生侧的分组增删改会同步回来,手建分组自动收编
-- **自动归类引擎**(F-07):新标签按 opener 链 / 时间窗 / 域名打分,够可信才归入某个**已有任务**(比如从某任务里的标签点开的新标签),否则留在「未分类」;从纠正中学习(拖出记负样本、人工归属锁定),保守优先,宁进未分类不误归。**新建任务(成组)一律要你确认** —— 不会自动把未分类的标签升格成新任务。**同站归类建议**:未分类里同一网站(eTLD+1)标签攒够阈值(默认 4,设置里可调 2–8)时,顶部出现「归类」建议,**点确认才**归成一个新任务。整个引擎**可在设置里一键关闭**(关闭后新标签只进「未分类」)
-- **localhost 项目名映射**(F-08):`localhost:3000` 显示为你绑定的项目名(如 `auth-service`),端口以等宽字体显示在行尾;检测到未绑定端口时内联建议一键绑定
-- **GitHub / Bitbucket 元数据**(F-09):GitHub PR/Issue 与 Bitbucket Cloud PR/Issue 的标签行显示「类型 + 编号」等宽徽章(`PR #482` / `#212`),悬停显示 `owner/repo`(Bitbucket 为 `workspace/repo`);GitHub 还会剥掉冗长标题尾部只留真正标题。纯 URL 解析,零请求零权限
-- **重点标注(Star)**:标签行悬停点星标为「重点」——加星的标签浮到所在任务顶部、汇总到面板顶部的「★ 重点」区快速直达,且**永不被判定陈旧下沉、永不被自动休眠**(重点的东西系统不自作主张收走)。归档/恢复后星标保留
-- **AI 改名**(需配置 AI):给任务改名时,输入框旁的「✦ AI」让 AI 依据该任务里标签的标题+域名建议一个简短任务名、填入输入框,你确认或再改(只发标题+域名,不自动应用;进行中该按钮变「✦ 取消」可中止)
-- **陈旧检测**(F-10):超过阈值天数(默认 7 天,设置里可调)没访问的打开标签,从各任务抽出、集中到底部灰暗下沉区,一键「全部归档」(可撤销)。不弹通知,可在设置里关闭
-- **标签休眠与内存回收**(F-11):**默认关闭**;开启后每 5 分钟扫描,休眠空闲超阈值(默认 30 分钟,设置里可调)、非活跃/音频/置顶且非 localhost 的标签,释放内存(点击自动重载),底部状态栏显示累计估算回收量。localhost 白名单护 dev server
-- **导出**(F-12):任务一键导出为 Markdown(标题+链接,复制到剪贴板,贴周报/Notion);设置里「导出全部数据 (JSON)」做备份/迁移
-- **AI 整理未分类**(F-13,可选):填入自己的 Anthropic / OpenAI API key 后,「未分类」头部出现「✦ AI 整理」,AI 读标签标题+域名、以及**每个已有任务的域名与示例标题**,提议分成新任务或**并入合适的已有任务**,预览确认后生效;**分析中可点「取消」中止**。默认关闭;仅发送标题+域名+任务名(含已有任务的域名/示例),直连官方,key 只存本机。
-  - **自定义中转站**:除官方外可选「自定义中转站」,填 OpenAI 兼容的接口地址(如 `https://newapi.elevatesphere.com/v1`)+ key + 模型,直连你自己的中转站。隐私边界不变(仍只发标题+域名+任务名),key 只存本机,授权只针对你所填域名。
-  - **测试连接**:设置里一键「测试连接」,发一次极小请求验证 key/地址/模型是否可用,即时反馈 `✓ 连接成功 · 模型 · 耗时` 或人话错误(认证失败 / 地址或模型不存在 / 连接超时 / 网络错误…)。
+> A **cairn** is a stack of stones that marks a mountain trail — a landmark for your scattered tabs.
+> Originally codenamed TabCtx; see [`tabctx-prd-tech-spec.md`](./tabctx-prd-tech-spec.md).
 
-尚未实现(见设计文档 Roadmap):Firefox 适配、跨设备同步。
+## Features
 
-## 本地安装使用
+The MVP core loop, v1.1 developer specialization, and v1.5 AI are all implemented and working (currently 1.0):
 
-未上架商店,自己构建一次、以「已解压扩展」加载即可长期使用(无账号、无服务器、数据全在本地)。
+- **Sidebar** — a real-time view of your current tabs grouped by task; a stats bar and bottom status bar; one-click **expand / collapse all** from the header (active tasks + Inbox).
+- **Manual tasks** — create / rename / delete; drag tabs between tasks.
+- **Archive / restore whole tasks** — one click to archive-and-close, one click to restore (rate-limited reopen); 5-second undo.
+- **Organize everything with AI** — an "✦ Organize all" button in the header re-clusters **all open tabs** at once, moving tabs across groups to minimize leftovers. **Starred and manually placed tabs stay put**; empty groups are cleaned up; preview shows each tab's original group, and the whole reorg is **undoable in one click**. (The Inbox keeps its own conservative "✦ AI organize"; see below.)
+- **Session recovery** — your tasks survive a browser restart. On restart, tabs are re-bound to their records by URL and tasks reconnect to their native groups by title, so nothing is lost. If Chrome did not restore a task's tabs at all, that task is **auto-archived** (URLs kept) so you can bring it back with one click.
+- **Duplicate detection & merge** (F-05) — flags same-URL duplicates; one click to merge (keeps the most recently active).
+- **Global search** (`⌘⇧K`) — fuzzy-matches open and archived tabs with fuse.js; `↵` jumps to a tab, `⌘↵` restores the whole task. Opens as a launcher showing your recent and ★ starred tabs before you type.
+- **Two-way native tabGroups sync** (F-06) — Inbox = ungrouped; each named task = one native tab group, titles/colors mapped 1:1; group add / remove / edit on the native side syncs back, and manually created groups are auto-adopted.
+- **Auto-grouping engine** (F-07) — new tabs are scored by opener chain / time window / domain and join an **existing task** only when confident enough (e.g. a tab opened from a tab already in that task); otherwise they stay in the **Inbox**. It learns from corrections (dragging out records a negative sample; manual assignment locks it), conservative by default — it prefers the Inbox over misfiling. **Creating a new task (a new group) always requires your confirmation** — it never auto-promotes Inbox tabs into a new task. **Same-site suggestion**: when enough Inbox tabs share a site (eTLD+1) (threshold default 4, adjustable 2–8 in settings), a "group" suggestion appears at the top and becomes a new task **only when you confirm**. The whole engine **can be turned off in settings** (then new tabs only go to the Inbox).
+- **localhost project-name mapping** (F-08) — `localhost:3000` shows the project name you bind (e.g. `auth-service`); the port is rendered in monospace at the end of the row; unbound ports get an inline one-click bind suggestion.
+- **GitHub / Bitbucket metadata** (F-09) — GitHub PR/Issue and Bitbucket Cloud PR/Issue rows show a "type + number" monospace badge (`PR #482` / `#212`), with `owner/repo` on hover (`workspace/repo` for Bitbucket); GitHub also strips the long trailing title, keeping only the real one. Pure URL parsing — zero requests, zero permissions.
+- **Star (highlight)** — hover a tab row and star it as a "highlight": starred tabs float to the top of their task, are gathered into the "★ Highlights" section at the top of the panel for quick access, and are **never marked stale/sunk and never auto-discarded** (the system won't take away what you care about). Stars survive archive/restore.
+- **AI rename** (needs AI configured) — when renaming a task, the "✦ AI" button next to the input asks the AI to suggest a short task name from that task's tab titles + domains and fills it in for you to confirm or edit (sends only titles + domains, never auto-applies; while running the button becomes "✦ Cancel" to abort).
+- **Stale detection** (F-10) — open tabs not visited for more than a threshold (default 7 days, adjustable) are pulled out of their tasks into a dimmed "sunk" area at the bottom, with a one-click "Archive all" (undoable). No notifications; can be disabled in settings.
+- **Tab discard & memory reclaim** (F-11) — **off by default**; when on, scans every 5 minutes and discards tabs idle beyond a threshold (default 30 min, adjustable) that are non-active / non-audible / non-pinned and not localhost, freeing memory (click to auto-reload); the bottom status bar shows the cumulative estimated reclaim. A localhost whitelist protects your dev server.
+- **Export** (F-12) — one-click export of a task to Markdown (title + links, copied to clipboard, for standups / Notion); "Export all data (JSON)" in settings for backup / migration.
+- **AI-organize the Inbox** (F-13, optional) — after entering your own Anthropic / OpenAI API key, an "✦ AI organize" button appears in the Inbox header; the AI reads tab titles + domains **and each existing task's domains + sample titles**, then proposes new tasks or **merging into a suitable existing task**, applied after preview. **You can cancel mid-analysis.** Off by default; sends only titles + domains + task names (including existing tasks' domains/samples), connects directly to the official API, and the key stays on your machine.
+  - **Custom relay** — besides the official APIs you can choose a "custom relay", entering an OpenAI-compatible endpoint (e.g. `https://newapi.elevatesphere.com/v1`) + key + model to connect to your own relay. The privacy boundary is unchanged (still only titles + domains + task names), the key stays local, and permission is scoped only to the host you enter.
+  - **Test connection** — a one-click "Test connection" in settings fires a tiny request to verify the key / endpoint / model, with instant feedback `✓ Connected · model · Nms` or a plain-language error (auth failed / endpoint or model not found / timeout / network error…).
 
-**前置**:[Node](https://nodejs.org) 20+ 与 [pnpm](https://pnpm.io)(`npm i -g pnpm`)。
+Not yet implemented (see the design-doc Roadmap): Firefox support, cross-device sync.
 
-**1. 构建**
+## Install & use
+
+Not yet on the store — build it once and load it as an "unpacked extension" for long-term use (no account, no server, all data stays local).
+
+**Prerequisites:** [Node](https://nodejs.org) 20+ and [pnpm](https://pnpm.io) (`npm i -g pnpm`).
+
+**1. Build**
 
 ```bash
 git clone https://github.com/JavaLyHn/cairn-tabs.git
 cd cairn-tabs
 pnpm install
-pnpm build          # 产物在 .output/chrome-mv3
+pnpm build          # output in .output/chrome-mv3
 ```
 
-**2. 加载进浏览器**(Chrome / Edge)
+**2. Load into your browser** (Chrome / Edge)
 
-1. 打开 `chrome://extensions`(Edge 为 `edge://extensions`)
-2. 右上角开启 **开发者模式**
-3. 点 **「加载已解压的扩展程序」**,选择项目里的 **`.output/chrome-mv3`** 目录
-4. 建议把工具栏图标 **固定**;点它即可打开侧边栏(或用快捷键 `⌘⇧K` / `Ctrl+Shift+K` 唤起搜索)
+1. Open `chrome://extensions` (`edge://extensions` on Edge).
+2. Enable **Developer mode** (top right).
+3. Click **"Load unpacked"** and select the **`.output/chrome-mv3`** directory in the project.
+4. **Pin** the toolbar icon; click it to open the side panel (or use `⌘⇧O` / `Ctrl+Shift+O` to open the panel, `⌘⇧K` / `Ctrl+Shift+K` to open search).
 
-> ⚠️ 一定选 **`.output/chrome-mv3`**(生产版,自包含、装上即用)。`.output/chrome-mv3-dev` 是开发版,**必须** `pnpm dev` 一直运行才不白屏,普通使用请勿加载它。
+> ⚠️ Be sure to pick **`.output/chrome-mv3`** (the production build — self-contained, works out of the box). `.output/chrome-mv3-dev` is the dev build and **requires** `pnpm dev` to keep running or it shows a blank panel — don't load it for normal use.
 
-**3. 更新到新版本**
+**3. Update to a new version**
 
 ```bash
 git pull && pnpm build
 ```
 
-然后到 `chrome://extensions`,点该扩展的 **刷新 ↻**(不必删除重加)。
+Then go to `chrome://extensions` and click the extension's **Refresh ↻** (no need to remove and re-add).
 
-**4.(可选)开启 AI**:设置 ⚙ → AI 整理 → 选服务商填 API key(或自定义中转站的地址+key+模型)→ 点「测试连接」确认 → 保存。默认关闭,只发标签标题+域名+任务名。
+**4. (Optional) Enable AI** — Settings ⚙ → AI organize → pick a provider and enter your API key (or a custom relay's endpoint + key + model) → click "Test connection" to confirm → save. Off by default; sends only tab titles + domains + task names.
 
-**数据与备份**:所有任务/标签存于浏览器本地 IndexedDB,不上传。设置里「导出全部数据 (JSON)」可随时备份/迁移。
+**Data & backup:** all tasks/tabs live in the browser's local IndexedDB and are never uploaded. Use "Export all data (JSON)" in settings to back up / migrate any time.
 
-## 技术栈
+## Tech stack
 
 WXT (Manifest V3) · React 19 · TypeScript · Tailwind CSS · Dexie (IndexedDB) · Zustand · fuse.js · Vitest
 
-架构要点:Service Worker 是唯一写入方,UI 只发命令、订阅状态快照;所有自发的标签/分组操作都在同步锁内进行以避免事件回环;SW 休眠后靠 hydrate + reconcile 重建并对账。
+Architecture highlights: the Service Worker is the sole writer; the UI only sends commands and subscribes to state snapshots; every self-initiated tab/group operation runs inside a sync lock to avoid event loops; after the SW sleeps it rebuilds and reconciles via hydrate + reconcile.
 
-## 开发
+## Development
 
 ```bash
 pnpm install
-pnpm dev        # 启动 dev server(HMR);不自动开浏览器,手动加载 .output/chrome-mv3-dev
-pnpm build      # 生产构建到 .output/chrome-mv3
-pnpm compile    # 类型检查 (tsc --noEmit)
-pnpm test       # 运行 Vitest
+pnpm dev        # start the dev server (HMR); doesn't open a browser — load .output/chrome-mv3-dev manually
+pnpm build      # production build to .output/chrome-mv3
+pnpm compile    # type-check (tsc --noEmit)
+pnpm test       # run Vitest
 ```
 
-普通使用见上方「[本地安装使用](#本地安装使用)」。开发时用 `pnpm dev` 并加载 `.output/chrome-mv3-dev`(支持热更新,但需 dev server 常驻,否则白屏)。
+For normal use, see [Install & use](#install--use) above. For development, use `pnpm dev` and load `.output/chrome-mv3-dev` (supports hot reload, but needs the dev server running or the panel is blank).
 
-## 目录结构
+## Project structure
 
 ```
-core/            与 UI 无关的领域逻辑(可单测)
-  store/         Dexie schema 与仓储层
-  background/    SW:标签同步 / 命令处理 / 原生分组同步 / 撤销 / 同步锁
-  search/        fuse.js 索引
-entrypoints/     WXT 入口:background + sidepanel(React)
-shared/          类型与消息协议
-tests/           Vitest(含 fake-chrome 集成测试)
-docs/            设计文档
+core/            UI-agnostic domain logic (unit-testable)
+  store/         Dexie schema and repository layer
+  background/    SW: tab sync / command handling / native group sync / undo / sync lock
+  search/        fuse.js index
+entrypoints/     WXT entry points: background + sidepanel (React)
+shared/          types and the message protocol
+tests/           Vitest (incl. fake-chrome integration tests)
+docs/            design docs
 ```
 
-## 贡献
+## Contributing
 
-欢迎参与,请先读 [CONTRIBUTING.md](./CONTRIBUTING.md)。
+Contributions welcome — please read [CONTRIBUTING.md](./CONTRIBUTING.md) first.
 
-## 许可证
+## License
 
-[AGPL-3.0-only](./LICENSE) © JavaLyHn。基于本项目的衍生作品(含联网 SaaS)需按同协议开源。
+[AGPL-3.0-only](./LICENSE) © JavaLyHn. Derivative works (including networked SaaS) must be open-sourced under the same license.
