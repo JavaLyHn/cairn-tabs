@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { INBOX_ID, type Context, type TabRecord } from '@/shared/types';
 import type { Event } from '@/shared/messaging';
@@ -50,6 +50,16 @@ export default function App() {
   const clearUndo = usePanelStore((s) => s.clearUndo);
   const openSearch = usePanelStore((s) => s.openSearch);
   const closeSearch = usePanelStore((s) => s.closeSearch);
+  const toggleSearch = usePanelStore((s) => s.toggleSearch);
+  // 同一次 ⌘⇧K 可能经多条通道到达(DOM keydown / 后台命令的 OPEN_SEARCH / 冷启动 pendingSearch),
+  // 250ms 内只切换一次,避免"刚切换关掉又被另一条通道重开"。
+  const lastSearchKeyAt = useRef(0);
+  const toggleSearchOnce = useCallback(() => {
+    const t = Date.now();
+    if (t - lastSearchKeyAt.current < 250) return;
+    lastSearchKeyAt.current = t;
+    toggleSearch();
+  }, [toggleSearch]);
 
   const { editingId, setEditingId, draftId, createContext, commitName, cancelEdit } = useDraftNaming();
 
@@ -78,25 +88,37 @@ export default function App() {
           applySnapshot(ev.contexts, ev.tabs, ev.portMappings, ev.flags, ev.discardedBytes, ev.ai);
         // 仅当任务顺序变化时播放视图过渡(任务被激活会上移到顶部),让重排平滑
         const startVT = (document as Document & {
-          startViewTransition?: (cb: () => void) => unknown;
+          startViewTransition?: (cb: () => void) => { ready?: Promise<unknown>; finished?: Promise<unknown> };
         }).startViewTransition;
-        if (orderChanged && startVT && !prefersReducedMotion()) {
-          startVT.call(document, () => flushSync(apply));
+        // 仅在面板可见时播过渡:隐藏时启动会被中止,其 ready/finished 以
+        // InvalidStateError(Transition was aborted…)拒绝;连续快照打断上一次过渡亦然。
+        // 无论如何 DOM 都会更新(updateCallback 照常跑),这里只吞掉那些拒绝,避免 Uncaught (in promise)。
+        if (orderChanged && startVT && !prefersReducedMotion() && document.visibilityState === 'visible') {
+          const vt = startVT.call(document, () => flushSync(apply));
+          vt?.ready?.catch(() => {});
+          vt?.finished?.catch(() => {});
         } else {
           apply();
         }
-      } else if (ev?.type === 'OPEN_SEARCH') openSearch();
+      } else if (ev?.type === 'OPEN_SEARCH') {
+        // 后台快捷键命令走这条(登记了 ⌘⇧K 时 Chrome 拦截按键、DOM keydown 收不到)→ 切换,再按一次即关。
+        toggleSearchOnce();
+        // 已实时处理,清掉冷启动兜底标志,避免下次开面板残留导致误开搜索
+        void chrome.storage.session.remove('pendingSearch');
+      }
     };
     chrome.runtime.onMessage.addListener(listener);
     void dispatch({ type: 'REQUEST_SNAPSHOT' });
     void chrome.storage.session.get('pendingSearch').then((r) => {
       if (r.pendingSearch) {
+        // 冷启动(面板刚被快捷键拉起):明确打开搜索;记时刻以便去重紧随其后的 OPEN_SEARCH
+        lastSearchKeyAt.current = Date.now();
         openSearch();
         void chrome.storage.session.remove('pendingSearch');
       }
     });
     return () => chrome.runtime.onMessage.removeListener(listener);
-  }, [applySnapshot, openSearch]);
+  }, [applySnapshot, openSearch, toggleSearchOnce]);
 
   // 面板重新可见/聚焦时拉一次最新快照,自愈任何漏收的广播(保证「及时更新」)
   useEffect(() => {
@@ -111,17 +133,17 @@ export default function App() {
     };
   }, []);
 
-  // 面板聚焦时本地兜底 ⌘⇧K
+  // 面板聚焦、且 ⌘⇧K 未登记为扩展命令时,按键会走到 DOM:本地切换搜索(登记了则走上面的 OPEN_SEARCH)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        openSearch();
+        toggleSearchOnce();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [openSearch]);
+  }, [toggleSearchOnce]);
 
   // 陈旧按「天」判定,时间取到分钟即可 —— 让 staleRecords 的 useMemo 真正生效(每分钟至多重算一次)
   const now = Math.floor(Date.now() / 60_000) * 60_000;

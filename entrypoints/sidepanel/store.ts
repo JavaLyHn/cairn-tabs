@@ -31,6 +31,7 @@ interface PanelState {
   clearUndo: () => void;
   openSearch: () => void;
   closeSearch: () => void;
+  toggleSearch: () => void;
 }
 
 export const usePanelStore = create<PanelState>((set) => ({
@@ -49,6 +50,7 @@ export const usePanelStore = create<PanelState>((set) => ({
   clearUndo: () => set({ undo: null }),
   openSearch: () => set({ searchOpen: true }),
   closeSearch: () => set({ searchOpen: false }),
+  toggleSearch: () => set((s) => ({ searchOpen: !s.searchOpen })),
 }));
 
 /** 发命令并取回响应(archive 返回 UNDOABLE,search 返回 SEARCH_RESULTS)。 */
