@@ -66,6 +66,7 @@ function runScanNow(): void {
 }
 
 let broadcastPending = false;
+let sessionRecovering = false; // 会话恢复进行中:挡住外部并发 reconcileNow,防抢清未归档任务
 function scheduleBroadcast(): void {
   if (broadcastPending) return;
   broadcastPending = true;
@@ -81,6 +82,7 @@ function scheduleBroadcast(): void {
 let lastReconcileAt = 0;
 async function reconcileNow(force = false): Promise<void> {
   if (isSyncPaused()) return; // 收纳/恢复期间不对账,避免与同步锁内的批量增删打架
+  if (sessionRecovering) return; // 会话恢复进行中:不并发对账,避免抢在归档判定前清删
   const now = Date.now();
   if (!force && now - lastReconcileAt < 1200) return;
   lastReconcileAt = now;
@@ -93,13 +95,18 @@ async function reconcileNow(force = false): Promise<void> {
 
 /** 宽限结束(RECOVERY_ALARM):接住迟到的恢复 → 归档没恢复的命名任务 → 常规清理。 */
 async function runSessionRecovery(): Promise<void> {
-  await chrome.storage.session.remove('graceUntil'); // 先清标志:此后对账恢复清删
-  await reconcile(repository, scheduleBroadcast, { purge: false });
-  await reconcileGroups(repository, scheduleBroadcast, { prune: false });
-  await archiveUnrestoredContexts(repository, Date.now());
-  await reconcile(repository, scheduleBroadcast, { purge: true });
-  await reconcileGroups(repository, scheduleBroadcast, { prune: true });
-  scheduleBroadcast();
+  sessionRecovering = true;
+  try {
+    await chrome.storage.session.remove('graceUntil'); // 先清标志:此后对账恢复清删
+    await reconcile(repository, scheduleBroadcast, { purge: false });
+    await reconcileGroups(repository, scheduleBroadcast, { prune: false });
+    await archiveUnrestoredContexts(repository, Date.now());
+    await reconcile(repository, scheduleBroadcast, { purge: true });
+    await reconcileGroups(repository, scheduleBroadcast, { prune: true });
+    scheduleBroadcast();
+  } finally {
+    sessionRecovering = false;
+  }
 }
 
 const cmdCtx: CommandContext = {
