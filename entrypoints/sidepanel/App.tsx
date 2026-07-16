@@ -182,7 +182,8 @@ export default function App() {
     return m;
   }, [tabs]);
 
-  const now = Date.now();
+  // 陈旧按「天」判定,时间取到分钟即可 —— 让下面 staleRecords 的 useMemo 真正生效(每分钟至多重算一次)
+  const now = Math.floor(Date.now() / 60_000) * 60_000;
   // 陈旧标签(开启提示时):从各任务里「抽出」集中到底部下沉簇,单处呈现避免重复
   const staleRecords = useMemo(
     () => (flags.staleHints ? staleTabs(tabs, now, flags.staleDays) : []),
