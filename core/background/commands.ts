@@ -428,6 +428,40 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       return { type: 'AI_PLAN', plan, tabs: loose };
     }
 
+    case 'AI_ORGANIZE_ALL': {
+      if (!ctx.ai || !ctx.ai.configured()) return { type: 'AI_ERROR', reason: 'no_key' };
+      const { contexts, tabs } = await repo.getSnapshot();
+      // 可动集:打开中、非 ★重点、非手动拖过(pinned)
+      const movable = tabs.filter((t) => t.chromeTabId != null && !t.starred && !t.pinned);
+      if (movable.length === 0) return { type: 'AI_ERROR', reason: 'empty' };
+      const tasks = contexts.filter((c) => c.id !== INBOX_ID && c.status === 'active');
+      const { system, user } = buildOrganizePrompt(
+        movable.map((t) => ({ id: t.id, title: t.title, domain: registrableDomain(hostnameOf(t.url)) })),
+        tasks.map((c) => {
+          const own = tabs.filter((t) => t.contextId === c.id);
+          const sig = summarizeTaskTabs(
+            own.map((t) => ({ title: t.title, domain: registrableDomain(hostnameOf(t.url)) })),
+          );
+          return { id: c.id, name: c.name, domains: sig.domains, samples: sig.samples };
+        }),
+        { aggressive: true },
+      );
+      let raw: string;
+      try {
+        raw = await ctx.ai.complete(system, user);
+      } catch (e) {
+        if (isAICancelled(e)) return { type: 'AI_ERROR', reason: 'cancelled' };
+        return { type: 'AI_ERROR', reason: 'network' };
+      }
+      const plan = parseOrganizeResponse(
+        raw,
+        new Set(movable.map((t) => t.id)),
+        new Set(tasks.map((c) => c.id)),
+      );
+      if (!plan) return { type: 'AI_ERROR', reason: 'parse' };
+      return { type: 'AI_PLAN', plan, tabs: movable };
+    }
+
     case 'APPLY_AI_PLAN': {
       for (const g of cmd.plan.newGroups) {
         await createClusterFromTabs(g.name, g.tabIds, repo, now);

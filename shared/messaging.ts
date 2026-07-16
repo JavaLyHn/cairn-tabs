@@ -32,6 +32,7 @@ export type Command =
   | { type: 'REQUEST_SNAPSHOT' }
   | { type: 'SEARCH'; query: string }
   | { type: 'AI_ORGANIZE_INBOX' }
+  | { type: 'AI_ORGANIZE_ALL' }
   | { type: 'APPLY_AI_PLAN'; plan: AIPlan }
   | { type: 'SET_AI_SETTINGS'; provider: AIProviderId; key?: string; model?: string; baseUrl?: string }
   | { type: 'TEST_AI_CONNECTION' }
@@ -87,6 +88,7 @@ export const COMMAND_TYPES = new Set<Command['type']>([
   'REQUEST_SNAPSHOT',
   'SEARCH',
   'AI_ORGANIZE_INBOX',
+  'AI_ORGANIZE_ALL',
   'APPLY_AI_PLAN',
   'SET_AI_SETTINGS',
   'TEST_AI_CONNECTION',
