@@ -2,6 +2,8 @@
 // 不调 API、不加权限、不发请求;只从 URL 稳定拿到「类型 + 编号 + owner/repo」。
 // 状态(open/merged/closed)刻意不做:GitHub 标签标题通常不含状态词,靠标题解析不可靠。
 
+import { escapeRegExp, stripTail } from './regex';
+
 export interface GitHubRef {
   kind: 'pr' | 'issue';
   owner: string;
@@ -35,10 +37,6 @@ export function badgeLabel(ref: GitHubRef): string {
   return ref.kind === 'pr' ? `PR #${ref.number}` : `#${ref.number}`;
 }
 
-function escapeRe(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 /**
  * 从 GitHub 冗长标题剥掉固定尾部,只留真正的标题。
  *   "Fix X by lyhn · Pull Request #482 · myorg/auth-service" → "Fix X"
@@ -46,12 +44,10 @@ function escapeRe(s: string): string {
  * 尾部锚定「编号 + owner/repo」,匹配不上则原样返回(不猜、不误删)。
  */
 export function cleanGitHubTitle(title: string, ref: GitHubRef): string {
-  const t = (title || '').trim();
   const tail = new RegExp(
     `(?:\\s+by\\s+\\S.*?)?\\s*·\\s*(?:Pull Request|Issue)\\s*#${ref.number}\\s*·\\s*` +
-      `${escapeRe(ref.owner)}/${escapeRe(ref.repo)}\\s*$`,
+      `${escapeRegExp(ref.owner)}/${escapeRegExp(ref.repo)}\\s*$`,
     'i',
   );
-  const stripped = t.replace(tail, '').trim();
-  return stripped || t;
+  return stripTail(title, tail);
 }
