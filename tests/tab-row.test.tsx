@@ -99,4 +99,20 @@ describe('TabRow', () => {
     );
     expect(screen.getByText('PR #42')).toBeTruthy();
   });
+
+  it('Bitbucket 标签渲染清洗后的标题(剥掉 — repo — Bitbucket 尾)', () => {
+    render(
+      <TabRow
+        tab={tab({
+          url: 'https://bitbucket.org/acme/app/pull-requests/42',
+          title: 'Fix login bug — app — Bitbucket',
+        })}
+        portMap={{}}
+        onActivate={noop}
+        onClose={noop}
+      />,
+    );
+    expect(screen.getByText('Fix login bug')).toBeTruthy();
+    expect(screen.queryByText('Fix login bug — app — Bitbucket')).toBeNull();
+  });
 });
