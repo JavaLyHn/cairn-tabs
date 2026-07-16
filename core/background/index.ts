@@ -10,6 +10,7 @@ import { PenaltyStore } from './penalties';
 import { PortMappingStore, FlagsStore, MemoryStore, AISettingsStore } from './settings';
 import { PROVIDERS } from '../ai/provider';
 import { runDiscardScan } from './discard-scan';
+import { archiveUnrestoredContexts } from './session-recovery';
 import { isSyncPaused } from './sync-lock';
 import { COMMAND_TYPES, type Command } from '@/shared/messaging';
 import { friendlyAIError } from '@/shared/ai';
@@ -24,6 +25,8 @@ const memory = new MemoryStore();
 const aiSettings = new AISettingsStore();
 
 const DISCARD_ALARM = 'discard-scan';
+const RECOVERY_ALARM = 'session-recovery';
+const GRACE_MS = 10_000; // 冷启动宽限:等 Chrome 恢复会话,期间对账不清删
 
 // AI 请求运行器:承载在飞请求的取消/超时逻辑(见 ai-runner.ts)。
 const aiRunner = createAiRunner();
@@ -81,8 +84,22 @@ async function reconcileNow(force = false): Promise<void> {
   const now = Date.now();
   if (!force && now - lastReconcileAt < 1200) return;
   lastReconcileAt = now;
-  await reconcile(repository, scheduleBroadcast);
-  await reconcileGroups(repository, scheduleBroadcast);
+  // 冷启动宽限期内:只重绑/重连、不清删(防止抢在会话恢复判定前把未恢复任务清掉)
+  const { graceUntil } = await chrome.storage.session.get('graceUntil');
+  const inGrace = typeof graceUntil === 'number' && Date.now() < graceUntil;
+  await reconcile(repository, scheduleBroadcast, { purge: !inGrace });
+  await reconcileGroups(repository, scheduleBroadcast, { prune: !inGrace });
+}
+
+/** 宽限结束(RECOVERY_ALARM):接住迟到的恢复 → 归档没恢复的命名任务 → 常规清理。 */
+async function runSessionRecovery(): Promise<void> {
+  await chrome.storage.session.remove('graceUntil'); // 先清标志:此后对账恢复清删
+  await reconcile(repository, scheduleBroadcast, { purge: false });
+  await reconcileGroups(repository, scheduleBroadcast, { prune: false });
+  await archiveUnrestoredContexts(repository, Date.now());
+  await reconcile(repository, scheduleBroadcast, { purge: true });
+  await reconcileGroups(repository, scheduleBroadcast, { prune: true });
+  scheduleBroadcast();
 }
 
 const cmdCtx: CommandContext = {
@@ -219,9 +236,16 @@ export function initBackground(): void {
   // 原生分组事件 → DB(双向同步入站)
   registerGroupListeners(repository, scheduleBroadcast);
 
-  // 挂起扫描 alarm(F-11)
+  // 挂起扫描 alarm(F-11)+ 会话恢复 alarm(宽限结束)
   chrome.alarms?.onAlarm.addListener((a) => {
     if (a.name === DISCARD_ALARM) runScanNow();
+    else if (a.name === RECOVERY_ALARM) void runSessionRecovery();
+  });
+
+  // 冷启动:进入宽限窗口(期间对账不清删),GRACE_MS 后跑会话恢复判定
+  chrome.runtime.onStartup?.addListener(() => {
+    void chrome.storage.session.set({ graceUntil: Date.now() + GRACE_MS });
+    chrome.alarms?.create(RECOVERY_ALARM, { when: Date.now() + GRACE_MS });
   });
 
   // hydrate:重建内存态并与真实标签对账(补偿 SW 休眠丢失的事件)
