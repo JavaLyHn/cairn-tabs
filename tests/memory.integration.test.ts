@@ -8,6 +8,7 @@ import { registerTabListeners } from '@/core/background/tab-sync';
 import { handleCommand, type CommandContext } from '@/core/background/commands';
 import { runDiscardScan } from '@/core/background/discard-scan';
 import { BYTES_PER_DISCARD } from '@/shared/discard';
+import { INBOX_ID } from '@/shared/types';
 
 const DAY = 24 * 60 * 60 * 1000;
 const MIN = 60 * 1000;
@@ -64,6 +65,38 @@ describe('ARCHIVE_STALE (F-10)', () => {
     expect(ev).toBeUndefined();
     const { contexts } = await repo.getSnapshot();
     expect(contexts.filter((c) => c.status === 'archived')).toHaveLength(0);
+  });
+});
+
+describe('归档计入回收(F-11 内存)', () => {
+  it('ARCHIVE_CONTEXT:关闭 N 个活标签 → onReclaim(N × BYTES_PER_DISCARD)', async () => {
+    await fake.userOpenTab('https://a.com', { title: 'A' });
+    await fake.userOpenTab('https://b.com', { title: 'B' });
+    await handleCommand({ type: 'CREATE_CONTEXT', name: 'task' }, ctx);
+    const cid = (await repo.getSnapshot()).contexts.find((c) => c.name === 'task')!.id;
+    for (const tid of [...(await repo.getContext(INBOX_ID))!.tabOrder]) {
+      await handleCommand({ type: 'MOVE_TAB', tabRecordId: tid, toContextId: cid }, ctx);
+    }
+    let reclaimed = 0;
+    const rctx: CommandContext = { ...ctx, onReclaim: async (b) => void (reclaimed += b) };
+    await handleCommand({ type: 'ARCHIVE_CONTEXT', contextId: cid }, rctx);
+    expect(reclaimed).toBe(2 * BYTES_PER_DISCARD);
+  });
+
+  it('ARCHIVE_STALE:收纳 N 个陈旧标签 → onReclaim(N × BYTES_PER_DISCARD)', async () => {
+    await openAndAge('https://old1.com', 8 * DAY);
+    await openAndAge('https://old2.com', 8 * DAY);
+    let reclaimed = 0;
+    const rctx: CommandContext = { ...ctx, onReclaim: async (b) => void (reclaimed += b) };
+    await handleCommand({ type: 'ARCHIVE_STALE' }, rctx);
+    expect(reclaimed).toBe(2 * BYTES_PER_DISCARD);
+  });
+
+  it('无标签可归档时不调用 onReclaim', async () => {
+    let called = false;
+    const rctx: CommandContext = { ...ctx, onReclaim: async () => void (called = true) };
+    await handleCommand({ type: 'ARCHIVE_STALE' }, rctx); // 无陈旧标签
+    expect(called).toBe(false);
   });
 });
 

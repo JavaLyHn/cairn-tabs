@@ -91,6 +91,7 @@ const cmdCtx: CommandContext = {
   undo,
   onChange: scheduleBroadcast,
   recordNegative: (url, contextId) => penalties.recordNegativeForUrl(url, contextId),
+  onReclaim: (bytes) => memory.add(bytes),
   ports: {
     set: (port, project) => portMappings.set(port, project),
     remove: (port) => portMappings.remove(port),
@@ -161,20 +162,27 @@ const cmdCtx: CommandContext = {
   },
 };
 
-/** ⌘⇧K:打开侧边栏并请其展开搜索 overlay。 */
-async function openSidePanelForSearch(): Promise<void> {
+/**
+ * 打开侧边栏;search=true 时同时请其展开搜索 overlay。
+ * 关键:chrome.sidePanel.open() 要求用户手势,且手势会被任何 await 消耗 —— 因此必须在
+ * 第一个 await 处就调用它(用命令回调给的 windowId,不要先 await getLastFocused)。
+ * pendingSearch 用「不 await」方式先发起,既不消耗手势,又能赶在面板加载前写入。
+ */
+async function openSidePanel(windowId: number | undefined, opts?: { search?: boolean }): Promise<void> {
+  if (opts?.search) void chrome.storage.session.set({ pendingSearch: true });
   try {
-    const win = await chrome.windows.getLastFocused({ windowTypes: ['normal'] });
-    if (win.id != null) {
-      // 置一个会话级标志,侧边栏挂载时读取(处理面板此前未打开的情况)
-      await chrome.storage.session.set({ pendingSearch: true });
-      await chrome.sidePanel.open({ windowId: win.id });
+    if (windowId != null) {
+      await chrome.sidePanel.open({ windowId }); // 第一个 await 即 open,手势仍有效
+    } else {
+      // 兜底:命令未带 tab 时才回退(此路径可能因先 await 而丢手势,属罕见情形)
+      const win = await chrome.windows.getLastFocused({ windowTypes: ['normal'] });
+      if (win.id != null) await chrome.sidePanel.open({ windowId: win.id });
     }
   } catch (e) {
     console.warn('[cairn-tabs] open side panel failed', e);
   }
-  // 面板已打开的情况:直接通知它展开搜索
-  chrome.runtime.sendMessage({ type: 'OPEN_SEARCH' }).catch(() => {});
+  // 面板已打开的情况:直接通知它切换搜索
+  if (opts?.search) chrome.runtime.sendMessage({ type: 'OPEN_SEARCH' }).catch(() => {});
 }
 
 export function initBackground(): void {
@@ -194,9 +202,11 @@ export function initBackground(): void {
     return true; // 异步响应
   });
 
-  // ⌘⇧K
-  chrome.commands.onCommand.addListener((command) => {
-    if (command === 'open-search') void openSidePanelForSearch();
+  // 快捷键:open-panel 直接开面板;open-search(⌘⇧K)开面板并展开搜索
+  // 用 onCommand 回调给的 tab.windowId 直接开,避免先 await getLastFocused 丢失用户手势
+  chrome.commands.onCommand.addListener((command, tab) => {
+    if (command === 'open-search') void openSidePanel(tab?.windowId, { search: true });
+    else if (command === 'open-panel') void openSidePanel(tab?.windowId);
   });
 
   // 标签事件 → DB(带聚簇引擎;读负样本 + 自动聚簇开关)

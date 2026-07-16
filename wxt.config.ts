@@ -28,6 +28,10 @@ export default defineConfig({
       },
     },
     commands: {
+      'open-panel': {
+        suggested_key: { default: 'Ctrl+Shift+O', mac: 'Command+Shift+O' },
+        description: '打开 Cairn Tabs 面板',
+      },
       'open-search': {
         suggested_key: { default: 'Ctrl+Shift+K', mac: 'Command+Shift+K' },
         description: '打开 Cairn Tabs 搜索',

@@ -9,6 +9,7 @@ import { DRAFT_CONTEXT_NAME, type Command, type Event } from '@/shared/messaging
 import { INBOX_ID, DEFAULT_FLAGS, type Flags, type TabRecord, type Context } from '@/shared/types';
 import { findDuplicateGroups } from '@/shared/dedup';
 import { staleTabs } from '@/shared/stale';
+import { BYTES_PER_DISCARD } from '@/shared/discard';
 import { hostnameOf, registrableDomain } from '../clustering/signals';
 import {
   buildOrganizePrompt,
@@ -27,6 +28,8 @@ export interface CommandContext {
   onChange: () => void;
   /** 记录负样本(某 URL 的域名不属于 contextId);测试中可省略。 */
   recordNegative?: (url: string, contextId: string) => Promise<void>;
+  /** 累计估算回收内存(F-11):归档关闭标签、挂起均可上报;测试中可省略。 */
+  onReclaim?: (bytes: number) => Promise<void>;
   /** localhost 端口映射的读写;测试中可省略。 */
   ports?: {
     set: (port: number, project: string) => Promise<void>;
@@ -98,8 +101,8 @@ async function closeOrPurge(
   await repo.removeTab(record.id); // id 已消失/错位 → 清幻影记录,绝不误关其它标签
 }
 
-/** 收纳一个 Context 的活跃标签(持锁关闭,避免脱组/关闭事件回灌幻影)。 */
-async function archiveAndClose(contextId: string, repo: Repository, now: number): Promise<void> {
+/** 收纳一个 Context 的活跃标签(持锁关闭,避免脱组/关闭事件回灌幻影)。返回关闭的活标签数。 */
+async function archiveAndClose(contextId: string, repo: Repository, now: number): Promise<number> {
   const closedTabIds = await repo.archiveContext(contextId, now);
   pauseSync();
   try {
@@ -107,6 +110,7 @@ async function archiveAndClose(contextId: string, repo: Repository, now: number)
   } finally {
     resumeSync();
   }
+  return closedTabIds.length;
 }
 
 /** 把标签归入某任务(与手动拖拽同一套:移动 + 锁定 + 并入原生分组)。 */
@@ -161,7 +165,7 @@ async function undoReorg(reorg: ReorgUndo, repo: Repository, now: number): Promi
 }
 
 export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<Event | void> {
-  const { repo, search, undo, onChange, recordNegative, ports, flags } = ctx;
+  const { repo, search, undo, onChange, recordNegative, ports, flags, onReclaim } = ctx;
   const now = Date.now();
 
   switch (cmd.type) {
@@ -227,7 +231,8 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
 
     case 'ARCHIVE_CONTEXT': {
       if (cmd.contextId === INBOX_ID) return;
-      await archiveAndClose(cmd.contextId, repo, now);
+      const closed = await archiveAndClose(cmd.contextId, repo, now);
+      if (closed > 0) await onReclaim?.(closed * BYTES_PER_DISCARD);
       onChange();
       const { token, ttlMs } = undo.register('archive', cmd.contextId, UNDO_TTL_MS);
       return { type: 'UNDOABLE', action: 'archive', token, ttlMs };
@@ -243,7 +248,8 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       for (const tabId of [...inbox.tabOrder]) {
         await repo.moveTab(tabId, ctx.id, now);
       }
-      await archiveAndClose(ctx.id, repo, now);
+      const closedInbox = await archiveAndClose(ctx.id, repo, now);
+      if (closedInbox > 0) await onReclaim?.(closedInbox * BYTES_PER_DISCARD);
       onChange();
       const { token, ttlMs } = undo.register('archive', ctx.id, UNDO_TTL_MS);
       return { type: 'UNDOABLE', action: 'archive', token, ttlMs };
@@ -258,7 +264,8 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       // 同「暂存」:陈旧收纳也是临时暂存,恢复时标签回未分类,不复活成「陈旧」命名任务。
       const ctx = await repo.createContext(stampedName('陈旧', now), now, { restoreTo: INBOX_ID });
       for (const t of stale) await repo.moveTab(t.id, ctx.id, now);
-      await archiveAndClose(ctx.id, repo, now);
+      const closedStale = await archiveAndClose(ctx.id, repo, now);
+      if (closedStale > 0) await onReclaim?.(closedStale * BYTES_PER_DISCARD);
       onChange();
       const { token, ttlMs } = undo.register('archive', ctx.id, UNDO_TTL_MS);
       return { type: 'UNDOABLE', action: 'archive', token, ttlMs };
