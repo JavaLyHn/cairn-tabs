@@ -237,7 +237,8 @@ async function hydrate(): Promise<void> {
   await memory.load();
   await aiSettings.load();
   ensureDiscardAlarm(flags.get().autoDiscard); // 按持久化的开关恢复扫描
-  await reconcile(repository, scheduleBroadcast);
-  await reconcileGroups(repository, scheduleBroadcast);
+  // 冷启动:会话恢复可能尚未就绪 → 只重绑/重连、不清删(清删留给面板聚焦触发的对账)
+  await reconcile(repository, scheduleBroadcast, { purge: false });
+  await reconcileGroups(repository, scheduleBroadcast, { prune: false });
   await broadcast();
 }

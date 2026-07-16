@@ -6,6 +6,9 @@ import { registerTabListeners } from '@/core/background/tab-sync';
 import { registerGroupListeners, reconcileGroups } from '@/core/background/group-sync';
 import { reconcile } from '@/core/background/tab-sync';
 import { INBOX_ID } from '@/shared/types';
+import { SearchIndex } from '@/core/search';
+import { UndoManager } from '@/core/background/undo';
+import { handleCommand, type CommandContext } from '@/core/background/commands';
 
 let fake: FakeChrome;
 let repo: Repository;
@@ -117,5 +120,49 @@ describe('reconcileGroups 按标题重连', () => {
     const ctx = await repo.createContext('将删任务', Date.now(), { nativeGroupId: 900 });
     await reconcileGroups(repo, () => {}, { prune: true });
     expect(await repo.getContext(ctx.id)).toBeUndefined();
+  });
+});
+
+describe('端到端:模拟重启后完整恢复', () => {
+  it('任务、标签、★、锁定 全部恢复到原任务(冷启动非破坏 + 聚焦对账)', async () => {
+    const ctx: CommandContext = { repo, search: new SearchIndex(), undo: new UndoManager(), onChange: () => {} };
+    // 建任务甲,放两个标签进去(MOVE_TAB 会建原生分组、打锁),再 star 一个;另留一个在未分类
+    await handleCommand({ type: 'CREATE_CONTEXT', name: '任务甲' }, ctx);
+    const cid = (await repo.getSnapshot()).contexts.find((c) => c.name === '任务甲')!.id;
+    await fake.userOpenTab('https://a.com/1', { title: 'A1' });
+    await fake.userOpenTab('https://a.com/2', { title: 'A2' });
+    await fake.userOpenTab('https://inbox.com/x', { title: 'IN' });
+    const inboxIds = (await repo.getContext(INBOX_ID))!.tabOrder;
+    const [id1, id2] = inboxIds; // 前两个是 a.com/1、a.com/2
+    await handleCommand({ type: 'MOVE_TAB', tabRecordId: id1!, toContextId: cid }, ctx);
+    await handleCommand({ type: 'MOVE_TAB', tabRecordId: id2!, toContextId: cid }, ctx);
+    await repo.setTabStarred(id1!, true);
+    const groupIdBefore = (await repo.getContext(cid))!.nativeGroupId;
+    expect(groupIdBefore).toBeGreaterThanOrEqual(0);
+
+    simulateSessionRestore(); // 所有 tab / group id 换新,url/title/color/归属不变
+
+    // 冷启动 hydrate 的对账序列(非破坏),再模拟面板聚焦对账(清删)
+    await reconcile(repo, () => {}, { purge: false });
+    await reconcileGroups(repo, () => {}, { prune: false });
+    await reconcile(repo, () => {});
+    await reconcileGroups(repo, () => {});
+
+    // 任务甲仍在(同 context id),重连到新分组
+    const after = (await repo.getContext(cid))!;
+    expect(after).toBeTruthy();
+    expect(after.nativeGroupId).toBe(groupIdBefore! + 100000);
+    // 两个标签仍属任务甲、pinned 保留、其一 starred 保留
+    const t1 = (await repo.getTab(id1!))!;
+    const t2 = (await repo.getTab(id2!))!;
+    expect(t1.contextId).toBe(cid);
+    expect(t2.contextId).toBe(cid);
+    expect(t1.pinned).toBe(true);
+    expect(t1.starred).toBe(true);
+    // 未分类标签仍在未分类
+    const tin = (await repo.getSnapshot()).tabs.find((t) => t.url === 'https://inbox.com/x')!;
+    expect(tin.contextId).toBe(INBOX_ID);
+    // 无重复:总标签数仍为 3
+    expect((await repo.getSnapshot()).tabs.length).toBe(3);
   });
 });
