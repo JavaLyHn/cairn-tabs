@@ -4,6 +4,7 @@ import type { AIPlan, AIProviderId } from '@/shared/ai';
 import type { TabRecord } from '@/shared/types';
 import { permissionOriginFor } from '@/core/ai/provider';
 import { logError } from '@/shared/log';
+import { useT } from '../i18n';
 
 export function useAiActions(deps: {
   showFlash: (msg: string) => void;
@@ -24,6 +25,8 @@ export function useAiActions(deps: {
   ) => Promise<void>;
   testAi: () => Promise<{ ok: boolean; detail: string }>;
 } {
+  const { t } = useT();
+
   const [aiPlan, setAiPlan] = useState<{
     plan: AIPlan;
     tabs: TabRecord[];
@@ -39,14 +42,14 @@ export function useAiActions(deps: {
     if (ev?.type === 'AI_PLAN') setAiPlan({ plan: ev.plan, tabs: ev.tabs, scope: 'inbox' });
     else if (ev?.type === 'AI_ERROR') {
       const msg: Record<string, string> = {
-        no_key: '请先在设置里填 AI API key',
-        permission: '未授权访问 API 域名',
-        network: 'AI 调用失败,请稍后重试',
-        parse: 'AI 没能给出可用的分组建议,已保持原样',
-        empty: '未分类里没有可整理的标签',
-        cancelled: '已取消 AI 整理',
+        no_key: t('ai.error.no_key'),
+        permission: t('ai.error.permission'),
+        network: t('ai.error.network'),
+        parse: t('ai.error.parse'),
+        empty: t('ai.error.empty.inbox'),
+        cancelled: t('ai.error.cancelled'),
       };
-      deps.showFlash(msg[ev.reason] ?? 'AI 调用失败');
+      deps.showFlash(msg[ev.reason] ?? t('ai.error.default'));
     }
   };
 
@@ -58,14 +61,14 @@ export function useAiActions(deps: {
     if (ev?.type === 'AI_PLAN') setAiPlan({ plan: ev.plan, tabs: ev.tabs, scope: 'all' });
     else if (ev?.type === 'AI_ERROR') {
       const msg: Record<string, string> = {
-        no_key: '请先在设置里填 AI API key',
-        permission: '未授权访问 API 域名',
-        network: 'AI 调用失败,请稍后重试',
-        parse: 'AI 没能给出可用的分组建议,已保持原样',
-        empty: '没有可整理的标签(★重点和手动分好的不动)',
-        cancelled: '已取消 AI 整理',
+        no_key: t('ai.error.no_key'),
+        permission: t('ai.error.permission'),
+        network: t('ai.error.network'),
+        parse: t('ai.error.parse'),
+        empty: t('ai.error.empty.all'),
+        cancelled: t('ai.error.cancelled'),
       };
-      deps.showFlash(msg[ev.reason] ?? 'AI 调用失败');
+      deps.showFlash(msg[ev.reason] ?? t('ai.error.default'));
     }
   };
 
@@ -74,9 +77,9 @@ export function useAiActions(deps: {
     setAiPlan(null);
     if (opts?.global && ev?.type === 'UNDOABLE') {
       deps.setUndo({ action: ev.action, token: ev.token, ttlMs: ev.ttlMs });
-      deps.showFlash('已整理全部');
+      deps.showFlash(t('ai.flash.organizedAll'));
     } else {
-      deps.showFlash('已应用 AI 整理');
+      deps.showFlash(t('ai.flash.applied'));
     }
   };
 
@@ -86,18 +89,18 @@ export function useAiActions(deps: {
       if (ev?.type === 'AI_NAME') return ev.name;
       if (ev?.type === 'AI_ERROR') {
         const msg: Record<string, string> = {
-          no_key: '请先在设置里填 AI API key',
-          empty: '这个任务里没有标签可参考',
-          network: 'AI 调用失败,请稍后重试',
-          parse: 'AI 没给出可用的名字',
-          permission: '未授权访问 API 域名',
-          cancelled: '已取消',
+          no_key: t('ai.error.no_key'),
+          empty: t('ai.error.name.empty'),
+          network: t('ai.error.network'),
+          parse: t('ai.error.name.parse'),
+          permission: t('ai.error.permission'),
+          cancelled: t('ai.error.name.cancelled'),
         };
-        deps.showFlash(msg[ev.reason] ?? 'AI 调用失败');
+        deps.showFlash(msg[ev.reason] ?? t('ai.error.default'));
       }
     } catch (e) {
       logError('aiSuggestName', e); // 如 SW 未就绪导致 sendMessage 失败
-      deps.showFlash('AI 调用失败,请稍后重试');
+      deps.showFlash(t('ai.error.network'));
     }
     return null;
   };
@@ -111,14 +114,14 @@ export function useAiActions(deps: {
     // custom 的授权域名由所填 baseUrl 的 origin 派生;官方两档用固定 host(见 permissionOriginFor)
     const origin = permissionOriginFor(provider, baseUrl);
     const granted = await chrome.permissions.request({ origins: [origin] });
-    if (!granted) throw new Error('需要授权访问 API 域名');
+    if (!granted) throw new Error(t('settings.ai.permissionRequired'));
     await dispatch({ type: 'SET_AI_SETTINGS', provider, key, model, baseUrl });
   };
 
   const testAi = async (): Promise<{ ok: boolean; detail: string }> => {
     const ev = await dispatch({ type: 'TEST_AI_CONNECTION' });
     if (ev?.type === 'AI_TEST_RESULT') return { ok: ev.ok, detail: ev.detail };
-    return { ok: false, detail: '测试失败' };
+    return { ok: false, detail: t('settings.ai.testFailed') };
   };
 
   return {

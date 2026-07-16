@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import type { Context, TabRecord } from '@/shared/types';
 import { INBOX_ID } from '@/shared/types';
 import { TabRow } from './TabRow';
+import { DRAFT_CONTEXT_NAME } from '@/shared/messaging';
 import { domainSummary, colorHex } from '../util';
+import { useT } from '../i18n';
 
 interface Props {
   context: Context;
@@ -59,6 +61,7 @@ export function ContextGroup({
   onAiCancel,
   collapseAll,
 }: Props) {
+  const { t } = useT();
   const [collapsed, setCollapsed] = useState(variant === 'archived');
   // 一键展开/折叠:App 传 collapseAll 时随之同步;归档组不传 → guard 使其不受影响
   useEffect(() => {
@@ -71,6 +74,17 @@ export function ContextGroup({
 
   const isInbox = context.id === INBOX_ID;
   const canDrop = variant !== 'archived';
+
+  // 显示名本地化:未分类(名存于 DB)与「新任务」草稿哨兵按当前语言显示;其余用原名
+  const displayName = isInbox
+    ? t('context.inboxName')
+    : context.name === DRAFT_CONTEXT_NAME
+      ? t('draft.defaultName')
+      : context.name;
+
+  const toggleCollapsed = () => {
+    if (!editing) setCollapsed((c) => !c);
+  };
 
   return (
     <div
@@ -99,9 +113,18 @@ export function ContextGroup({
     >
       {/* 簇头部:整行单击折叠/展开(编辑中除外) */}
       <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={!collapsed}
         className="group/head flex items-center gap-2 px-2 py-1.5 cursor-pointer select-none"
-        onClick={() => {
-          if (!editing) setCollapsed((c) => !c);
+        onClick={toggleCollapsed}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            toggleCollapsed();
+          } else if (e.key === ' ') {
+            e.preventDefault();
+            toggleCollapsed();
+          }
         }}
       >
         {/* 命名簇左侧 2px 边条,颜色 = 其原生分组颜色(双向同步的视觉体现) */}
@@ -132,7 +155,7 @@ export function ContextGroup({
             <input
               ref={inputRef}
               autoFocus
-              defaultValue={context.name}
+              defaultValue={displayName}
               onFocus={(e) => e.target.select()}
               onBlur={(e) => {
                 if (cancelledRef.current) {
@@ -153,8 +176,10 @@ export function ContextGroup({
             />
             {aiEnabled && !isInbox && onAiSuggestName && (
               <button
-                aria-label={aiNaming ? '取消 AI 命名' : 'AI 命名'}
-                title={aiNaming ? '点击取消' : 'AI 命名(据任务里的标签建议)'}
+                aria-label={
+                  aiNaming ? t('context.aiNaming.cancelAriaLabel') : t('context.aiNaming.ariaLabel')
+                }
+                title={aiNaming ? t('context.aiNaming.cancelTitle') : t('context.aiNaming.title')}
                 // mousedown 不让 input 失焦(否则会触发 commit 提前退出编辑)
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={async () => {
@@ -176,7 +201,7 @@ export function ContextGroup({
                 }}
                 className="shrink-0 text-[11px] text-accent hover:underline"
               >
-                {aiNaming ? '✦ 取消' : '✦ AI'}
+                {aiNaming ? t('context.aiNaming.cancelButton') : t('context.aiNaming.button')}
               </button>
             )}
           </div>
@@ -184,7 +209,7 @@ export function ContextGroup({
           <span
             className={`flex-1 truncate font-medium ${variant === 'archived' ? 'opacity-60' : ''}`}
           >
-            {context.name}
+            {displayName}
           </span>
         )}
 
@@ -192,31 +217,34 @@ export function ContextGroup({
 
         {/* hover 操作(点击不触发折叠) */}
         <div
-          className="hidden group-hover/head:flex items-center gap-1 shrink-0"
+          className="hidden group-hover/head:flex group-focus-within/head:flex items-center gap-1 shrink-0"
           onClick={(e) => e.stopPropagation()}
         >
           {variant === 'archived' ? (
             <>
               <button
                 onClick={onRestore}
+                aria-label={t('context.restore')}
                 className="text-[11px] text-accent hover:underline"
-                title="恢复任务"
+                title={t('context.restoreTitle')}
               >
-                恢复
+                {t('context.restore')}
               </button>
               <button
                 onClick={onExport}
+                aria-label={t('context.export')}
                 className="text-[11px] opacity-60 hover:opacity-100"
-                title="导出为 Markdown(复制到剪贴板)"
+                title={t('context.exportTitle')}
               >
-                导出
+                {t('context.export')}
               </button>
               <button
                 onClick={onDelete}
+                aria-label={t('context.delete')}
                 className="text-[11px] opacity-40 hover:opacity-100 hover:text-red-500"
-                title="删除任务(彻底移除)"
+                title={t('context.archivedDeleteTitle')}
               >
-                删
+                {t('context.delete')}
               </button>
             </>
           ) : (
@@ -225,55 +253,61 @@ export function ContextGroup({
                 <button
                   onClick={onAiOrganize}
                   disabled={aiBusy}
+                  aria-label={aiBusy ? t('context.ai.organizeBusy') : t('context.ai.organize')}
                   className="text-[11px] text-accent hover:underline disabled:opacity-60 disabled:no-underline"
-                  title="用 AI 把零散标签分组"
+                  title={t('context.ai.organizeTitle')}
                 >
-                  {aiBusy ? '✦ 分析中…' : '✦ AI 整理'}
+                  {aiBusy ? t('context.ai.organizeBusy') : t('context.ai.organize')}
                 </button>
               )}
               {isInbox && tabs.length > 0 && (
                 <button
                   onClick={onArchiveAll}
+                  aria-label={t('context.archiveAll')}
                   className="text-[11px] opacity-60 hover:opacity-100"
-                  title="把全部零散标签归档(存为一个任务)"
+                  title={t('context.archiveAllTitle')}
                 >
-                  全部归档
+                  {t('context.archiveAll')}
                 </button>
               )}
               {!isInbox && (
                 <button
                   onClick={onStartEdit}
+                  aria-label={t('context.rename')}
                   className="text-[11px] opacity-60 hover:opacity-100"
-                  title="改名"
+                  title={t('context.renameTitle')}
                 >
-                  改名
+                  {t('context.rename')}
                 </button>
               )}
               {!isInbox && (
                 <button
                   onClick={onExport}
+                  aria-label={t('context.export')}
                   className="text-[11px] opacity-60 hover:opacity-100"
-                  title="导出为 Markdown(复制到剪贴板)"
+                  title={t('context.exportTitle')}
                 >
-                  导出
+                  {t('context.export')}
                 </button>
               )}
               {!isInbox && (
                 <button
                   onClick={onArchive}
+                  aria-label={t('context.archive')}
                   className="text-[11px] opacity-60 hover:opacity-100"
-                  title="归档(关闭标签,之后可一键恢复)"
+                  title={t('context.archiveTitle')}
                 >
-                  归档
+                  {t('context.archive')}
                 </button>
               )}
               {!isInbox && (
                 <button
                   onClick={onDelete}
+                  aria-label={t('context.delete')}
                   className="text-[11px] opacity-40 hover:opacity-100 hover:text-red-500"
-                  title="删除任务(标签退回未分类)"
+                  title={t('context.deleteTitle')}
                 >
-                  删
+                  {t('context.delete')}
                 </button>
               )}
             </>
@@ -292,7 +326,7 @@ export function ContextGroup({
       {!collapsed && (
         <div className="pl-5 pr-1 pb-1">
           {tabs.length === 0 ? (
-            <div className="px-2 py-1 text-[11.5px] opacity-30">拖标签到这里</div>
+            <div className="px-2 py-1 text-[11.5px] opacity-30">{t('context.dropHint')}</div>
           ) : (
             tabs.map((t) => (
               <TabRow

@@ -36,6 +36,14 @@ body {
   border-width: 0.5px;
 }
 
+/* a11y:键盘聚焦可见(Tailwind preflight 清了浏览器默认 outline)。
+   仅键盘焦点(:focus-visible)显示,鼠标点击不显,避免视觉噪音。 */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
 /* 任务重排的视图过渡:任务组平滑滑动,页面其余部分不做整体淡入淡出 */
 @media (prefers-reduced-motion: no-preference) {
   ::view-transition-group(*) {

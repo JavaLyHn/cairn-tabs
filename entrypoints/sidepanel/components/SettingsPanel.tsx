@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { useDialog } from '../hooks/useDialog';
+import { useT } from '../i18n';
+import { SUPPORTED, LOCALE_NAMES, type Locale } from '../i18n/locales';
 import type { Flags } from '@/shared/types';
 import type { AIProviderId, AIStatus } from '@/shared/ai';
 
@@ -119,6 +121,7 @@ function StepperRow({
         <button
           onClick={() => set(value - step)}
           disabled={value <= min}
+          aria-label={`${title} −`}
           className="w-6 h-6 rounded-md text-[13px] leading-none border border-black/15 dark:border-white/20
                      hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-30"
         >
@@ -128,6 +131,7 @@ function StepperRow({
         <button
           onClick={() => set(value + step)}
           disabled={value >= max}
+          aria-label={`${title} +`}
           className="w-6 h-6 rounded-md text-[13px] leading-none border border-black/15 dark:border-white/20
                      hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-30"
         >
@@ -153,6 +157,7 @@ export function SettingsPanel({
   onExportAll,
   onClose,
 }: Props) {
+  const { t, locale, setLocale } = useT();
   const panelRef = useRef<HTMLDivElement>(null);
   useDialog(panelRef, onClose);
 
@@ -161,7 +166,7 @@ export function SettingsPanel({
       ref={panelRef}
       role="dialog"
       aria-modal="true"
-      aria-label="设置"
+      aria-label={t('settings.ariaLabel')}
       tabIndex={-1}
       className="settings-sheet absolute inset-0 z-30 flex flex-col bg-white dark:bg-neutral-900"
     >
@@ -181,30 +186,48 @@ export function SettingsPanel({
           <circle cx="12" cy="12" r="3" />
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
-        <span className="flex-1 text-[13px] font-medium">设置</span>
+        <span className="flex-1 text-[13px] font-medium">{t('settings.title')}</span>
         <button
           onClick={onClose}
           className="px-2 py-1 rounded-md text-[12px] text-accent hover:bg-black/5 dark:hover:bg-white/10"
-          title="完成 (Esc)"
+          title={t('settings.doneTitle')}
+          aria-label={t('settings.doneTitle')}
         >
-          完成
+          {t('settings.done')}
         </button>
       </header>
 
       {/* 可滚动内容:分组卡片,铺满整幅宽度 */}
       <div className="flex-1 overflow-y-auto py-3 space-y-4">
-        <Group title="自动归类">
+        <Group title={t('settings.group.language')}>
+          <div className="flex items-center justify-between px-3 py-2">
+            <span className="text-[13px]">{t('settings.group.language')}</span>
+            <select
+              aria-label={t('settings.group.language')}
+              value={locale}
+              onChange={(e) => setLocale(e.target.value as Locale)}
+              className="text-[12px] bg-transparent border border-black/15 dark:border-white/20 rounded-md px-2 py-1 outline-none focus-visible:border-accent"
+            >
+              {SUPPORTED.map((loc) => (
+                <option key={loc} value={loc}>
+                  {LOCALE_NAMES[loc]}
+                </option>
+              ))}
+            </select>
+          </div>
+        </Group>
+        <Group title={t('settings.group.autoCluster')}>
           <ToggleRow
-            title="自动归类"
-            desc="把相关新标签自动归入任务,并在标签栏建立对应分组。关闭后新标签只进「未分类」,由你手动整理。"
+            title={t('settings.autoCluster.title')}
+            desc={t('settings.autoCluster.desc')}
             on={flags.autoCluster}
             onToggle={() => onToggleAutoCluster(!flags.autoCluster)}
           />
           {flags.autoCluster && (
             <StepperRow
               nested
-              title="同站归类建议"
-              desc="未分类里同一网站的标签达到这个数,就建议归成一个任务(你确认才生效)。"
+              title={t('settings.autoCluster.domainSize.title')}
+              desc={t('settings.autoCluster.domainSize.desc')}
               value={flags.sameDomainPromoteSize}
               min={2}
               max={8}
@@ -213,18 +236,18 @@ export function SettingsPanel({
           )}
         </Group>
 
-        <Group title="陈旧标签">
+        <Group title={t('settings.group.stale')}>
           <ToggleRow
-            title="陈旧提示"
-            desc="很久没访问的标签下沉到底部,给一个「全部归档」入口;只提示,不动你的标签。"
+            title={t('settings.stale.hints.title')}
+            desc={t('settings.stale.hints.desc')}
             on={flags.staleHints}
             onToggle={() => onToggleStaleHints(!flags.staleHints)}
           />
           {flags.staleHints && (
             <StepperRow
               nested
-              title="陈旧阈值 · 天"
-              desc="超过这么多天没访问就算陈旧(重点标签除外)。"
+              title={t('settings.stale.days.title')}
+              desc={t('settings.stale.days.desc')}
               value={flags.staleDays}
               min={1}
               max={90}
@@ -233,10 +256,10 @@ export function SettingsPanel({
           )}
         </Group>
 
-        <Group title="内存">
+        <Group title={t('settings.group.memory')}>
           <ToggleRow
-            title="自动休眠"
-            desc="很久没用的标签自动释放内存,标签保留、点击自动重载;默认关闭,想省内存再开。"
+            title={t('settings.memory.autoDiscard.title')}
+            desc={t('settings.memory.autoDiscard.desc')}
             on={flags.autoDiscard}
             onToggle={() => onToggleAutoDiscard(!flags.autoDiscard)}
           />
@@ -244,8 +267,8 @@ export function SettingsPanel({
             <>
               <StepperRow
                 nested
-                title="休眠阈值 · 分钟"
-                desc="超过这么多分钟没用就释放内存(重点标签、localhost 除外)。"
+                title={t('settings.memory.discardMinutes.title')}
+                desc={t('settings.memory.discardMinutes.desc')}
                 value={flags.discardAfterMinutes}
                 min={5}
                 max={480}
@@ -254,8 +277,8 @@ export function SettingsPanel({
               />
               <ToggleRow
                 nested
-                title="localhost 不休眠"
-                desc="本地开发地址永不自动休眠,保护 dev server 的页面状态。"
+                title={t('settings.memory.discardSkipsLocalhost.title')}
+                desc={t('settings.memory.discardSkipsLocalhost.desc')}
                 on={flags.discardSkipsLocalhost}
                 onToggle={() => onToggleDiscardSkipsLocalhost(!flags.discardSkipsLocalhost)}
               />
@@ -263,18 +286,18 @@ export function SettingsPanel({
           )}
         </Group>
 
-        <Group title="AI 整理">
+        <Group title={t('settings.group.ai')}>
           <AISection ai={ai} onSave={onSaveAi} onTest={onTestAi} />
         </Group>
 
-        <Group title="数据">
+        <Group title={t('settings.group.data')}>
           <button
             onClick={onExportAll}
             className="w-full text-left px-3 py-2.5 hover:bg-black/5 dark:hover:bg-white/5"
           >
-            <div className="text-[12.5px]">导出全部数据 (JSON)</div>
+            <div className="text-[12.5px]">{t('settings.data.exportAll.title')}</div>
             <div className="text-[11px] opacity-50 leading-snug mt-0.5">
-              导出所有任务与标签,用于备份或迁移。
+              {t('settings.data.exportAll.desc')}
             </div>
           </button>
         </Group>
@@ -286,7 +309,7 @@ export function SettingsPanel({
 const PROVIDER_LABELS: Record<AIProviderId, string> = {
   anthropic: 'Anthropic',
   openai: 'OpenAI',
-  custom: '自定义中转站',
+  custom: 'custom',
 };
 
 function AISection({
@@ -303,6 +326,7 @@ function AISection({
   ) => Promise<void>;
   onTest: () => Promise<{ ok: boolean; detail: string }>;
 }) {
+  const { t } = useT();
   const [provider, setProvider] = useState<AIProviderId>(ai.provider);
   const [key, setKey] = useState('');
   const [model, setModel] = useState('');
@@ -345,9 +369,9 @@ function AISection({
     try {
       await onSave(provider, keyArg(), model, isCustom ? baseUrl : undefined);
       setKey('');
-      showMsg('已保存', true);
+      showMsg(t('settings.ai.saved'), true);
     } catch (e) {
-      showMsg(e instanceof Error ? e.message : '保存失败', false);
+      showMsg(e instanceof Error ? e.message : t('settings.ai.saveFailed'), false);
     }
     setSaving(false);
   };
@@ -364,20 +388,29 @@ function AISection({
       }
       setResult(await onTest());
     } catch (e) {
-      setResult({ ok: false, detail: e instanceof Error ? e.message : '测试失败' });
+      setResult({
+        ok: false,
+        detail: e instanceof Error ? e.message : t('settings.ai.testFailed'),
+      });
     }
     setTesting(false);
   };
 
   const busy = saving || testing;
 
+  // 显示名:custom 走 i18n,其余沿用大写英文品牌名(不翻译)
+  const providerLabel = (p: AIProviderId) =>
+    p === 'custom' ? t('settings.ai.provider.custom') : PROVIDER_LABELS[p];
+
   return (
     <div className="px-3 py-2.5">
       <div className="text-[11px] opacity-50 leading-snug mb-2">
-        自带 API key,用你的 key
-        直连你选的服务商。默认关闭。只把标签标题、域名、任务名发出去,绝不发完整网址或页面内容。
+        {t('settings.ai.desc')}
         {ai.hasKey && (
-          <span className="text-accent"> 当前:{PROVIDER_LABELS[ai.provider]} 已配置。</span>
+          <span className="text-accent">
+            {' '}
+            {t('settings.ai.configured', { provider: providerLabel(ai.provider) })}
+          </span>
         )}
       </div>
       <div className="flex gap-1 mb-1.5">
@@ -393,7 +426,7 @@ function AISection({
               provider === p ? 'bg-accent/15 text-accent' : 'opacity-60 hover:opacity-100'
             }`}
           >
-            {PROVIDER_LABELS[p]}
+            {providerLabel(p)}
           </button>
         ))}
       </div>
@@ -402,12 +435,13 @@ function AISection({
           <input
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
-            placeholder="接口地址,如 https://newapi.elevatesphere.com/v1"
+            placeholder={t('settings.ai.baseUrl.placeholder')}
+            aria-label={t('settings.ai.baseUrl.placeholder')}
             className="w-full mb-1.5 px-2 py-1 text-[12px] rounded border border-black/15 dark:border-white/15
                        bg-transparent outline-none focus:border-accent font-mono"
           />
           <div className="text-[11px] opacity-45 leading-snug mb-1.5">
-            OpenAI 兼容的中转站。它是第三方,数据会经过它,请填你信任的地址。
+            {t('settings.ai.baseUrl.warning')}
           </div>
         </>
       )}
@@ -416,7 +450,14 @@ function AISection({
         value={key}
         onChange={(e) => setKey(e.target.value)}
         placeholder={
-          savedHere ? '•••••••••••• · 已保存(留空则不改)' : `${PROVIDER_LABELS[provider]} API key`
+          savedHere
+            ? t('settings.ai.key.placeholder.saved')
+            : t('settings.ai.key.placeholder.new', { provider: providerLabel(provider) })
+        }
+        aria-label={
+          savedHere
+            ? t('settings.ai.key.placeholder.saved')
+            : t('settings.ai.key.placeholder.new', { provider: providerLabel(provider) })
         }
         className="w-full mb-1.5 px-2 py-1 text-[12px] rounded border border-black/15 dark:border-white/15
                    bg-transparent outline-none focus:border-accent"
@@ -424,7 +465,16 @@ function AISection({
       <input
         value={model}
         onChange={(e) => setModel(e.target.value)}
-        placeholder={isCustom ? '模型,如 gpt-4o / claude-3-5-sonnet' : '模型(留空用默认)'}
+        placeholder={
+          isCustom
+            ? t('settings.ai.model.placeholder.custom')
+            : t('settings.ai.model.placeholder.default')
+        }
+        aria-label={
+          isCustom
+            ? t('settings.ai.model.placeholder.custom')
+            : t('settings.ai.model.placeholder.default')
+        }
         className="w-full mb-1.5 px-2 py-1 text-[12px] rounded border border-black/15 dark:border-white/15
                    bg-transparent outline-none focus:border-accent font-mono"
       />
@@ -434,7 +484,7 @@ function AISection({
           disabled={busy || !canSave}
           className="px-2.5 py-1 rounded-md text-[12px] bg-accent text-white hover:opacity-90 disabled:opacity-40"
         >
-          保存并启用
+          {t('settings.ai.save')}
         </button>
         <button
           onClick={test}
@@ -442,7 +492,7 @@ function AISection({
           className="px-2.5 py-1 rounded-md text-[12px] border border-black/15 dark:border-white/20
                      hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-40"
         >
-          {testing ? '测试中…' : '测试连接'}
+          {testing ? t('settings.ai.testing') : t('settings.ai.test')}
         </button>
         {msg && (
           <span

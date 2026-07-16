@@ -22,6 +22,7 @@ import { EmptyState } from './components/EmptyState';
 import { SettingsPanel } from './components/SettingsPanel';
 import { ExportDialog } from './components/ExportDialog';
 import { downloadText } from './util';
+import { useT } from './i18n';
 
 /** 活跃任务的排序签名(用于判断顺序是否变化,决定是否播放过渡)。 */
 function activeOrderSig(contexts: Context[]): string {
@@ -71,6 +72,7 @@ export default function App() {
   const [allCollapsed, setAllCollapsed] = useState(false); // 一键折叠开关(false=展开)
   const [exportTarget, setExportTarget] = useState<{ id: string; at: number } | null>(null);
   const { flash, showFlash } = useFlash();
+  const { t } = useT();
 
   const {
     aiBusy,
@@ -233,7 +235,7 @@ export default function App() {
       'application/json',
     );
     setSettingsOpen(false);
-    showFlash('已导出全部数据 (JSON)');
+    showFlash(t('app.exportedAll'));
   };
   const doUndo = async () => {
     if (undo) await dispatch({ type: 'UNDO', token: undo.token });
@@ -274,7 +276,7 @@ export default function App() {
           onClick={openSearch}
           className="flex-1 flex items-center gap-2 px-2.5 py-1.5 rounded-md text-left
                      bg-black/[0.05] dark:bg-white/[0.06] hover:bg-black/10 dark:hover:bg-white/10"
-          title="搜索 (⌘⇧K)"
+          title={t('app.searchTitle')}
         >
           <svg
             width="13"
@@ -290,16 +292,17 @@ export default function App() {
             <circle cx="11" cy="11" r="7" />
             <path d="m21 21-4.3-4.3" />
           </svg>
-          <span className="flex-1 opacity-60">搜索标签…</span>
+          <span className="flex-1 opacity-60">{t('app.searchPlaceholder')}</span>
           <span className="font-mono text-[11px] opacity-45">⌘⇧K</span>
         </button>
         <button
           onClick={createContext}
           className="shrink-0 px-2 py-1.5 rounded-md text-[12px] opacity-70 hover:opacity-100
                      hover:bg-black/5 dark:hover:bg-white/10"
-          title="新建任务"
+          title={t('app.newContextTitle')}
+          aria-label={t('app.newContextTitle')}
         >
-          + 新建
+          {t('app.newContext')}
         </button>
         {ai.hasKey && (
           <button
@@ -307,17 +310,17 @@ export default function App() {
             disabled={aiBusy}
             className="shrink-0 px-2 py-1.5 rounded-md text-[12px] text-accent hover:bg-accent/10
                        disabled:opacity-50"
-            title="用 AI 把所有标签重新精准分组(★重点和手动分好的不动)"
+            title={t('app.aiOrganizeAllTitle')}
           >
-            {aiBusy ? '✦ 整理中…' : '✦ 整理全部'}
+            {aiBusy ? t('app.aiOrganizeAllBusy') : t('app.aiOrganizeAll')}
           </button>
         )}
         <button
           onClick={() => setAllCollapsed((v) => !v)}
           className="shrink-0 flex items-center justify-center w-7 h-7 rounded-md opacity-60 hover:opacity-100
                      hover:bg-black/5 dark:hover:bg-white/10"
-          title={allCollapsed ? '全部展开' : '全部折叠'}
-          aria-label={allCollapsed ? '全部展开' : '全部折叠'}
+          title={allCollapsed ? t('app.expandAll') : t('app.collapseAll')}
+          aria-label={allCollapsed ? t('app.expandAll') : t('app.collapseAll')}
         >
           <svg
             width="15"
@@ -346,8 +349,8 @@ export default function App() {
           onClick={() => setSettingsOpen((v) => !v)}
           className="shrink-0 flex items-center justify-center w-7 h-7 rounded-md opacity-60 hover:opacity-100
                      hover:bg-black/5 dark:hover:bg-white/10"
-          title="设置"
-          aria-label="设置"
+          title={t('app.settings')}
+          aria-label={t('app.settings')}
         >
           <svg
             width="15"
@@ -420,7 +423,9 @@ export default function App() {
 
         {archivedContexts.length > 0 && (
           <div className="mt-3 pt-2 border-t border-black/10 dark:border-white/10">
-            <div className="px-2 pb-1 text-[11px] uppercase tracking-wide opacity-40">已归档</div>
+            <div className="px-2 pb-1 text-[11px] uppercase tracking-wide opacity-40">
+              {t('app.archivedSection')}
+            </div>
             {archivedContexts.map((c) => (
               <ContextGroup key={c.id} variant="archived" {...groupProps(c)} />
             ))}
@@ -430,22 +435,32 @@ export default function App() {
 
       {/* 底部状态栏:归档量 + 累计回收内存(F-11) */}
       <footer className="px-3 py-1.5 text-[11px] opacity-50 hairline border-t border-black/10 dark:border-white/10">
-        归档 <span className="font-mono">{archivedContexts.length}</span> 任务 ·{' '}
-        <span className="font-mono">{archivedTabCount}</span> 标签
+        {t('app.footer.archived')} <span className="font-mono">{archivedContexts.length}</span>{' '}
+        {t('app.footer.tasks')} · <span className="font-mono">{archivedTabCount}</span>{' '}
+        {t('app.footer.tabs')}
         {discardedBytes > 0 && (
           <>
-            {' · '}回收 <span className="font-mono">{formatReclaimed(discardedBytes)}</span>
-            <span className="ml-1 opacity-70">估算</span>
+            {' · '}
+            {t('app.footer.reclaimed')}{' '}
+            <span className="font-mono">{formatReclaimed(discardedBytes)}</span>
+            <span className="ml-1 opacity-70">{t('app.footer.reclaimedEstimate')}</span>
           </>
         )}
       </footer>
 
       {undo && (
-        <UndoToast label="已归档" ttlMs={undo.ttlMs} onUndo={doUndo} onDismiss={clearUndo} />
+        <UndoToast
+          label={t('undo.label')}
+          ttlMs={undo.ttlMs}
+          onUndo={doUndo}
+          onDismiss={clearUndo}
+        />
       )}
 
       {flash && (
         <div
+          role="status"
+          aria-live="polite"
           className="absolute bottom-16 left-1/2 -translate-x-1/2 px-3 py-2 rounded-lg text-[12px] shadow-lg
                      bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
         >
@@ -459,14 +474,14 @@ export default function App() {
                      inline-flex items-center gap-2 bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
         >
           <span className="inline-block w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
-          ✦ AI 分析中…
+          {t('app.ai.analyzing')}
           <button
             type="button"
             onClick={() => dispatch({ type: 'CANCEL_AI' })}
-            aria-label="取消 AI 整理"
+            aria-label={t('app.ai.cancelAriaLabel')}
             className="ml-1 px-1.5 py-0.5 rounded text-[11px] underline underline-offset-2 opacity-80 hover:opacity-100"
           >
-            取消
+            {t('app.ai.cancel')}
           </button>
         </div>
       )}
@@ -479,9 +494,9 @@ export default function App() {
           sourceNames={
             aiPlan.scope === 'all'
               ? Object.fromEntries(
-                  aiPlan.tabs.map((t) => [
-                    t.id,
-                    contexts.find((c) => c.id === t.contextId)?.name ?? '未分类',
+                  aiPlan.tabs.map((tab) => [
+                    tab.id,
+                    contexts.find((c) => c.id === tab.contextId)?.name ?? t('app.unclassified'),
                   ]),
                 )
               : undefined

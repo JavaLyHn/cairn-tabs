@@ -4,6 +4,7 @@ import { dispatch, usePanelStore } from '../store';
 import { hostname } from '../util';
 import { useDialog } from '../hooks/useDialog';
 import { Favicon } from './Favicon';
+import { useT } from '../i18n';
 
 interface Props {
   onClose: () => void;
@@ -14,6 +15,7 @@ interface Props {
 const QUICK_LIMIT = 8;
 
 export function SearchOverlay({ onClose, onActivate, onRestoreContext }: Props) {
+  const { t } = useT();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selected, setSelected] = useState(0);
@@ -36,10 +38,10 @@ export function SearchOverlay({ onClose, onActivate, onRestoreContext }: Props) 
     return ranked.slice(0, QUICK_LIMIT).map((tab) => ({
       tab,
       contextId: tab.contextId,
-      contextName: nameOf.get(tab.contextId) ?? '未分类',
+      contextName: nameOf.get(tab.contextId) ?? t('search.unclassified'),
       archived: false,
     }));
-  }, [contexts, tabs]);
+  }, [contexts, tabs, t]);
 
   const q = query.trim();
   const items = q ? results : quick;
@@ -55,14 +57,14 @@ export function SearchOverlay({ onClose, onActivate, onRestoreContext }: Props) 
       setSelected(0);
       return;
     }
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       const ev = await dispatch({ type: 'SEARCH', query: q });
       if (ev?.type === 'SEARCH_RESULTS') {
         setResults(ev.results);
         setSelected(0);
       }
     }, 60);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [q]);
 
   // 列表变短时把高亮夹回范围内
@@ -95,7 +97,7 @@ export function SearchOverlay({ onClose, onActivate, onRestoreContext }: Props) 
       ref={panelRef}
       role="dialog"
       aria-modal="true"
-      aria-label="搜索"
+      aria-label={t('search.ariaLabel')}
       tabIndex={-1}
       className="absolute inset-0 z-20 flex justify-center items-center bg-black/30 backdrop-blur-[1px]"
       onClick={onClose}
@@ -110,23 +112,26 @@ export function SearchOverlay({ onClose, onActivate, onRestoreContext }: Props) 
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="搜索打开或已归档的标签…"
+          aria-label={t('search.placeholder')}
+          placeholder={t('search.placeholder')}
           className="px-4 py-3 bg-transparent outline-none text-[14px]
                      border-b border-black/10 dark:border-white/10"
         />
         {(items.length > 0 || q) && (
-          <div className="overflow-y-auto py-1">
+          <div role="listbox" className="overflow-y-auto py-1">
             {!q && quick.length > 0 && (
               <div className="px-4 pt-1 pb-0.5 text-[10.5px] uppercase tracking-wide opacity-35">
-                最近 · ★ 重点
+                {t('search.recentHeader')}
               </div>
             )}
             {q && results.length === 0 && (
-              <div className="px-4 py-3 opacity-40 text-[12px]">无匹配</div>
+              <div className="px-4 py-3 opacity-40 text-[12px]">{t('search.noResults')}</div>
             )}
             {items.map((r, i) => (
               <div
                 key={r.tab.id}
+                role="option"
+                aria-selected={i === selected}
                 onMouseEnter={() => setSelected(i)}
                 onClick={() => {
                   onActivate(r.tab.id);
@@ -143,14 +148,14 @@ export function SearchOverlay({ onClose, onActivate, onRestoreContext }: Props) 
                 </span>
                 <span className="shrink-0 text-[10.5px] px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 opacity-70">
                   {r.contextName}
-                  {r.archived ? ' · 归档' : ''}
+                  {r.archived ? t('search.archivedSuffix') : ''}
                 </span>
               </div>
             ))}
           </div>
         )}
         <div className="px-4 py-1.5 text-[10.5px] opacity-40 border-t border-black/10 dark:border-white/10 font-mono">
-          ↑↓ 选择 · ↵ 跳转 · ⌘↵ 恢复任务 · esc 关闭
+          {t('search.hint')}
         </div>
       </div>
     </div>

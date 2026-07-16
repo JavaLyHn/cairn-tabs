@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { ExportDialog } from '@/entrypoints/sidepanel/components/ExportDialog';
 import type { Context, TabRecord } from '@/shared/types';
+import { I18nProvider } from '@/entrypoints/sidepanel/i18n';
 
 afterEach(cleanup);
 
@@ -23,13 +24,15 @@ describe('ExportDialog', () => {
   it('按 Esc → onClose', () => {
     const onClose = vi.fn();
     render(
-      <ExportDialog
-        context={fakeContext}
-        tabs={fakeTabs}
-        exportedAt={0}
-        onFlash={() => {}}
-        onClose={onClose}
-      />,
+      <I18nProvider initialLocale="zh-CN">
+        <ExportDialog
+          context={fakeContext}
+          tabs={fakeTabs}
+          exportedAt={0}
+          onFlash={() => {}}
+          onClose={onClose}
+        />
+      </I18nProvider>,
     );
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -37,13 +40,15 @@ describe('ExportDialog', () => {
 
   it('dialog role 与 aria-label="导出任务"', () => {
     render(
-      <ExportDialog
-        context={fakeContext}
-        tabs={fakeTabs}
-        exportedAt={0}
-        onFlash={() => {}}
-        onClose={() => {}}
-      />,
+      <I18nProvider initialLocale="zh-CN">
+        <ExportDialog
+          context={fakeContext}
+          tabs={fakeTabs}
+          exportedAt={0}
+          onFlash={() => {}}
+          onClose={() => {}}
+        />
+      </I18nProvider>,
     );
     const d = screen.getByRole('dialog');
     expect(d.getAttribute('aria-modal')).toBe('true');

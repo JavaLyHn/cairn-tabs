@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { TabRecord } from '@/shared/types';
 import { daysSince } from '@/shared/stale';
 import { TabRow } from './TabRow';
+import { useT } from '../i18n';
 
 interface Props {
   tabs: TabRecord[]; // 陈旧标签,最久未访问在前
@@ -23,14 +24,28 @@ export function StaleGroup({
   onActivateTab,
   onCloseTab,
 }: Props) {
+  const { t } = useT();
   const [collapsed, setCollapsed] = useState(false);
   if (tabs.length === 0) return null;
+
+  const toggleCollapsed = () => setCollapsed((c) => !c);
 
   return (
     <div className="mt-3 pt-2 border-t border-dashed border-black/15 dark:border-white/15 opacity-70">
       <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={!collapsed}
         className="group/head flex items-center gap-2 px-2 py-1.5 cursor-pointer select-none"
-        onClick={() => setCollapsed((c) => !c)}
+        onClick={toggleCollapsed}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            toggleCollapsed();
+          } else if (e.key === ' ') {
+            e.preventDefault();
+            toggleCollapsed();
+          }
+        }}
       >
         <svg
           viewBox="0 0 24 24"
@@ -59,7 +74,7 @@ export function StaleGroup({
         </svg>
 
         <span className="flex-1 truncate text-[12.5px] font-medium opacity-70">
-          陈旧 · {staleDays} 天没访问
+          {t('stale.header', { days: staleDays })}
         </span>
         <span className="font-mono text-[11px] opacity-40 shrink-0">{tabs.length}</span>
 
@@ -68,24 +83,25 @@ export function StaleGroup({
             e.stopPropagation();
             onArchiveAll();
           }}
+          aria-label={t('stale.archiveAll')}
           className="shrink-0 text-[11px] px-1.5 py-0.5 rounded opacity-70 hover:opacity-100
                      hover:bg-black/5 dark:hover:bg-white/10"
-          title="把全部陈旧标签整批归档(可撤销)"
+          title={t('stale.archiveAllTitle')}
         >
-          全部归档
+          {t('stale.archiveAll')}
         </button>
       </div>
 
       {!collapsed && (
         <div className="pl-5 pr-1 pb-1">
-          {tabs.map((t) => (
+          {tabs.map((tab) => (
             <TabRow
-              key={t.id}
-              tab={t}
+              key={tab.id}
+              tab={tab}
               portMap={portMap}
-              ageLabel={`${daysSince(t.lastActiveAt, now)} 天前`}
-              onActivate={() => onActivateTab(t.id)}
-              onClose={() => onCloseTab(t.id)}
+              ageLabel={t('time.daysAgo', { d: daysSince(tab.lastActiveAt, now) })}
+              onActivate={() => onActivateTab(tab.id)}
+              onClose={() => onCloseTab(tab.id)}
             />
           ))}
         </div>

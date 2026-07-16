@@ -2,13 +2,16 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { DomainPromoteSuggestions } from '@/entrypoints/sidepanel/components/DomainPromoteSuggestions';
+import { I18nProvider } from '@/entrypoints/sidepanel/i18n';
 
 afterEach(cleanup);
 
 describe('DomainPromoteSuggestions', () => {
   it('无建议 → 不渲染', () => {
     const { container } = render(
-      <DomainPromoteSuggestions suggestions={[]} onPromote={() => {}} onIgnore={() => {}} />,
+      <I18nProvider initialLocale="zh-CN">
+        <DomainPromoteSuggestions suggestions={[]} onPromote={() => {}} onIgnore={() => {}} />
+      </I18nProvider>,
     );
     expect(container.firstChild).toBeNull();
   });
@@ -17,11 +20,13 @@ describe('DomainPromoteSuggestions', () => {
     const onPromote = vi.fn();
     const onIgnore = vi.fn();
     render(
-      <DomainPromoteSuggestions
-        suggestions={[{ domain: 'stripe.com', tabIds: ['a', 'b', 'c'] }]}
-        onPromote={onPromote}
-        onIgnore={onIgnore}
-      />,
+      <I18nProvider initialLocale="zh-CN">
+        <DomainPromoteSuggestions
+          suggestions={[{ domain: 'stripe.com', tabIds: ['a', 'b', 'c'] }]}
+          onPromote={onPromote}
+          onIgnore={onIgnore}
+        />
+      </I18nProvider>,
     );
     expect(screen.getByText('stripe.com')).toBeTruthy();
     expect(screen.getByText(/3 个/)).toBeTruthy();

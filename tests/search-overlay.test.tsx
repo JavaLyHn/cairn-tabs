@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { SearchOverlay } from '@/entrypoints/sidepanel/components/SearchOverlay';
 import { usePanelStore } from '@/entrypoints/sidepanel/store';
+import { I18nProvider } from '@/entrypoints/sidepanel/i18n';
 import { DEFAULT_FLAGS, INBOX_ID, type Context, type TabRecord } from '@/shared/types';
 
 afterEach(() => {
@@ -53,7 +54,11 @@ describe('SearchOverlay 启动器空态', () => {
       tab('newer', { title: '最近', lastActiveAt: NOW }),
       tab('star', { title: '重点页', lastActiveAt: NOW - 99_999, starred: true }),
     ]);
-    render(<SearchOverlay onClose={noop} onActivate={noop} onRestoreContext={noop} />);
+    render(
+      <I18nProvider initialLocale="zh-CN">
+        <SearchOverlay onClose={noop} onActivate={noop} onRestoreContext={noop} />
+      </I18nProvider>,
+    );
 
     expect(screen.getByText('最近 · ★ 重点')).toBeTruthy();
     const rows = screen.getAllByText(/^(重点页|最近|较早)$/).map((el) => el.textContent);
@@ -66,7 +71,11 @@ describe('SearchOverlay 启动器空态', () => {
       tab('open', { title: '打开的' }),
       tab('archived', { title: '归档的', chromeTabId: undefined }),
     ]);
-    render(<SearchOverlay onClose={noop} onActivate={noop} onRestoreContext={noop} />);
+    render(
+      <I18nProvider initialLocale="zh-CN">
+        <SearchOverlay onClose={noop} onActivate={noop} onRestoreContext={noop} />
+      </I18nProvider>,
+    );
     expect(screen.queryByText('打开的')).toBeTruthy();
     expect(screen.queryByText('归档的')).toBeNull();
   });
@@ -75,7 +84,11 @@ describe('SearchOverlay 启动器空态', () => {
     seed([tab('t1', { title: '直达我' })]);
     const onActivate = vi.fn();
     const onClose = vi.fn();
-    render(<SearchOverlay onClose={onClose} onActivate={onActivate} onRestoreContext={noop} />);
+    render(
+      <I18nProvider initialLocale="zh-CN">
+        <SearchOverlay onClose={onClose} onActivate={onActivate} onRestoreContext={noop} />
+      </I18nProvider>,
+    );
     fireEvent.click(screen.getByText('直达我'));
     expect(onActivate).toHaveBeenCalledWith('t1');
     expect(onClose).toHaveBeenCalled();
@@ -83,7 +96,11 @@ describe('SearchOverlay 启动器空态', () => {
 
   it('无打开标签时不渲染列表容器(盒子保持紧凑),但保留输入框与快捷键提示', () => {
     seed([]);
-    render(<SearchOverlay onClose={noop} onActivate={noop} onRestoreContext={noop} />);
+    render(
+      <I18nProvider initialLocale="zh-CN">
+        <SearchOverlay onClose={noop} onActivate={noop} onRestoreContext={noop} />
+      </I18nProvider>,
+    );
     expect(screen.getByPlaceholderText('搜索打开或已归档的标签…')).toBeTruthy();
     expect(screen.getByText(/↑↓ 选择/)).toBeTruthy();
     expect(screen.queryByText('最近 · ★ 重点')).toBeNull();

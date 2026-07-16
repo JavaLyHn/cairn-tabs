@@ -9,6 +9,7 @@ import {
   bitbucketRepoSlug,
   cleanBitbucketTitle,
 } from '@/shared/bitbucket';
+import { useT } from '../i18n';
 
 // GitHub PR / Issue 图标(Octicons,12px)
 function PrIcon() {
@@ -100,6 +101,7 @@ export function TabRow({
   onClose,
   onToggleStar,
 }: Props) {
+  const { t } = useT();
   const port = localhostPort(tab.url);
   const project = port != null ? projectFor(tab.url, portMap) : null;
   const gh = project == null ? parseGitHub(tab.url) : null; // localhost 优先,其余尝试 GitHub
@@ -121,24 +123,28 @@ export function TabRow({
   return (
     <div
       draggable
+      tabIndex={0}
       onDragStart={(e) => {
         e.dataTransfer.setData('text/cairn-tab-record', tab.id);
         e.dataTransfer.effectAllowed = 'move';
       }}
       onClick={onActivate}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onActivate();
+      }}
       className="group/row flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer
                  hover:bg-black/5 dark:hover:bg-white/5 select-none"
-      title={asleep ? `已休眠 · 点击重新加载\n${tab.url}` : tab.url}
+      title={asleep ? t('tabRow.asleepFullTitle', { url: tab.url }) : tab.url}
     >
       <Favicon url={tab.url} title={tab.title} faviconUrl={tab.faviconUrl} asleep={asleep} />
       <span className={`flex-1 truncate ${asleep ? 'opacity-55' : ''}`}>{displayTitle}</span>
       {asleep && (
         <span
           className="shrink-0 inline-flex items-center gap-1 font-mono text-[10.5px] opacity-45"
-          title="已休眠 · 点击重新加载"
+          title={t('tabRow.asleepTitle')}
         >
           <MoonIcon />
-          休眠
+          {t('tabRow.asleep')}
         </span>
       )}
       {codeRef && (
@@ -159,21 +165,21 @@ export function TabRow({
       {dupState === 'redundant' && (
         <span
           className="shrink-0 text-[10px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-500"
-          title="重复标签(合并时会被关闭)"
+          title={t('tabRow.duplicateTitle')}
         >
-          重复
+          {t('tabRow.duplicate')}
         </span>
       )}
       {dupState === 'keeper' && (
         <span
           className="shrink-0 text-[10px] px-1 py-0.5 rounded bg-accent/15 text-accent"
-          title="重复组中最新打开的,合并时保留这个"
+          title={t('tabRow.duplicateKeepTitle')}
         >
-          重复·留
+          {t('tabRow.duplicateKeep')}
         </span>
       )}
       {ageLabel && <span className="font-mono text-[11px] opacity-40 shrink-0">{ageLabel}</span>}
-      <span className="hidden group-hover/row:inline font-mono text-[11px] opacity-40 shrink-0">
+      <span className="hidden group-hover/row:inline group-focus-within/row:inline font-mono text-[11px] opacity-40 shrink-0">
         {codeRef ? codeRef.slug : hostname(tab.url)}
       </span>
       {onToggleStar && (
@@ -185,10 +191,10 @@ export function TabRow({
           className={`shrink-0 items-center justify-center w-4 h-4 rounded ${
             tab.starred
               ? 'flex text-amber-400 hover:text-amber-500'
-              : 'hidden group-hover/row:flex opacity-45 hover:opacity-90'
+              : 'hidden group-hover/row:flex group-focus-within/row:flex opacity-45 hover:opacity-90'
           }`}
-          title={tab.starred ? '取消重点' : '标为重点'}
-          aria-label={tab.starred ? '取消重点' : '标为重点'}
+          title={tab.starred ? t('tabRow.unstar') : t('tabRow.star')}
+          aria-label={tab.starred ? t('tabRow.unstar') : t('tabRow.star')}
         >
           <StarIcon filled={tab.starred === true} />
         </button>
@@ -198,10 +204,10 @@ export function TabRow({
           e.stopPropagation();
           onClose();
         }}
-        className="hidden group-hover/row:flex items-center justify-center w-4 h-4 shrink-0
+        className="hidden group-hover/row:flex group-focus-within/row:flex items-center justify-center w-4 h-4 shrink-0
                    rounded opacity-50 hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10"
-        title="关闭标签"
-        aria-label="关闭标签"
+        title={t('tabRow.close')}
+        aria-label={t('tabRow.close')}
       >
         ×
       </button>

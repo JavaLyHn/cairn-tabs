@@ -3,6 +3,7 @@ import type { TabRecord } from '@/shared/types';
 import type { AIPlan } from '@/shared/ai';
 import { useDialog } from '../hooks/useDialog';
 import { Favicon } from './Favicon';
+import { useT } from '../i18n';
 
 interface Props {
   plan: AIPlan;
@@ -23,17 +24,22 @@ function TabItem({
   source?: string;
   onRemove: () => void;
 }) {
+  const { t } = useT();
   return (
     <div className="group/r flex items-center gap-2 px-2 py-1 rounded hover:bg-black/5 dark:hover:bg-white/5">
       <Favicon url={tab.url} title={tab.title} faviconUrl={tab.faviconUrl} />
       <span className="flex-1 truncate text-[12.5px]">{tab.title}</span>
-      {source && <span className="shrink-0 text-[10.5px] opacity-40">原 {source}</span>}
+      {source && (
+        <span className="shrink-0 text-[10.5px] opacity-40">
+          {t('aiPlan.tabSource', { source })}
+        </span>
+      )}
       <button
         onClick={onRemove}
         className="hidden group-hover/r:block text-[11px] opacity-50 hover:opacity-100"
-        title="不归类这个标签"
+        title={t('aiPlan.removeTabTitle')}
       >
-        移除
+        {t('aiPlan.removeTab')}
       </button>
     </div>
   );
@@ -52,6 +58,7 @@ interface LocalAssign {
 }
 
 export function AIPlanDialog({ plan, tabs, taskNames, sourceNames, onApply, onClose }: Props) {
+  const { t } = useT();
   const byId = new Map(tabs.map((t) => [t.id, t]));
   const panelRef = useRef<HTMLDivElement>(null);
   useDialog(panelRef, onClose);
@@ -94,20 +101,22 @@ export function AIPlanDialog({ plan, tabs, taskNames, sourceNames, onApply, onCl
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="AI 整理建议"
+        aria-label={t('aiPlan.ariaLabel')}
         tabIndex={-1}
         className="mt-6 w-[92%] max-h-[82%] flex flex-col rounded-xl overflow-hidden shadow-2xl
                    bg-white dark:bg-neutral-900 border border-black/10 dark:border-white/10"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-3 py-2 text-[12px] opacity-70 border-b border-black/10 dark:border-white/10">
-          ✦ AI 整理未分类 · 确认后生效
+          {t('aiPlan.header')}
         </div>
 
         <div className="flex-1 overflow-auto px-3 py-2 space-y-3">
           {groups.length > 0 && (
             <div>
-              <div className="text-[11px] uppercase tracking-wide opacity-40 mb-1">新建任务</div>
+              <div className="text-[11px] uppercase tracking-wide opacity-40 mb-1">
+                {t('aiPlan.newGroups')}
+              </div>
               {/* Fix 3: use _id as key */}
               {groups.map((g, i) => (
                 <div
@@ -119,15 +128,16 @@ export function AIPlanDialog({ plan, tabs, taskNames, sourceNames, onApply, onCl
                     <input
                       value={g.name}
                       onChange={(e) => renameGroup(i, e.target.value)}
+                      aria-label={t('aiPlan.newGroups')}
                       className="flex-1 bg-transparent outline-none border-b border-accent/40 focus:border-accent
                                  text-[13px] font-medium px-1 py-0.5"
                     />
                     <button
                       onClick={() => removeGroup(i)}
                       className="text-[11px] opacity-50 hover:opacity-100 px-1 shrink-0"
-                      title="取消这组"
+                      title={t('aiPlan.cancelGroup')}
                     >
-                      取消这组
+                      {t('aiPlan.cancelGroup')}
                     </button>
                   </div>
                   {/* Fix 1: resolve tab via byId and render TabItem */}
@@ -151,7 +161,7 @@ export function AIPlanDialog({ plan, tabs, taskNames, sourceNames, onApply, onCl
           {assign.length > 0 && (
             <div>
               <div className="text-[11px] uppercase tracking-wide opacity-40 mb-1">
-                并入已有任务
+                {t('aiPlan.assign')}
               </div>
               {/* Fix 3: use taskId as key */}
               {assign.map((a, i) => (
@@ -162,14 +172,14 @@ export function AIPlanDialog({ plan, tabs, taskNames, sourceNames, onApply, onCl
                   {/* Fix 2: header row with task name + 取消 button */}
                   <div className="flex items-center gap-1 mb-1">
                     <div className="flex-1 text-[13px] font-medium px-1 py-0.5 opacity-80">
-                      → {taskNames[a.taskId] ?? '任务'}
+                      → {taskNames[a.taskId] ?? t('aiPlan.taskFallback')}
                     </div>
                     <button
                       onClick={() => removeAssign(i)}
                       className="text-[11px] opacity-50 hover:opacity-100 px-1 shrink-0"
-                      title="取消并入"
+                      title={t('aiPlan.cancelAssign')}
                     >
-                      取消
+                      {t('aiPlan.cancelAssign')}
                     </button>
                   </div>
                   {/* Fix 1: resolve tab via byId and render TabItem */}
@@ -196,14 +206,14 @@ export function AIPlanDialog({ plan, tabs, taskNames, sourceNames, onApply, onCl
             onClick={onClose}
             className="px-2.5 py-1 rounded-md text-[12px] opacity-60 hover:opacity-100"
           >
-            取消
+            {t('aiPlan.cancel')}
           </button>
           <button
             onClick={() => onApply(finalPlan)}
             disabled={empty}
             className="px-2.5 py-1 rounded-md text-[12px] bg-accent text-white hover:opacity-90 disabled:opacity-40"
           >
-            应用
+            {t('aiPlan.apply')}
           </button>
         </div>
       </div>

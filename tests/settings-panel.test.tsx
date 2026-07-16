@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
 import { SettingsPanel } from '@/entrypoints/sidepanel/components/SettingsPanel';
+import { I18nProvider } from '@/entrypoints/sidepanel/i18n';
 import { DEFAULT_FLAGS } from '@/shared/types';
 import type { AIStatus } from '@/shared/ai';
 
@@ -34,7 +35,11 @@ function props(over: Record<string, unknown> = {}) {
 
 describe('AISection 保存反馈', () => {
   it('保存成功 → 绿色反馈', async () => {
-    render(<SettingsPanel {...props({ onSaveAi: async () => {} })} />);
+    render(
+      <I18nProvider initialLocale="zh-CN">
+        <SettingsPanel {...props({ onSaveAi: async () => {} })} />
+      </I18nProvider>,
+    );
     fireEvent.click(screen.getByRole('button', { name: '保存并启用' }));
     const el = await screen.findByText('已保存');
     expect(el.className).toContain('emerald');
@@ -42,13 +47,15 @@ describe('AISection 保存反馈', () => {
 
   it('保存失败 → 红色反馈', async () => {
     render(
-      <SettingsPanel
-        {...props({
-          onSaveAi: async () => {
-            throw new Error('boom');
-          },
-        })}
-      />,
+      <I18nProvider initialLocale="zh-CN">
+        <SettingsPanel
+          {...props({
+            onSaveAi: async () => {
+              throw new Error('boom');
+            },
+          })}
+        />
+      </I18nProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: '保存并启用' }));
     const el = await screen.findByText('boom');
@@ -58,7 +65,11 @@ describe('AISection 保存反馈', () => {
   it('成功提示 ~2.5s 后自动消失,失败不消失', async () => {
     vi.useFakeTimers();
     // 成功:自动消失
-    const ok = render(<SettingsPanel {...props({ onSaveAi: async () => {} })} />);
+    const ok = render(
+      <I18nProvider initialLocale="zh-CN">
+        <SettingsPanel {...props({ onSaveAi: async () => {} })} />
+      </I18nProvider>,
+    );
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: '保存并启用' }));
     });
@@ -71,13 +82,15 @@ describe('AISection 保存反馈', () => {
 
     // 失败:不消失
     render(
-      <SettingsPanel
-        {...props({
-          onSaveAi: async () => {
-            throw new Error('bad');
-          },
-        })}
-      />,
+      <I18nProvider initialLocale="zh-CN">
+        <SettingsPanel
+          {...props({
+            onSaveAi: async () => {
+              throw new Error('bad');
+            },
+          })}
+        />
+      </I18nProvider>,
     );
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: '保存并启用' }));
