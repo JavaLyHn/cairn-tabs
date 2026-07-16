@@ -37,7 +37,10 @@ function tab(id: string, over: Partial<TabRecord> = {}): TabRecord {
   };
 }
 
-function seed(tabs: TabRecord[], contexts: Context[] = [ctx(INBOX_ID, '未分类'), ctx('c1', '任务甲')]) {
+function seed(
+  tabs: TabRecord[],
+  contexts: Context[] = [ctx(INBOX_ID, '未分类'), ctx('c1', '任务甲')],
+) {
   usePanelStore.setState({ ...usePanelStore.getState(), contexts, tabs, flags: DEFAULT_FLAGS });
 }
 

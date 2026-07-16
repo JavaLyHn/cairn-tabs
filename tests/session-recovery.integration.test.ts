@@ -23,7 +23,12 @@ beforeEach(async () => {
   repo = new Repository(db);
   await repo.ensureInbox(Date.now());
   ctx = { repo, search: new SearchIndex(), undo: new UndoManager(), onChange: () => {} };
-  registerTabListeners(repo, () => {}, () => ({}), () => false); // 关自动聚簇
+  registerTabListeners(
+    repo,
+    () => {},
+    () => ({}),
+    () => false,
+  ); // 关自动聚簇
   registerGroupListeners(repo, () => {});
 });
 
@@ -53,7 +58,7 @@ describe('archiveUnrestoredContexts', () => {
     expect(c.status).toBe('archived');
     const t1 = (await repo.getTab(id1))!;
     expect(t1.url).toBe('https://a.com/1'); // URL 保留
-    expect(t1.starred).toBe(true);          // 元数据保留
+    expect(t1.starred).toBe(true); // 元数据保留
     expect(t1.chromeTabId).toBeUndefined(); // 归档清 chromeTabId
   });
 

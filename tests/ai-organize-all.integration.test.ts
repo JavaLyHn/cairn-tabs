@@ -22,7 +22,12 @@ beforeEach(async () => {
   repo = new Repository(db);
   await repo.ensureInbox(Date.now());
   ctx = { repo, search: new SearchIndex(), undo: new UndoManager(), onChange: () => {} };
-  registerTabListeners(repo, ctx.onChange, () => ({}), () => false); // 关自动聚簇
+  registerTabListeners(
+    repo,
+    ctx.onChange,
+    () => ({}),
+    () => false,
+  ); // 关自动聚簇
   registerGroupListeners(repo, ctx.onChange);
 });
 
@@ -61,10 +66,13 @@ describe('AI_ORGANIZE_ALL 采集', () => {
     await repo.setTabStarred(starredId!, true); // ★
 
     let captured = '';
-    const ev = await handleCommand({ type: 'AI_ORGANIZE_ALL' }, aiCtx(async (_s, user) => {
-      captured = user;
-      return '{"newGroups":[],"assign":[]}';
-    }));
+    const ev = await handleCommand(
+      { type: 'AI_ORGANIZE_ALL' },
+      aiCtx(async (_s, user) => {
+        captured = user;
+        return '{"newGroups":[],"assign":[]}';
+      }),
+    );
 
     // 空 plan(newGroups/assign 皆空)→ parseOrganizeResponse 视为无可用建议 → AI_ERROR;此处只借它捕获出网 user
     expect(ev?.type).toBe('AI_ERROR');
@@ -80,7 +88,10 @@ describe('AI_ORGANIZE_ALL 采集', () => {
     await fake.userOpenTab('https://a.com', { title: 'A' });
     const [id] = (await repo.getContext(INBOX_ID))!.tabOrder;
     await repo.setTabStarred(id!, true); // 唯一标签被 ★ → 无可动
-    const ev = await handleCommand({ type: 'AI_ORGANIZE_ALL' }, aiCtx(async () => '{}'));
+    const ev = await handleCommand(
+      { type: 'AI_ORGANIZE_ALL' },
+      aiCtx(async () => '{}'),
+    );
     expect(ev).toEqual({ type: 'AI_ERROR', reason: 'empty' });
   });
 
@@ -92,12 +103,17 @@ describe('AI_ORGANIZE_ALL 采集', () => {
 
   it('F-13:出网 user 只含 eTLD+1 域名,不含原始路径/query', async () => {
     // 直接写库:一个带路径+query 的已归属标签,且打开中(可动)
-    await fake.userOpenTab('https://react.dev/learn/thinking-in-react?tab=1', { title: 'Thinking' });
+    await fake.userOpenTab('https://react.dev/learn/thinking-in-react?tab=1', {
+      title: 'Thinking',
+    });
     let captured = '';
-    await handleCommand({ type: 'AI_ORGANIZE_ALL' }, aiCtx(async (_s, user) => {
-      captured = user;
-      return '{"newGroups":[],"assign":[]}';
-    }));
+    await handleCommand(
+      { type: 'AI_ORGANIZE_ALL' },
+      aiCtx(async (_s, user) => {
+        captured = user;
+        return '{"newGroups":[],"assign":[]}';
+      }),
+    );
     expect(captured).toContain('react.dev');
     expect(captured).not.toContain('thinking-in-react');
     expect(captured).not.toContain('tab=1');
@@ -108,7 +124,9 @@ describe('AI_ORGANIZE_ALL 采集', () => {
     const [id] = (await repo.getContext(INBOX_ID))!.tabOrder;
     const ev = await handleCommand(
       { type: 'AI_ORGANIZE_ALL' },
-      aiCtx(async () => JSON.stringify({ newGroups: [{ name: '前端', tabIds: [id] }], assign: [] })),
+      aiCtx(async () =>
+        JSON.stringify({ newGroups: [{ name: '前端', tabIds: [id] }], assign: [] }),
+      ),
     );
     expect(ev?.type).toBe('AI_PLAN');
     expect((ev as { tabs: { id: string }[] }).tabs.map((t) => t.id)).toContain(id);
@@ -130,7 +148,11 @@ describe('undoReorg(UNDO 处理 reorg)', () => {
 
     // 手工注册一个 reorg:把 tid 移回 B;重建一个被删组 'gone';撤销时删 C
     const { token } = ctx.undo.registerReorg(
-      { moves: [{ tabId: tid!, toContextId: B.id }], recreate: [{ id: 'gone', name: '旧组', color: 'blue' }], deleteContextIds: [C.id] },
+      {
+        moves: [{ tabId: tid!, toContextId: B.id }],
+        recreate: [{ id: 'gone', name: '旧组', color: 'blue' }],
+        deleteContextIds: [C.id],
+      },
       5000,
     );
     await handleCommand({ type: 'UNDO', token }, ctx);
@@ -146,7 +168,11 @@ describe('undoReorg(UNDO 处理 reorg)', () => {
     const [tid] = (await repo.getContext(INBOX_ID))!.tabOrder;
     // 原分组 old 已不存在,recreate 之;move 目标指向 old.id → 应落到重建后的新组
     const { token } = ctx.undo.registerReorg(
-      { moves: [{ tabId: tid!, toContextId: 'old' }], recreate: [{ id: 'old', name: '重建组', color: 'red' }], deleteContextIds: [] },
+      {
+        moves: [{ tabId: tid!, toContextId: 'old' }],
+        recreate: [{ id: 'old', name: '重建组', color: 'red' }],
+        deleteContextIds: [],
+      },
       5000,
     );
     await handleCommand({ type: 'UNDO', token }, ctx);
@@ -167,7 +193,11 @@ describe('APPLY_AI_PLAN {global:true}', () => {
     await repo.moveTab(tid!, A.id, Date.now()); // 现在在 A(未打锁)
 
     const ev = await handleCommand(
-      { type: 'APPLY_AI_PLAN', global: true, plan: { newGroups: [], assign: [{ taskId: B.id, tabIds: [tid!] }] } },
+      {
+        type: 'APPLY_AI_PLAN',
+        global: true,
+        plan: { newGroups: [], assign: [{ taskId: B.id, tabIds: [tid!] }] },
+      },
       ctx,
     );
 
@@ -185,7 +215,11 @@ describe('APPLY_AI_PLAN {global:true}', () => {
 
     // 计划:把这唯一标签移进新建组 → 原组变空
     await handleCommand(
-      { type: 'APPLY_AI_PLAN', global: true, plan: { newGroups: [{ name: '新家', tabIds: [tid!] }], assign: [] } },
+      {
+        type: 'APPLY_AI_PLAN',
+        global: true,
+        plan: { newGroups: [{ name: '新家', tabIds: [tid!] }], assign: [] },
+      },
       ctx,
     );
     expect((await repo.getSnapshot()).contexts.find((c) => c.id === empty.id)).toBeUndefined();
@@ -199,7 +233,11 @@ describe('APPLY_AI_PLAN {global:true}', () => {
     await repo.moveTab(tid!, src.id, Date.now());
 
     const ev = await handleCommand(
-      { type: 'APPLY_AI_PLAN', global: true, plan: { newGroups: [{ name: '别处', tabIds: [tid!] }], assign: [] } },
+      {
+        type: 'APPLY_AI_PLAN',
+        global: true,
+        plan: { newGroups: [{ name: '别处', tabIds: [tid!] }], assign: [] },
+      },
       ctx,
     );
     // src 变空被删,标签在"别处"

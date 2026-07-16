@@ -90,7 +90,13 @@ export const openaiProvider: AIProvider = {
   defaultModel: 'gpt-4o-mini',
   host: 'https://api.openai.com/*',
   complete(req, key, fetchImpl = fetch) {
-    return postOpenAIChat('https://api.openai.com/v1/chat/completions', req, key, fetchImpl, 'openai');
+    return postOpenAIChat(
+      'https://api.openai.com/v1/chat/completions',
+      req,
+      key,
+      fetchImpl,
+      'openai',
+    );
   },
 };
 

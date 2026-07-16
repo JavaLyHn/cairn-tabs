@@ -24,7 +24,10 @@ describe('buildOrganizePrompt', () => {
     expect(user).toContain('React 文档');
   });
   it('激进档:提示"尽量归类 + 可跨组移动";默认档不含', () => {
-    const args: [Parameters<typeof buildOrganizePrompt>[0], Parameters<typeof buildOrganizePrompt>[1]] = [
+    const args: [
+      Parameters<typeof buildOrganizePrompt>[0],
+      Parameters<typeof buildOrganizePrompt>[1],
+    ] = [
       [{ id: 't1', title: 'x', domain: 'a.com' }],
       [{ id: 'c1', name: '任务', domains: [], samples: [] }],
     ];
@@ -59,7 +62,8 @@ describe('summarizeTaskTabs', () => {
 
 describe('parseOrganizeResponse', () => {
   it('解析正常 JSON', () => {
-    const raw = '{"newGroups":[{"name":"前端","tabIds":["t1","t2"]}],"assign":[{"taskId":"c1","tabIds":["t3"]}]}';
+    const raw =
+      '{"newGroups":[{"name":"前端","tabIds":["t1","t2"]}],"assign":[{"taskId":"c1","tabIds":["t3"]}]}';
     expect(parseOrganizeResponse(raw, TABS, TASKS)).toEqual({
       newGroups: [{ name: '前端', tabIds: ['t1', 't2'] }],
       assign: [{ taskId: 'c1', tabIds: ['t3'] }],
@@ -70,16 +74,21 @@ describe('parseOrganizeResponse', () => {
     expect(parseOrganizeResponse(raw, TABS, TASKS)?.newGroups[0]?.name).toBe('g');
   });
   it('丢弃非法 tabId 与未知 taskId', () => {
-    const raw = '{"newGroups":[{"name":"g","tabIds":["t1","BAD"]}],"assign":[{"taskId":"NOPE","tabIds":["t2"]}]}';
+    const raw =
+      '{"newGroups":[{"name":"g","tabIds":["t1","BAD"]}],"assign":[{"taskId":"NOPE","tabIds":["t2"]}]}';
     expect(parseOrganizeResponse(raw, TABS, TASKS)).toEqual({
       newGroups: [{ name: 'g', tabIds: ['t1'] }],
       assign: [],
     });
   });
   it('同一标签只归一处(去重,以先出现为准)', () => {
-    const raw = '{"newGroups":[{"name":"a","tabIds":["t1"]},{"name":"b","tabIds":["t1","t2"]}],"assign":[]}';
+    const raw =
+      '{"newGroups":[{"name":"a","tabIds":["t1"]},{"name":"b","tabIds":["t1","t2"]}],"assign":[]}';
     expect(parseOrganizeResponse(raw, TABS, TASKS)).toEqual({
-      newGroups: [{ name: 'a', tabIds: ['t1'] }, { name: 'b', tabIds: ['t2'] }],
+      newGroups: [
+        { name: 'a', tabIds: ['t1'] },
+        { name: 'b', tabIds: ['t2'] },
+      ],
       assign: [],
     });
   });
@@ -91,14 +100,16 @@ describe('parseOrganizeResponse', () => {
     expect(parseOrganizeResponse('not json', TABS, TASKS)).toBeNull();
   });
   it('容忍模型夹带说明文字(提取首个 {...} 再解析)', () => {
-    const raw = '好的,这是结果:\n{"newGroups":[{"name":"g","tabIds":["t1"]}],"assign":[]}\n希望有用';
+    const raw =
+      '好的,这是结果:\n{"newGroups":[{"name":"g","tabIds":["t1"]}],"assign":[]}\n希望有用';
     expect(parseOrganizeResponse(raw, TABS, TASKS)?.newGroups[0]?.name).toBe('g');
   });
   it('空结果 → null', () => {
     expect(parseOrganizeResponse('{"newGroups":[],"assign":[]}', TABS, TASKS)).toBeNull();
   });
   it('同一标签同时出现在新组与已有任务 → 归入已有任务', () => {
-    const raw = '{"newGroups":[{"name":"g","tabIds":["t1","t2"]}],"assign":[{"taskId":"c1","tabIds":["t1"]}]}';
+    const raw =
+      '{"newGroups":[{"name":"g","tabIds":["t1","t2"]}],"assign":[{"taskId":"c1","tabIds":["t1"]}]}';
     expect(parseOrganizeResponse(raw, TABS, TASKS)).toEqual({
       newGroups: [{ name: 'g', tabIds: ['t2'] }],
       assign: [{ taskId: 'c1', tabIds: ['t1'] }],

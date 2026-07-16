@@ -8,7 +8,15 @@ afterEach(cleanup);
 
 const NOW = 1_700_000_000_000;
 function tab(id: string, title: string): TabRecord {
-  return { id, contextId: 'x', url: `https://e.com/${id}`, title, chromeTabId: 1, firstOpenedAt: NOW, lastActiveAt: NOW };
+  return {
+    id,
+    contextId: 'x',
+    url: `https://e.com/${id}`,
+    title,
+    chromeTabId: 1,
+    firstOpenedAt: NOW,
+    lastActiveAt: NOW,
+  };
 }
 const noop = () => {};
 

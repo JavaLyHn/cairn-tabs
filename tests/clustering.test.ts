@@ -17,7 +17,12 @@ function ctx(id: string, lastActiveAt = NOW): Context {
     tabOrder: [],
   };
 }
-function tab(id: string, contextId: string, url: string, extra: Partial<TabRecord> = {}): TabRecord {
+function tab(
+  id: string,
+  contextId: string,
+  url: string,
+  extra: Partial<TabRecord> = {},
+): TabRecord {
   return {
     id,
     contextId,

@@ -36,7 +36,10 @@ function SuggestionRow({
         }}
         className="flex-1 min-w-0 bg-transparent border-b border-accent/40 outline-none"
       />
-      <button onClick={() => onBind(value)} className="shrink-0 text-accent text-[11px] hover:underline">
+      <button
+        onClick={() => onBind(value)}
+        className="shrink-0 text-accent text-[11px] hover:underline"
+      >
         绑定
       </button>
       <button onClick={onIgnore} className="shrink-0 opacity-40 hover:opacity-80 text-[11px]">

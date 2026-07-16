@@ -40,12 +40,18 @@ describe('shouldDiscard', () => {
     expect(shouldDiscard(rec, idle, NOW, { ...OPTS, skipLocalhost: false })).toBe(true);
   });
   it('重点标签(starred)永不自动挂起', () => {
-    expect(shouldDiscard(tab({ starred: true, lastActiveAt: NOW - 120 * MIN }), idle, NOW, OPTS)).toBe(false);
+    expect(
+      shouldDiscard(tab({ starred: true, lastActiveAt: NOW - 120 * MIN }), idle, NOW, OPTS),
+    ).toBe(false);
   });
   it('记录已挂起或无真实标签 → 不挂起', () => {
-    expect(shouldDiscard(tab({ discarded: true, lastActiveAt: NOW - 60 * MIN }), idle, NOW, OPTS)).toBe(false);
+    expect(
+      shouldDiscard(tab({ discarded: true, lastActiveAt: NOW - 60 * MIN }), idle, NOW, OPTS),
+    ).toBe(false);
     expect(shouldDiscard(tab({ lastActiveAt: NOW - 60 * MIN }), undefined, NOW, OPTS)).toBe(false);
-    expect(shouldDiscard(tab({ chromeTabId: undefined, lastActiveAt: NOW - 60 * MIN }), idle, NOW, OPTS)).toBe(false);
+    expect(
+      shouldDiscard(tab({ chromeTabId: undefined, lastActiveAt: NOW - 60 * MIN }), idle, NOW, OPTS),
+    ).toBe(false);
   });
 });
 

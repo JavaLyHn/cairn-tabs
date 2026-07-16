@@ -40,7 +40,7 @@ describe('findDuplicateGroups', () => {
     const groups = findDuplicateGroups(tabs);
     expect(groups).toHaveLength(1);
     expect(groups[0]!.keeper.id).toBe('t2');
-    expect(groups[0]!.redundant.map((r) => r.id).sort()).toEqual(['t1', 't3']);
+    expect(groups[0]!.redundant.map((r) => r.id).toSorted()).toEqual(['t1', 't3']);
   });
 
   it('优先保留已在任务里的副本(而非未分类里更新打开的那个)', () => {

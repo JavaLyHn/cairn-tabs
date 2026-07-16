@@ -14,7 +14,15 @@ interface Props {
 }
 
 /** 陈旧标签下沉区(F-10):降饱和度、沉到列表底部,带「全部归档」。不弹通知。 */
-export function StaleGroup({ tabs, portMap, now, staleDays, onArchiveAll, onActivateTab, onCloseTab }: Props) {
+export function StaleGroup({
+  tabs,
+  portMap,
+  now,
+  staleDays,
+  onArchiveAll,
+  onActivateTab,
+  onCloseTab,
+}: Props) {
   const [collapsed, setCollapsed] = useState(false);
   if (tabs.length === 0) return null;
 

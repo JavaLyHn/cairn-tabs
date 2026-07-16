@@ -5,15 +5,7 @@ export type ContextStatus = 'active' | 'archived';
 
 /** 与 chrome.tabGroups.Color 对齐的 9 色枚举 */
 export type ContextColor =
-  | 'grey'
-  | 'blue'
-  | 'red'
-  | 'yellow'
-  | 'green'
-  | 'pink'
-  | 'purple'
-  | 'cyan'
-  | 'orange';
+  'grey' | 'blue' | 'red' | 'yellow' | 'green' | 'pink' | 'purple' | 'cyan' | 'orange';
 
 /** 命名 Context 建原生分组时轮转的调色板(grey 留给未分类/未分组语义) */
 export const CONTEXT_PALETTE: ContextColor[] = [

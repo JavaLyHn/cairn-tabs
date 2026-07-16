@@ -125,7 +125,9 @@ describe('permissionOriginFor', () => {
     expect(permissionOriginFor('custom', 'https://newapi.elevatesphere.com/v1')).toBe(
       'https://newapi.elevatesphere.com/*',
     );
-    expect(permissionOriginFor('custom', 'https://x.com/v1/chat/completions')).toBe('https://x.com/*');
+    expect(permissionOriginFor('custom', 'https://x.com/v1/chat/completions')).toBe(
+      'https://x.com/*',
+    );
   });
   it('custom:剥掉凭据(userinfo)', () => {
     expect(permissionOriginFor('custom', 'https://user:pass@relay.example.com/v1')).toBe(

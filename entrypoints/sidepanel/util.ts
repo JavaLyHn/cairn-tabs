@@ -76,7 +76,7 @@ export function domainSummary(tabs: TabRecord[]): string {
     counts.set(h, (counts.get(h) ?? 0) + 1);
   }
   return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
+    .toSorted((a, b) => b[1] - a[1])
     .slice(0, 3)
     .map(([h, n]) => `${h} ×${n}`)
     .join('  ');

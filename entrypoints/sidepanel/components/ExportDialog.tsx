@@ -116,7 +116,10 @@ export function ExportDialog({ context, tabs, exportedAt, onFlash, onClose }: Pr
         )}
 
         <div className="flex items-center justify-end gap-2 px-3 py-2 border-t border-black/10 dark:border-white/10">
-          <button onClick={onClose} className="px-2.5 py-1 rounded-md text-[12px] opacity-60 hover:opacity-100">
+          <button
+            onClick={onClose}
+            className="px-2.5 py-1 rounded-md text-[12px] opacity-60 hover:opacity-100"
+          >
             关闭
           </button>
           <button

@@ -33,7 +33,9 @@ export function assignContext(input: AssignInput): string {
   // 通用域名降权(IDF):域名出现在越多簇里,价值越低
   const domainCtxCount = new Map<string, number>();
   for (const c of candidates) {
-    const regs = new Set((tabsByCtx.get(c.id) ?? []).map((t) => registrableDomain(hostnameOf(t.url))));
+    const regs = new Set(
+      (tabsByCtx.get(c.id) ?? []).map((t) => registrableDomain(hostnameOf(t.url))),
+    );
     for (const d of regs) domainCtxCount.set(d, (domainCtxCount.get(d) ?? 0) + 1);
   }
   const idf = (d: string) => 1 / (1 + Math.log(1 + (domainCtxCount.get(d) ?? 0)));
@@ -102,7 +104,8 @@ export function sameDomainSuggestions(
     if (t.pinned || t.chromeTabId == null) continue; // 只看未锁定的活标签
     const host = hostnameOf(t.url);
     // localhost 各端口是不同项目(交给 F-08 端口映射),不按同域并簇
-    if (!host || host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost')) continue;
+    if (!host || host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost'))
+      continue;
     const d = registrableDomain(host);
     if (!d) continue;
     const arr = byDomain.get(d);

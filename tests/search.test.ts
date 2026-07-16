@@ -17,7 +17,13 @@ function ctx(id: string, name: string, status: 'active' | 'archived'): Context {
   };
 }
 
-function tab(id: string, contextId: string, title: string, url: string, lastActiveAt = NOW): TabRecord {
+function tab(
+  id: string,
+  contextId: string,
+  title: string,
+  url: string,
+  lastActiveAt = NOW,
+): TabRecord {
   return { id, contextId, url, title, firstOpenedAt: NOW, lastActiveAt };
 }
 
@@ -26,7 +32,10 @@ describe('SearchIndex', () => {
     const idx = new SearchIndex();
     idx.rebuild(
       [ctx('c1', 'bug', 'active')],
-      [tab('t1', 'c1', 'Fix login authentication', 'https://github.com/x/y'), tab('t2', 'c1', 'Weather forecast', 'https://weather.com')],
+      [
+        tab('t1', 'c1', 'Fix login authentication', 'https://github.com/x/y'),
+        tab('t2', 'c1', 'Weather forecast', 'https://weather.com'),
+      ],
     );
     const res = idx.query('login');
     expect(res.map((r) => r.tab.id)).toEqual(['t1']);

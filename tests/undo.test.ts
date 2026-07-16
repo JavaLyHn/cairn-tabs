@@ -10,7 +10,11 @@ describe('UndoManager', () => {
 
   it('reorg:registerReorg 后 consume 返回 action:reorg + payload', () => {
     const u = new UndoManager();
-    const reorg = { moves: [{ tabId: 't1', toContextId: 'c0' }], recreate: [], deleteContextIds: ['c9'] };
+    const reorg = {
+      moves: [{ tabId: 't1', toContextId: 'c0' }],
+      recreate: [],
+      deleteContextIds: ['c9'],
+    };
     const { token } = u.registerReorg(reorg, 5000);
     expect(u.consume(token)).toEqual({ action: 'reorg', contextId: undefined, reorg });
   });

@@ -77,11 +77,7 @@ function stampedName(prefix: string, now: number): string {
  * 关键:只有当真实标签的 url 与记录一致时才关闭,避免因 id 陈旧/错位误关别的标签
  * (Chrome 会 discard/换 id,尤其图片等重标签)。
  */
-async function closeOrPurge(
-  record: TabRecord,
-  repo: Repository,
-  trustId = false,
-): Promise<void> {
+async function closeOrPurge(record: TabRecord, repo: Repository, trustId = false): Promise<void> {
   if (record.chromeTabId == null) {
     await repo.removeTab(record.id);
     return;
@@ -126,7 +122,8 @@ async function assignTab(
   await repo.moveTab(tabRecordId, toContextId, now);
   if (opts?.pin !== false) await repo.pinTab(tabRecordId);
   const after = await repo.getTab(tabRecordId);
-  if (after?.chromeTabId != null) await ensureTabInContextGroup(repo, toContextId, after.chromeTabId);
+  if (after?.chromeTabId != null)
+    await ensureTabInContextGroup(repo, toContextId, after.chromeTabId);
 }
 
 /** 新建一个命名簇,把给定标签移入(默认锁定)+ 同步原生分组标题。返回新建 contextId。 */
@@ -372,12 +369,16 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       return;
 
     case 'SET_DISCARD_AFTER_MINUTES':
-      await flags?.patch({ discardAfterMinutes: Math.max(5, Math.min(480, Math.round(cmd.minutes))) });
+      await flags?.patch({
+        discardAfterMinutes: Math.max(5, Math.min(480, Math.round(cmd.minutes))),
+      });
       onChange();
       return;
 
     case 'SET_SAME_DOMAIN_PROMOTE_SIZE':
-      await flags?.patch({ sameDomainPromoteSize: Math.max(2, Math.min(20, Math.round(cmd.size))) });
+      await flags?.patch({
+        sameDomainPromoteSize: Math.max(2, Math.min(20, Math.round(cmd.size))),
+      });
       onChange();
       return;
 
@@ -437,7 +438,11 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       if (loose.length === 0) return { type: 'AI_ERROR', reason: 'empty' };
       const tasks = contexts.filter((c) => c.id !== INBOX_ID && c.status === 'active');
       const { system, user } = buildOrganizePrompt(
-        loose.map((t) => ({ id: t.id, title: t.title, domain: registrableDomain(hostnameOf(t.url)) })),
+        loose.map((t) => ({
+          id: t.id,
+          title: t.title,
+          domain: registrableDomain(hostnameOf(t.url)),
+        })),
         tasks.map((c) => {
           const own = tabs.filter((t) => t.contextId === c.id);
           const sig = summarizeTaskTabs(
@@ -470,7 +475,11 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       if (movable.length === 0) return { type: 'AI_ERROR', reason: 'empty' };
       const tasks = contexts.filter((c) => c.id !== INBOX_ID && c.status === 'active');
       const { system, user } = buildOrganizePrompt(
-        movable.map((t) => ({ id: t.id, title: t.title, domain: registrableDomain(hostnameOf(t.url)) })),
+        movable.map((t) => ({
+          id: t.id,
+          title: t.title,
+          domain: registrableDomain(hostnameOf(t.url)),
+        })),
         tasks.map((c) => {
           const own = tabs.filter((t) => t.contextId === c.id);
           const sig = summarizeTaskTabs(
@@ -511,7 +520,8 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
           if (t) before.set(id, t.contextId);
         }
         const { contexts } = await repo.getSnapshot();
-        for (const c of contexts) if (c.id !== INBOX_ID && c.status === 'active') beforeCtxIds.push(c.id);
+        for (const c of contexts)
+          if (c.id !== INBOX_ID && c.status === 'active') beforeCtxIds.push(c.id);
       }
 
       const createdIds: string[] = [];
@@ -544,7 +554,10 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
         if (cur && cur !== orig) moves.push({ tabId, toContextId: orig });
       }
       onChange();
-      const { token, ttlMs } = undo.registerReorg({ moves, recreate, deleteContextIds: createdIds }, UNDO_TTL_MS);
+      const { token, ttlMs } = undo.registerReorg(
+        { moves, recreate, deleteContextIds: createdIds },
+        UNDO_TTL_MS,
+      );
       return { type: 'UNDOABLE', action: 'reorg', token, ttlMs };
     }
 
@@ -597,7 +610,12 @@ async function restoreContext(contextId: string, ctx: CommandContext): Promise<v
         // 内存回收留给 F-11 的挂起扫描按空闲时长统一处理。
         const created = await chrome.tabs.create({ url: record.url, active: false, windowId });
         if (created.id != null) {
-          await repo.bindChromeTab(recordId, created.id, created.windowId ?? windowId ?? 0, Date.now());
+          await repo.bindChromeTab(
+            recordId,
+            created.id,
+            created.windowId ?? windowId ?? 0,
+            Date.now(),
+          );
           if (stashTarget) {
             // 暂存簇:标签回到目标簇(未分类=不成组),只有成功重开的才迁回(避免幻影记录)
             await repo.moveTab(recordId, stashTarget, Date.now());

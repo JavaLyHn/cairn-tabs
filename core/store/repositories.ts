@@ -138,7 +138,10 @@ export class Repository {
       // 幂等:同一 chromeTabId 已有记录则复用,绝不重复插。
       // 事务串行化保证 check-then-insert 原子,挡住加载期 onCreated/onUpdated 并发建重复记录。
       if (partial.chromeTabId != null) {
-        const existing = await this.db.tabs.where('chromeTabId').equals(partial.chromeTabId).first();
+        const existing = await this.db.tabs
+          .where('chromeTabId')
+          .equals(partial.chromeTabId)
+          .first();
         if (existing) return existing;
       }
       const record: TabRecord = { ...partial, id: nanoid(), contextId };
@@ -204,7 +207,9 @@ export class Repository {
       if (!ctx || ctx.status === 'archived') return [];
       const tabs = await this.db.tabs.where('contextId').equals(contextId).toArray();
       const closedTabIds = tabs.map((t) => t.chromeTabId).filter((n): n is number => n != null);
-      await this.db.tabs.bulkPut(tabs.map((t) => ({ ...t, chromeTabId: undefined, windowId: undefined })));
+      await this.db.tabs.bulkPut(
+        tabs.map((t) => ({ ...t, chromeTabId: undefined, windowId: undefined })),
+      );
       await this.db.contexts.update(contextId, {
         status: 'archived',
         archivedAt: now,

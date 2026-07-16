@@ -106,7 +106,12 @@ describe('runDiscardScan (F-11)', () => {
   it('挂起空闲标签,回填 discarded 与回收量', async () => {
     const idle = await openAndAge('https://a.com/x', 40 * MIN);
     let reclaimed = 0;
-    const n = await runDiscardScan(repo, opts, async (b) => void (reclaimed += b), () => {});
+    const n = await runDiscardScan(
+      repo,
+      opts,
+      async (b) => void (reclaimed += b),
+      () => {},
+    );
     expect(n).toBe(1);
     expect(fake.tabsById.get(idle.chromeId)!.discarded).toBe(true);
     expect((await repo.getTab(idle.recId))!.discarded).toBe(true);
@@ -116,7 +121,12 @@ describe('runDiscardScan (F-11)', () => {
   it('活跃(未到阈值)与 localhost 不挂起', async () => {
     const local = await openAndAge('http://localhost:3000/', 60 * MIN);
     const recent = await openAndAge('https://b.com/', 5 * MIN);
-    const n = await runDiscardScan(repo, opts, async () => {}, () => {});
+    const n = await runDiscardScan(
+      repo,
+      opts,
+      async () => {},
+      () => {},
+    );
     expect(n).toBe(0);
     expect(fake.tabsById.get(local.chromeId)!.discarded).toBe(false);
     expect(fake.tabsById.get(recent.chromeId)!.discarded).toBe(false);
@@ -124,7 +134,21 @@ describe('runDiscardScan (F-11)', () => {
 
   it('已挂起的标签不重复挂起', async () => {
     await openAndAge('https://c.com/', 60 * MIN);
-    expect(await runDiscardScan(repo, opts, async () => {}, () => {})).toBe(1);
-    expect(await runDiscardScan(repo, opts, async () => {}, () => {})).toBe(0);
+    expect(
+      await runDiscardScan(
+        repo,
+        opts,
+        async () => {},
+        () => {},
+      ),
+    ).toBe(1);
+    expect(
+      await runDiscardScan(
+        repo,
+        opts,
+        async () => {},
+        () => {},
+      ),
+    ).toBe(0);
   });
 });

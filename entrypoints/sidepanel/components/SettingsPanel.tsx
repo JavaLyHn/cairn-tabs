@@ -317,7 +317,12 @@ function AISection({
     setMsg({ text, ok });
     if (ok) msgTimer.current = setTimeout(() => setMsg(null), 2500);
   };
-  useEffect(() => () => { if (msgTimer.current) clearTimeout(msgTimer.current); }, []);
+  useEffect(
+    () => () => {
+      if (msgTimer.current) clearTimeout(msgTimer.current);
+    },
+    [],
+  );
   const [result, setResult] = useState<{ ok: boolean; detail: string } | null>(null);
 
   const isCustom = provider === 'custom';
@@ -369,7 +374,8 @@ function AISection({
   return (
     <div className="px-3 py-2.5">
       <div className="text-[11px] opacity-50 leading-snug mb-2">
-        自带 API key,用你的 key 直连你选的服务商。默认关闭。只把标签标题、域名、任务名发出去,绝不发完整网址或页面内容。
+        自带 API key,用你的 key
+        直连你选的服务商。默认关闭。只把标签标题、域名、任务名发出去,绝不发完整网址或页面内容。
         {ai.hasKey && (
           <span className="text-accent"> 当前:{PROVIDER_LABELS[ai.provider]} 已配置。</span>
         )}
@@ -409,7 +415,9 @@ function AISection({
         type="password"
         value={key}
         onChange={(e) => setKey(e.target.value)}
-        placeholder={savedHere ? '•••••••••••• · 已保存(留空则不改)' : `${PROVIDER_LABELS[provider]} API key`}
+        placeholder={
+          savedHere ? '•••••••••••• · 已保存(留空则不改)' : `${PROVIDER_LABELS[provider]} API key`
+        }
         className="w-full mb-1.5 px-2 py-1 text-[12px] rounded border border-black/15 dark:border-white/15
                    bg-transparent outline-none focus:border-accent"
       />

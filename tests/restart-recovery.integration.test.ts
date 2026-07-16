@@ -21,13 +21,19 @@ beforeEach(async () => {
   await db.open();
   repo = new Repository(db);
   await repo.ensureInbox(Date.now());
-  registerTabListeners(repo, () => {}, () => ({}), () => false); // 关自动聚簇
+  registerTabListeners(
+    repo,
+    () => {},
+    () => ({}),
+    () => false,
+  ); // 关自动聚簇
   registerGroupListeners(repo, () => {});
 });
 
 /** 模拟会话恢复:所有 tab / group 换新 id,url/title/color/分组归属不变。 */
 function simulateSessionRestore() {
-  const T = 100000, G = 100000;
+  const T = 100000,
+    G = 100000;
   const oldTabs = [...fake.tabsById.values()];
   const oldGroups = [...fake.groupsById.values()];
   fake.tabsById.clear();
@@ -53,13 +59,15 @@ describe('reconcile 按 URL 重绑', () => {
     await reconcile(repo, () => {}, { purge: true });
 
     const after = (await repo.getTab(rid!))!;
-    expect(after).toBeTruthy();                       // 记录未被删
+    expect(after).toBeTruthy(); // 记录未被删
     expect(after.chromeTabId).toBe(oldChromeId + 100000); // 回填新 id
     expect(after.starred).toBe(true);
     expect(after.pinned).toBe(true);
     expect(after.url).toBe('https://a.com/x');
     // 未产生重复记录
-    expect((await repo.getSnapshot()).tabs.filter((t) => t.url === 'https://a.com/x')).toHaveLength(1);
+    expect((await repo.getSnapshot()).tabs.filter((t) => t.url === 'https://a.com/x')).toHaveLength(
+      1,
+    );
   });
 
   it('purge:false 保留重绑不上的死记录;purge:true 删除', async () => {
@@ -90,7 +98,14 @@ describe('reconcileGroups 按标题重连', () => {
   it('重启后死 nativeGroupId 的任务按标题重连到同名新分组,不删任务', async () => {
     // 造一个带原生分组的任务:context.nativeGroupId=900,fake 里有个同标题分组 900
     const ctx = await repo.createContext('任务甲', Date.now(), { nativeGroupId: 900 });
-    fake.groupsById.set(900, { id: 900, title: '任务甲', color: 'blue', windowId: 1, collapsed: false, shared: false });
+    fake.groupsById.set(900, {
+      id: 900,
+      title: '任务甲',
+      color: 'blue',
+      windowId: 1,
+      collapsed: false,
+      shared: false,
+    });
     // 该任务里放一个打开的标签(使其非空)
     await fake.userOpenTab('https://a.com', { title: 'A' });
     const [rid] = (await repo.getContext(INBOX_ID))!.tabOrder;
@@ -103,8 +118,8 @@ describe('reconcileGroups 按标题重连', () => {
     await reconcileGroups(repo, () => {}, { prune: true });
 
     const after = (await repo.getContext(ctx.id))!;
-    expect(after).toBeTruthy();                 // 任务未删
-    expect(after.nativeGroupId).toBe(100900);   // 重连到新分组 id
+    expect(after).toBeTruthy(); // 任务未删
+    expect(after.nativeGroupId).toBe(100900); // 重连到新分组 id
   });
 
   it('prune:false:死 nativeGroupId 且无同名分组 → 任务原样保留(不删不解绑)', async () => {
@@ -125,7 +140,12 @@ describe('reconcileGroups 按标题重连', () => {
 
 describe('端到端:模拟重启后完整恢复', () => {
   it('任务、标签、★、锁定 全部恢复到原任务(冷启动非破坏 + 聚焦对账)', async () => {
-    const ctx: CommandContext = { repo, search: new SearchIndex(), undo: new UndoManager(), onChange: () => {} };
+    const ctx: CommandContext = {
+      repo,
+      search: new SearchIndex(),
+      undo: new UndoManager(),
+      onChange: () => {},
+    };
     // 建任务甲,放两个标签进去(MOVE_TAB 会建原生分组、打锁),再 star 一个;另留一个在未分类
     await handleCommand({ type: 'CREATE_CONTEXT', name: '任务甲' }, ctx);
     const cid = (await repo.getSnapshot()).contexts.find((c) => c.name === '任务甲')!.id;

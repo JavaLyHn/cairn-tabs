@@ -30,7 +30,7 @@ export function findDuplicateGroups(tabs: TabRecord[]): DuplicateGroup[] {
     if (arr.length < 2) continue;
     // keeper 选择:优先「已归类到任务」的副本(未分类的排后),再按最新打开(firstOpenedAt 最大)。
     // 这样合并保留已归类的那个、关掉未分类里的重复;否则新开的未分类副本会当选,合并后结果落到未分类(见 Bug 报告)。
-    const sorted = [...arr].sort((a, b) => {
+    const sorted = [...arr].toSorted((a, b) => {
       const la = a.contextId === INBOX_ID ? 1 : 0;
       const lb = b.contextId === INBOX_ID ? 1 : 0;
       if (la !== lb) return la - lb;

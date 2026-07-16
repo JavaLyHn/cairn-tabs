@@ -27,7 +27,9 @@ describe('TabRow', () => {
   });
 
   it('无 favicon → 字母字标兜底(域名首字母)', () => {
-    render(<TabRow tab={tab({ faviconUrl: undefined })} portMap={{}} onActivate={noop} onClose={noop} />);
+    render(
+      <TabRow tab={tab({ faviconUrl: undefined })} portMap={{}} onActivate={noop} onClose={noop} />,
+    );
     expect(screen.getByText('E')).toBeTruthy(); // example.com → E
   });
 
@@ -58,7 +60,13 @@ describe('TabRow', () => {
     const onToggleStar = vi.fn();
     const onActivate = vi.fn();
     render(
-      <TabRow tab={tab()} portMap={{}} onActivate={onActivate} onClose={noop} onToggleStar={onToggleStar} />,
+      <TabRow
+        tab={tab()}
+        portMap={{}}
+        onActivate={onActivate}
+        onClose={noop}
+        onToggleStar={onToggleStar}
+      />,
     );
     fireEvent.click(screen.getByTitle('标为重点'));
     expect(onToggleStar).toHaveBeenCalledTimes(1);
@@ -67,7 +75,13 @@ describe('TabRow', () => {
 
   it('已加星 → 标题为「取消重点」', () => {
     render(
-      <TabRow tab={tab({ starred: true })} portMap={{}} onActivate={noop} onClose={noop} onToggleStar={noop} />,
+      <TabRow
+        tab={tab({ starred: true })}
+        portMap={{}}
+        onActivate={noop}
+        onClose={noop}
+        onToggleStar={noop}
+      />,
     );
     expect(screen.getByTitle('取消重点')).toBeTruthy();
   });
@@ -79,11 +93,23 @@ describe('TabRow', () => {
 
   it('重点按钮名称随 starred 切换', () => {
     const { rerender } = render(
-      <TabRow tab={tab({ starred: false })} portMap={{}} onActivate={noop} onClose={noop} onToggleStar={noop} />,
+      <TabRow
+        tab={tab({ starred: false })}
+        portMap={{}}
+        onActivate={noop}
+        onClose={noop}
+        onToggleStar={noop}
+      />,
     );
     expect(screen.getByRole('button', { name: '标为重点' })).toBeTruthy();
     rerender(
-      <TabRow tab={tab({ starred: true })} portMap={{}} onActivate={noop} onClose={noop} onToggleStar={noop} />,
+      <TabRow
+        tab={tab({ starred: true })}
+        portMap={{}}
+        onActivate={noop}
+        onClose={noop}
+        onToggleStar={noop}
+      />,
     );
     expect(screen.getByRole('button', { name: '取消重点' })).toBeTruthy();
   });

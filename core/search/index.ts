@@ -54,8 +54,12 @@ export class SearchIndex {
       contextName: i.contextName,
       archived: i.archived,
     });
-    const open = hits.filter((i) => !i.archived).sort((a, b) => b.tab.lastActiveAt - a.tab.lastActiveAt);
-    const archived = hits.filter((i) => i.archived).sort((a, b) => b.tab.lastActiveAt - a.tab.lastActiveAt);
+    const open = hits
+      .filter((i) => !i.archived)
+      .toSorted((a, b) => b.tab.lastActiveAt - a.tab.lastActiveAt);
+    const archived = hits
+      .filter((i) => i.archived)
+      .toSorted((a, b) => b.tab.lastActiveAt - a.tab.lastActiveAt);
     return [...open, ...archived].map(toResult);
   }
 }

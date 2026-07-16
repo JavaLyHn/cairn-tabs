@@ -41,7 +41,15 @@ describe('AISection 保存反馈', () => {
   });
 
   it('保存失败 → 红色反馈', async () => {
-    render(<SettingsPanel {...props({ onSaveAi: async () => { throw new Error('boom'); } })} />);
+    render(
+      <SettingsPanel
+        {...props({
+          onSaveAi: async () => {
+            throw new Error('boom');
+          },
+        })}
+      />,
+    );
     fireEvent.click(screen.getByRole('button', { name: '保存并启用' }));
     const el = await screen.findByText('boom');
     expect(el.className).toContain('red');
@@ -62,7 +70,15 @@ describe('AISection 保存反馈', () => {
     ok.unmount();
 
     // 失败:不消失
-    render(<SettingsPanel {...props({ onSaveAi: async () => { throw new Error('bad'); } })} />);
+    render(
+      <SettingsPanel
+        {...props({
+          onSaveAi: async () => {
+            throw new Error('bad');
+          },
+        })}
+      />,
+    );
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: '保存并启用' }));
     });

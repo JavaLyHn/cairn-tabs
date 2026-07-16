@@ -25,7 +25,7 @@ export function buildPortMap(mappings: PortMapping[]): Record<number, string> {
 /** 该 URL 对应的项目名(已绑定的 localhost 端口),否则 null。 */
 export function projectFor(url: string, portMap: Record<number, string>): string | null {
   const p = localhostPort(url);
-  return p != null ? portMap[p] ?? null : null;
+  return p != null ? (portMap[p] ?? null) : null;
 }
 
 /** 从标签标题清洗出一个建议项目名(去掉 host:port 前缀、截断)。 */

@@ -23,7 +23,12 @@ beforeEach(async () => {
   repo = new Repository(db);
   await repo.ensureInbox(Date.now());
   ctx = { repo, search: new SearchIndex(), undo: new UndoManager(), onChange: () => {} };
-  registerTabListeners(repo, ctx.onChange, () => ({}), () => false); // 关自动聚簇,保证进未分类
+  registerTabListeners(
+    repo,
+    ctx.onChange,
+    () => ({}),
+    () => false,
+  ); // 关自动聚簇,保证进未分类
   registerGroupListeners(repo, ctx.onChange);
 });
 
@@ -129,7 +134,12 @@ describe('TEST_AI_CONNECTION (自定义中转站)', () => {
     const aiCtx: CommandContext = {
       ...ctx,
       ai: {
-        status: () => ({ provider: 'custom', hasKey: true, model: 'gpt-4o', baseUrl: 'https://x/v1' }),
+        status: () => ({
+          provider: 'custom',
+          hasKey: true,
+          model: 'gpt-4o',
+          baseUrl: 'https://x/v1',
+        }),
         configured: () => true,
         complete: async () => 'OK',
         set: async () => {},
@@ -145,7 +155,12 @@ describe('TEST_AI_CONNECTION (自定义中转站)', () => {
     const aiCtx: CommandContext = {
       ...ctx,
       ai: {
-        status: () => ({ provider: 'custom', hasKey: true, model: 'gpt-4o', baseUrl: 'https://x/v1' }),
+        status: () => ({
+          provider: 'custom',
+          hasKey: true,
+          model: 'gpt-4o',
+          baseUrl: 'https://x/v1',
+        }),
         configured: () => true,
         complete: async () => 'OK',
         set: async () => {},
@@ -353,9 +368,9 @@ describe('AI_ORGANIZE_INBOX prompt 隐私约束(F-13)', () => {
     await handleCommand({ type: 'AI_ORGANIZE_INBOX' }, aiCtx);
 
     // 5. 断言:prompt 中含 eTLD+1,不含路径段或 query 参数
-    expect(captured).toContain('react.dev');           // eTLD+1 域名必须出现
+    expect(captured).toContain('react.dev'); // eTLD+1 域名必须出现
     expect(captured).not.toContain('thinking-in-react'); // 路径不得出现
-    expect(captured).not.toContain('tab=1');             // query 不得出现
+    expect(captured).not.toContain('tab=1'); // query 不得出现
   });
 });
 

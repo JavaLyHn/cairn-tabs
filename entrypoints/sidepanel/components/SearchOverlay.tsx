@@ -29,7 +29,7 @@ export function SearchOverlay({ onClose, onActivate, onRestoreContext }: Props) 
     const nameOf = new Map(contexts.map((c) => [c.id, c.name]));
     const ranked = tabs
       .filter((t) => t.chromeTabId != null) // 仅打开中的;已归档靠搜索
-      .sort((a, b) => {
+      .toSorted((a, b) => {
         const s = (b.starred ? 1 : 0) - (a.starred ? 1 : 0);
         return s !== 0 ? s : b.lastActiveAt - a.lastActiveAt;
       });
@@ -138,7 +138,9 @@ export function SearchOverlay({ onClose, onActivate, onRestoreContext }: Props) 
                 <Favicon url={r.tab.url} title={r.tab.title} faviconUrl={r.tab.faviconUrl} />
                 {r.tab.starred && <span className="shrink-0 text-amber-500 text-[11px]">★</span>}
                 <span className="flex-1 truncate">{r.tab.title}</span>
-                <span className="font-mono text-[11px] opacity-40 shrink-0">{hostname(r.tab.url)}</span>
+                <span className="font-mono text-[11px] opacity-40 shrink-0">
+                  {hostname(r.tab.url)}
+                </span>
                 <span className="shrink-0 text-[10.5px] px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 opacity-70">
                   {r.contextName}
                   {r.archived ? ' · 归档' : ''}

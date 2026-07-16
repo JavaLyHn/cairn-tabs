@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { INBOX_ID, type Context, type TabRecord } from '@/shared/types';
+import { INBOX_ID, type Context } from '@/shared/types';
 import type { Event } from '@/shared/messaging';
 import { AIPlanDialog } from './components/AIPlanDialog';
-import type { AIPlan } from '@/shared/ai';
 import { formatReclaimed } from '@/shared/discard';
 import { exportAllJSON } from '@/shared/export';
 import { usePanelStore, dispatch } from './store';
@@ -28,7 +27,7 @@ import { downloadText } from './util';
 function activeOrderSig(contexts: Context[]): string {
   return contexts
     .filter((c) => c.status === 'active' && c.id !== INBOX_ID)
-    .sort((a, b) => b.lastActiveAt - a.lastActiveAt)
+    .toSorted((a, b) => b.lastActiveAt - a.lastActiveAt)
     .map((c) => c.id)
     .join(',');
 }
@@ -61,7 +60,7 @@ export default function App() {
     toggleSearch();
   }, [toggleSearch]);
 
-  const { editingId, setEditingId, draftId, createContext, commitName, cancelEdit } = useDraftNaming();
+  const { editingId, setEditingId, createContext, commitName, cancelEdit } = useDraftNaming();
 
   // 本次会话内被忽略的端口建议
   const [ignoredPorts, setIgnoredPorts] = useState<Set<number>>(new Set());
@@ -73,8 +72,17 @@ export default function App() {
   const [exportTarget, setExportTarget] = useState<{ id: string; at: number } | null>(null);
   const { flash, showFlash } = useFlash();
 
-  const { aiBusy, aiPlan, setAiPlan, aiOrganize, aiOrganizeAll, applyAiPlan, aiSuggestName, saveAi, testAi } =
-    useAiActions({ showFlash, setUndo });
+  const {
+    aiBusy,
+    aiPlan,
+    setAiPlan,
+    aiOrganize,
+    aiOrganizeAll,
+    applyAiPlan,
+    aiSuggestName,
+    saveAi,
+    testAi,
+  } = useAiActions({ showFlash, setUndo });
 
   // 订阅 SW 广播 + 首屏拉取 + ⌘⇧K 挂载态
   useEffect(() => {
@@ -87,13 +95,23 @@ export default function App() {
         const apply = () =>
           applySnapshot(ev.contexts, ev.tabs, ev.portMappings, ev.flags, ev.discardedBytes, ev.ai);
         // 仅当任务顺序变化时播放视图过渡(任务被激活会上移到顶部),让重排平滑
-        const startVT = (document as Document & {
-          startViewTransition?: (cb: () => void) => { ready?: Promise<unknown>; finished?: Promise<unknown> };
-        }).startViewTransition;
+        const startVT = (
+          document as Document & {
+            startViewTransition?: (cb: () => void) => {
+              ready?: Promise<unknown>;
+              finished?: Promise<unknown>;
+            };
+          }
+        ).startViewTransition;
         // 仅在面板可见时播过渡:隐藏时启动会被中止,其 ready/finished 以
         // InvalidStateError(Transition was aborted…)拒绝;连续快照打断上一次过渡亦然。
         // 无论如何 DOM 都会更新(updateCallback 照常跑),这里只吞掉那些拒绝,避免 Uncaught (in promise)。
-        if (orderChanged && startVT && !prefersReducedMotion() && document.visibilityState === 'visible') {
+        if (
+          orderChanged &&
+          startVT &&
+          !prefersReducedMotion() &&
+          document.visibilityState === 'visible'
+        ) {
           const vt = startVT.call(document, () => flushSync(apply));
           vt?.ready?.catch(() => {});
           vt?.finished?.catch(() => {});
@@ -149,9 +167,20 @@ export default function App() {
   const now = Math.floor(Date.now() / 60_000) * 60_000;
 
   const {
-    tabsById, staleRecords, staleIds, tabsOf, inbox, activeContexts, archivedContexts,
-    starredTabs, openTabCount, archivedTabCount, isEmpty, dupMarks, redundant,
-    portMap, portSuggestions, domainSuggestions,
+    staleRecords,
+    tabsOf,
+    inbox,
+    activeContexts,
+    archivedContexts,
+    starredTabs,
+    openTabCount,
+    archivedTabCount,
+    isEmpty,
+    dupMarks,
+    redundant,
+    portMap,
+    portSuggestions,
+    domainSuggestions,
   } = useDerived({ contexts, tabs, flags, portMappings, now, ignoredPorts, ignoredDomains });
 
   // ---- 命令 ----
@@ -369,7 +398,12 @@ export default function App() {
         ))}
 
         {!isEmpty && inbox && (
-          <ContextGroup key={inbox.id} variant="inbox" collapseAll={allCollapsed} {...groupProps(inbox)} />
+          <ContextGroup
+            key={inbox.id}
+            variant="inbox"
+            collapseAll={allCollapsed}
+            {...groupProps(inbox)}
+          />
         )}
 
         {staleRecords.length > 0 && (
@@ -407,12 +441,7 @@ export default function App() {
       </footer>
 
       {undo && (
-        <UndoToast
-          label="已归档"
-          ttlMs={undo.ttlMs}
-          onUndo={doUndo}
-          onDismiss={clearUndo}
-        />
+        <UndoToast label="已归档" ttlMs={undo.ttlMs} onUndo={doUndo} onDismiss={clearUndo} />
       )}
 
       {flash && (

@@ -1,5 +1,11 @@
 import { create } from 'zustand';
-import { DEFAULT_FLAGS, type Context, type TabRecord, type PortMapping, type Flags } from '@/shared/types';
+import {
+  DEFAULT_FLAGS,
+  type Context,
+  type TabRecord,
+  type PortMapping,
+  type Flags,
+} from '@/shared/types';
 import type { Command, Event } from '@/shared/messaging';
 import type { AIStatus } from '@/shared/ai';
 

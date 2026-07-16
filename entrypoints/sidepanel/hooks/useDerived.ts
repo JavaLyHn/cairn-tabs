@@ -1,5 +1,11 @@
 import { useMemo } from 'react';
-import { INBOX_ID, type Context, type TabRecord, type Flags, type PortMapping } from '@/shared/types';
+import {
+  INBOX_ID,
+  type Context,
+  type TabRecord,
+  type Flags,
+  type PortMapping,
+} from '@/shared/types';
 import { duplicateMarks, redundantCount } from '@/shared/dedup';
 import { buildPortMap, localhostPort, suggestProjectName } from '@/shared/localhost';
 import { sameDomainSuggestions } from '@/core/clustering/engine';
@@ -49,22 +55,21 @@ export function useDerived(args: {
   const tabsOf = (ctx: Context): TabRecord[] =>
     ctx.tabOrder
       .map((id) => tabsById.get(id))
-      .filter((t): t is TabRecord => t != null && (ctx.status === 'archived' || !staleIds.has(t.id)))
+      .filter(
+        (t): t is TabRecord => t != null && (ctx.status === 'archived' || !staleIds.has(t.id)),
+      )
       // 重点标签浮到组顶(稳定排序,保留组内原有相对顺序)
       .sort((a, b) => (a.starred ? 0 : 1) - (b.starred ? 0 : 1));
 
   const inbox = contexts.find((c) => c.id === INBOX_ID);
   const activeContexts = contexts
     .filter((c) => c.status === 'active' && c.id !== INBOX_ID)
-    .sort((a, b) => b.lastActiveAt - a.lastActiveAt);
+    .toSorted((a, b) => b.lastActiveAt - a.lastActiveAt);
   const archivedContexts = contexts
     .filter((c) => c.status === 'archived')
-    .sort((a, b) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0));
+    .toSorted((a, b) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0));
 
-  const starredTabs = useMemo(
-    () => tabs.filter((t) => t.starred && t.chromeTabId != null),
-    [tabs],
-  );
+  const starredTabs = useMemo(() => tabs.filter((t) => t.starred && t.chromeTabId != null), [tabs]);
 
   const openTabCount = tabs.filter((t) => t.chromeTabId != null).length;
   const archivedTabCount = archivedContexts.reduce((n, c) => n + c.tabOrder.length, 0);

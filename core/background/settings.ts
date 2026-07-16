@@ -82,7 +82,7 @@ export class PortMappingStore {
   async set(port: number, project: string): Promise<void> {
     const name = project.trim();
     if (!name) return;
-    this.data = [...this.data.filter((m) => m.port !== port), { port, project: name }].sort(
+    this.data = [...this.data.filter((m) => m.port !== port), { port, project: name }].toSorted(
       (a, b) => a.port - b.port,
     );
     await this.save();

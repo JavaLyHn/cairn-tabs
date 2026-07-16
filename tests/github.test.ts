@@ -31,7 +31,10 @@ describe('parseGitHub', () => {
   });
 
   it('www.github.com 也识别', () => {
-    expect(parseGitHub('https://www.github.com/a/b/pull/1')).toMatchObject({ owner: 'a', repo: 'b' });
+    expect(parseGitHub('https://www.github.com/a/b/pull/1')).toMatchObject({
+      owner: 'a',
+      repo: 'b',
+    });
   });
 
   it('非 PR/Issue 的 GitHub 页返回 null', () => {
@@ -71,7 +74,10 @@ describe('cleanGitHubTitle', () => {
   it('剥掉 Issue 标题尾部', () => {
     const ref = parseGitHub('https://github.com/myorg/auth-service/issues/212')!;
     expect(
-      cleanGitHubTitle('JWT expiry ignored behind reverse proxy · Issue #212 · myorg/auth-service', ref),
+      cleanGitHubTitle(
+        'JWT expiry ignored behind reverse proxy · Issue #212 · myorg/auth-service',
+        ref,
+      ),
     ).toBe('JWT expiry ignored behind reverse proxy');
   });
 

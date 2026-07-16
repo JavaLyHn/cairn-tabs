@@ -1,19 +1,32 @@
 import { describe, it, expect } from 'vitest';
-import { parseBitbucket, bitbucketRepoSlug, bitbucketBadgeLabel, cleanBitbucketTitle } from '@/shared/bitbucket';
+import {
+  parseBitbucket,
+  bitbucketRepoSlug,
+  bitbucketBadgeLabel,
+  cleanBitbucketTitle,
+} from '@/shared/bitbucket';
 
 describe('parseBitbucket', () => {
   it('解析 PR', () => {
     expect(parseBitbucket('https://bitbucket.org/acme/app/pull-requests/42')).toEqual({
-      kind: 'pr', workspace: 'acme', repo: 'app', number: 42,
+      kind: 'pr',
+      workspace: 'acme',
+      repo: 'app',
+      number: 42,
     });
   });
   it('解析 Issue', () => {
     expect(parseBitbucket('https://bitbucket.org/acme/app/issues/7')).toEqual({
-      kind: 'issue', workspace: 'acme', repo: 'app', number: 7,
+      kind: 'issue',
+      workspace: 'acme',
+      repo: 'app',
+      number: 7,
     });
   });
   it('容忍子路径 / query / hash', () => {
-    expect(parseBitbucket('https://bitbucket.org/acme/app/pull-requests/42/diff?x=1#c')?.number).toBe(42);
+    expect(
+      parseBitbucket('https://bitbucket.org/acme/app/pull-requests/42/diff?x=1#c')?.number,
+    ).toBe(42);
     expect(parseBitbucket('https://bitbucket.org/acme/app/issues/7/some-slug')?.kind).toBe('issue');
   });
   it('www.bitbucket.org 也识别', () => {
@@ -40,10 +53,15 @@ describe('bitbucketRepoSlug / bitbucketBadgeLabel', () => {
 });
 
 describe('cleanBitbucketTitle', () => {
-  const pr = parseBitbucket('https://bitbucket.org/antalphadev/ai-skills-library/pull-requests/1022')!;
+  const pr = parseBitbucket(
+    'https://bitbucket.org/antalphadev/ai-skills-library/pull-requests/1022',
+  )!;
   it('剥掉「— repo — Bitbucket」尾', () => {
-    const raw = 'fix(hermes): set default so requests stop truncating — ai-skills-library — Bitbucket';
-    expect(cleanBitbucketTitle(raw, pr)).toBe('fix(hermes): set default so requests stop truncating');
+    const raw =
+      'fix(hermes): set default so requests stop truncating — ai-skills-library — Bitbucket';
+    expect(cleanBitbucketTitle(raw, pr)).toBe(
+      'fix(hermes): set default so requests stop truncating',
+    );
   });
   it('尾部不匹配 → 原样返回', () => {
     expect(cleanBitbucketTitle('普通标题没有尾', pr)).toBe('普通标题没有尾');

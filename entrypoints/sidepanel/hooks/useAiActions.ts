@@ -4,7 +4,10 @@ import type { AIPlan, AIProviderId } from '@/shared/ai';
 import type { TabRecord } from '@/shared/types';
 import { permissionOriginFor } from '@/core/ai/provider';
 
-export function useAiActions(deps: { showFlash: (msg: string) => void; setUndo: (u: { action: string; token: string; ttlMs: number }) => void }): {
+export function useAiActions(deps: {
+  showFlash: (msg: string) => void;
+  setUndo: (u: { action: string; token: string; ttlMs: number }) => void;
+}): {
   aiBusy: boolean;
   aiPlan: { plan: AIPlan; tabs: TabRecord[]; scope: 'inbox' | 'all' } | null;
   setAiPlan: (v: { plan: AIPlan; tabs: TabRecord[]; scope: 'inbox' | 'all' } | null) => void;
@@ -12,10 +15,19 @@ export function useAiActions(deps: { showFlash: (msg: string) => void; setUndo: 
   aiOrganizeAll: () => Promise<void>;
   applyAiPlan: (plan: AIPlan, opts?: { global?: boolean }) => void;
   aiSuggestName: (contextId: string) => Promise<string | null>;
-  saveAi: (provider: AIProviderId, key: string | undefined, model: string, baseUrl?: string) => Promise<void>;
+  saveAi: (
+    provider: AIProviderId,
+    key: string | undefined,
+    model: string,
+    baseUrl?: string,
+  ) => Promise<void>;
   testAi: () => Promise<{ ok: boolean; detail: string }>;
 } {
-  const [aiPlan, setAiPlan] = useState<{ plan: AIPlan; tabs: TabRecord[]; scope: 'inbox' | 'all' } | null>(null);
+  const [aiPlan, setAiPlan] = useState<{
+    plan: AIPlan;
+    tabs: TabRecord[];
+    scope: 'inbox' | 'all';
+  } | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
 
   const aiOrganize = async () => {
@@ -107,5 +119,15 @@ export function useAiActions(deps: { showFlash: (msg: string) => void; setUndo: 
     return { ok: false, detail: '测试失败' };
   };
 
-  return { aiBusy, aiPlan, setAiPlan, aiOrganize, aiOrganizeAll, applyAiPlan, aiSuggestName, saveAi, testAi };
+  return {
+    aiBusy,
+    aiPlan,
+    setAiPlan,
+    aiOrganize,
+    aiOrganizeAll,
+    applyAiPlan,
+    aiSuggestName,
+    saveAi,
+    testAi,
+  };
 }

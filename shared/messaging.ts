@@ -34,7 +34,13 @@ export type Command =
   | { type: 'AI_ORGANIZE_INBOX' }
   | { type: 'AI_ORGANIZE_ALL' }
   | { type: 'APPLY_AI_PLAN'; plan: AIPlan; global?: boolean }
-  | { type: 'SET_AI_SETTINGS'; provider: AIProviderId; key?: string; model?: string; baseUrl?: string }
+  | {
+      type: 'SET_AI_SETTINGS';
+      provider: AIProviderId;
+      key?: string;
+      model?: string;
+      baseUrl?: string;
+    }
   | { type: 'TEST_AI_CONNECTION' }
   | { type: 'CANCEL_AI' };
 
@@ -104,7 +110,6 @@ export function sendCommand(cmd: Command): Promise<void> {
 /** UI → SW:发送搜索命令并直接取回结果(请求/响应式) */
 export async function sendSearch(query: string): Promise<SearchResult[]> {
   const res = (await chrome.runtime.sendMessage({ type: 'SEARCH', query } satisfies Command)) as
-    | { type: 'SEARCH_RESULTS'; results: SearchResult[] }
-    | undefined;
+    { type: 'SEARCH_RESULTS'; results: SearchResult[] } | undefined;
   return res?.results ?? [];
 }

@@ -27,10 +27,13 @@ export function summarizeTaskTabs(tabs: { title: string; domain: string }[]): Ta
     if (d) freq.set(d, (freq.get(d) ?? 0) + 1);
   }
   const domains = [...freq.entries()]
-    .sort((a, b) => b[1] - a[1])
+    .toSorted((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([d]) => d);
-  const samples = tabs.map((t) => t.title.trim()).filter((s) => s !== '').slice(0, 3);
+  const samples = tabs
+    .map((t) => t.title.trim())
+    .filter((s) => s !== '')
+    .slice(0, 3);
   return { domains, samples };
 }
 
@@ -59,7 +62,12 @@ export function buildOrganizePrompt(
   ].join('\n');
   const user = JSON.stringify({
     looseTabs: tabs.map((t) => ({ id: t.id, title: t.title, domain: t.domain })),
-    existingTasks: tasks.map((t) => ({ id: t.id, name: t.name, domains: t.domains, samples: t.samples })),
+    existingTasks: tasks.map((t) => ({
+      id: t.id,
+      name: t.name,
+      domains: t.domains,
+      samples: t.samples,
+    })),
   });
   return { system, user };
 }
@@ -89,7 +97,10 @@ export function buildNamePrompt(tabs: { title: string; domain: string }[]): {
 /** 解析 AI 改名响应:去围栏/首尾引号、取首行、截断;空则 null。 */
 export function parseNameResponse(raw: string): string | null {
   const first = stripFences(raw).split('\n')[0] ?? '';
-  const name = first.trim().replace(/^["'「『《]+|["'」』》]+$/g, '').trim();
+  const name = first
+    .trim()
+    .replace(/^["'「『《]+|["'」』》]+$/g, '')
+    .trim();
   return name ? name.slice(0, 40) : null;
 }
 

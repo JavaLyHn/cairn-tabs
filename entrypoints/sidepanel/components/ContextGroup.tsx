@@ -108,7 +108,10 @@ export function ContextGroup({
         {!isInbox && (
           <div
             className="w-0.5 self-stretch rounded"
-            style={{ backgroundColor: colorHex(context.color), opacity: variant === 'archived' ? 0.4 : 1 }}
+            style={{
+              backgroundColor: colorHex(context.color),
+              opacity: variant === 'archived' ? 0.4 : 1,
+            }}
           />
         )}
 
@@ -178,7 +181,9 @@ export function ContextGroup({
             )}
           </div>
         ) : (
-          <span className={`flex-1 truncate font-medium ${variant === 'archived' ? 'opacity-60' : ''}`}>
+          <span
+            className={`flex-1 truncate font-medium ${variant === 'archived' ? 'opacity-60' : ''}`}
+          >
             {context.name}
           </span>
         )}

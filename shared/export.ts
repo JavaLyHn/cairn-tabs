@@ -35,9 +35,5 @@ export function contextToJSON(ctx: Context, orderedTabs: TabRecord[], exportedAt
 
 /** 全量 JSON 备份(可作数据迁移;日后支持再导入)。 */
 export function exportAllJSON(contexts: Context[], tabs: TabRecord[], exportedAt: number): string {
-  return JSON.stringify(
-    { app: 'cairn-tabs', version: 1, exportedAt, contexts, tabs },
-    null,
-    2,
-  );
+  return JSON.stringify({ app: 'cairn-tabs', version: 1, exportedAt, contexts, tabs }, null, 2);
 }

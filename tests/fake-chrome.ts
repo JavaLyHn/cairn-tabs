@@ -92,14 +92,18 @@ export class FakeChrome {
     tab.groupId = NONE;
     await this.onUpdated.emit(tabId, { groupId: NONE }, { ...tab });
     // 真实 Chrome:拖出后原分组若已空 → 分组被移除并派发 tabGroups.onRemoved
-    if (old >= 0 && ![...this.tabsById.values()].some((t) => t.groupId === old) && this.groupsById.has(old)) {
+    if (
+      old >= 0 &&
+      ![...this.tabsById.values()].some((t) => t.groupId === old) &&
+      this.groupsById.has(old)
+    ) {
       const g = this.groupsById.get(old)!;
       this.groupsById.delete(old);
       await this.groupOnRemoved.emit({ ...g });
     }
   }
 
-  private removeFromGroupIfEmpty(groupId: number, windowId: number) {
+  private removeFromGroupIfEmpty(groupId: number, _windowId: number) {
     if (groupId < 0) return;
     const stillInGroup = [...this.tabsById.values()].some((t) => t.groupId === groupId);
     if (!stillInGroup && this.groupsById.has(groupId)) {
@@ -111,9 +115,25 @@ export class FakeChrome {
 
   // ---- chrome.tabs API ----
   tabs = {
-    create: async ({ url, active = false, windowId = 1 }: { url: string; active?: boolean; windowId?: number }) => {
+    create: async ({
+      url,
+      active = false,
+      windowId = 1,
+    }: {
+      url: string;
+      active?: boolean;
+      windowId?: number;
+    }) => {
       const id = this.nextTabId++;
-      const tab: FakeTab = { id, url, title: url, windowId, groupId: NONE, active, discarded: false };
+      const tab: FakeTab = {
+        id,
+        url,
+        title: url,
+        windowId,
+        groupId: NONE,
+        active,
+        discarded: false,
+      };
       this.tabsById.set(id, tab);
       await this.onCreated.emit({ ...tab });
       return { ...tab };
@@ -179,7 +199,8 @@ export class FakeChrome {
       tab.discarded = true; // 现代 Chrome:保留 id
       return { ...tab };
     },
-    query: async (_qi: Record<string, unknown> = {}) => [...this.tabsById.values()].map((t) => ({ ...t })),
+    query: async (_qi: Record<string, unknown> = {}) =>
+      [...this.tabsById.values()].map((t) => ({ ...t })),
     get: async (tabId: number) => {
       const tab = this.tabsById.get(tabId);
       if (!tab) throw new Error(`No tab with id ${tabId}`);
@@ -201,7 +222,8 @@ export class FakeChrome {
       if (!g) throw new Error(`No group ${groupId}`);
       return { ...g };
     },
-    query: async (_qi: Record<string, unknown> = {}) => [...this.groupsById.values()].map((g) => ({ ...g })),
+    query: async (_qi: Record<string, unknown> = {}) =>
+      [...this.groupsById.values()].map((g) => ({ ...g })),
     update: async (groupId: number, props: { title?: string; color?: string }) => {
       const g = this.groupsById.get(groupId);
       if (!g) return undefined;

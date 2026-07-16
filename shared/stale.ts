@@ -21,5 +21,5 @@ export function isStale(tab: TabRecord, now: number, staleDays: number): boolean
 export function staleTabs(tabs: TabRecord[], now: number, staleDays: number): TabRecord[] {
   return tabs
     .filter((t) => isStale(t, now, staleDays))
-    .sort((a, b) => a.lastActiveAt - b.lastActiveAt);
+    .toSorted((a, b) => a.lastActiveAt - b.lastActiveAt);
 }

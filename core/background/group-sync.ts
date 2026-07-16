@@ -110,7 +110,11 @@ export async function groupTabsForContext(
 }
 
 /** 重命名 Context 时同步原生分组标题。 */
-export async function syncGroupTitle(repo: Repository, contextId: string, name: string): Promise<void> {
+export async function syncGroupTitle(
+  repo: Repository,
+  contextId: string,
+  name: string,
+): Promise<void> {
   const ctx = await repo.getContext(contextId);
   if (ctx?.nativeGroupId == null) return;
   const groupId = ctx.nativeGroupId;
@@ -140,7 +144,8 @@ export async function handleTabGroupChange(
   if (groupId === NONE) {
     targetContextId = INBOX_ID;
   } else {
-    const ctx = (await repo.findContextByNativeGroupId(groupId)) ?? (await adoptGroup(repo, groupId, now));
+    const ctx =
+      (await repo.findContextByNativeGroupId(groupId)) ?? (await adoptGroup(repo, groupId, now));
     targetContextId = ctx.id;
   }
 
@@ -200,7 +205,8 @@ export async function reconcileGroups(
   // 已被现存 context 正确引用的分组先占位,避免重连时重复占用
   const claimedGroups = new Set<number>();
   for (const c of contexts) {
-    if (c.nativeGroupId != null && liveGroupIds.has(c.nativeGroupId)) claimedGroups.add(c.nativeGroupId);
+    if (c.nativeGroupId != null && liveGroupIds.has(c.nativeGroupId))
+      claimedGroups.add(c.nativeGroupId);
   }
   // 标题 → 实时分组 id 列表(用于按标题重连)
   const liveByTitle = new Map<string, number[]>();
@@ -243,7 +249,8 @@ export async function reconcileGroups(
     if (gid === NONE || gid == null) {
       target = INBOX_ID;
     } else {
-      const ctx = (await repo.findContextByNativeGroupId(gid)) ?? (await adoptGroup(repo, gid, now));
+      const ctx =
+        (await repo.findContextByNativeGroupId(gid)) ?? (await adoptGroup(repo, gid, now));
       target = ctx.id;
     }
     if (record.contextId !== target) await repo.moveTab(record.id, target, now);

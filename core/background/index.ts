@@ -192,7 +192,10 @@ const cmdCtx: CommandContext = {
  * 第一个 await 处就调用它(用命令回调给的 windowId,不要先 await getLastFocused)。
  * pendingSearch 用「不 await」方式先发起,既不消耗手势,又能赶在面板加载前写入。
  */
-async function openSidePanel(windowId: number | undefined, opts?: { search?: boolean }): Promise<void> {
+async function openSidePanel(
+  windowId: number | undefined,
+  opts?: { search?: boolean },
+): Promise<void> {
   if (opts?.search) void chrome.storage.session.set({ pendingSearch: true });
   try {
     if (windowId != null) {

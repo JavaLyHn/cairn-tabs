@@ -14,7 +14,15 @@ interface Props {
 }
 
 // Fix 1: module-scope component so it's a stable type across renders
-function TabItem({ tab, source, onRemove }: { tab: TabRecord; source?: string; onRemove: () => void }) {
+function TabItem({
+  tab,
+  source,
+  onRemove,
+}: {
+  tab: TabRecord;
+  source?: string;
+  onRemove: () => void;
+}) {
   return (
     <div className="group/r flex items-center gap-2 px-2 py-1 rounded hover:bg-black/5 dark:hover:bg-white/5">
       <Favicon url={tab.url} title={tab.title} faviconUrl={tab.faviconUrl} />
@@ -59,9 +67,13 @@ export function AIPlanDialog({ plan, tabs, taskNames, sourceNames, onApply, onCl
   const renameGroup = (i: number, name: string) =>
     setGroups((gs) => gs.map((g, j) => (j === i ? { ...g, name } : g)));
   const dropFromGroup = (i: number, tabId: string) =>
-    setGroups((gs) => gs.map((g, j) => (j === i ? { ...g, tabIds: g.tabIds.filter((t) => t !== tabId) } : g)));
+    setGroups((gs) =>
+      gs.map((g, j) => (j === i ? { ...g, tabIds: g.tabIds.filter((t) => t !== tabId) } : g)),
+    );
   const dropFromAssign = (i: number, tabId: string) =>
-    setAssign((as) => as.map((a, j) => (j === i ? { ...a, tabIds: a.tabIds.filter((t) => t !== tabId) } : a)));
+    setAssign((as) =>
+      as.map((a, j) => (j === i ? { ...a, tabIds: a.tabIds.filter((t) => t !== tabId) } : a)),
+    );
 
   // Fix 2: whole-group / whole-assign cancel
   const removeGroup = (i: number) => setGroups((gs) => gs.filter((_, j) => j !== i));
@@ -72,9 +84,7 @@ export function AIPlanDialog({ plan, tabs, taskNames, sourceNames, onApply, onCl
     newGroups: groups
       .filter((g) => g.name.trim() && g.tabIds.length)
       .map(({ name, tabIds }) => ({ name, tabIds })),
-    assign: assign
-      .filter((a) => a.tabIds.length)
-      .map(({ taskId, tabIds }) => ({ taskId, tabIds })),
+    assign: assign.filter((a) => a.tabIds.length).map(({ taskId, tabIds }) => ({ taskId, tabIds })),
   };
   const empty = finalPlan.newGroups.length === 0 && finalPlan.assign.length === 0;
 
@@ -100,7 +110,10 @@ export function AIPlanDialog({ plan, tabs, taskNames, sourceNames, onApply, onCl
               <div className="text-[11px] uppercase tracking-wide opacity-40 mb-1">新建任务</div>
               {/* Fix 3: use _id as key */}
               {groups.map((g, i) => (
-                <div key={g._id} className="mb-2 rounded-lg border border-black/10 dark:border-white/10 p-1.5">
+                <div
+                  key={g._id}
+                  className="mb-2 rounded-lg border border-black/10 dark:border-white/10 p-1.5"
+                >
                   {/* Fix 2: header row with editable name + 取消这组 button */}
                   <div className="flex items-center gap-1 mb-1">
                     <input
@@ -121,7 +134,14 @@ export function AIPlanDialog({ plan, tabs, taskNames, sourceNames, onApply, onCl
                   {g.tabIds.map((id) => {
                     const t = byId.get(id);
                     if (!t) return null;
-                    return <TabItem key={id} tab={t} source={sourceNames?.[id]} onRemove={() => dropFromGroup(i, id)} />;
+                    return (
+                      <TabItem
+                        key={id}
+                        tab={t}
+                        source={sourceNames?.[id]}
+                        onRemove={() => dropFromGroup(i, id)}
+                      />
+                    );
                   })}
                 </div>
               ))}
@@ -130,10 +150,15 @@ export function AIPlanDialog({ plan, tabs, taskNames, sourceNames, onApply, onCl
 
           {assign.length > 0 && (
             <div>
-              <div className="text-[11px] uppercase tracking-wide opacity-40 mb-1">并入已有任务</div>
+              <div className="text-[11px] uppercase tracking-wide opacity-40 mb-1">
+                并入已有任务
+              </div>
               {/* Fix 3: use taskId as key */}
               {assign.map((a, i) => (
-                <div key={a.taskId} className="mb-2 rounded-lg border border-black/10 dark:border-white/10 p-1.5">
+                <div
+                  key={a.taskId}
+                  className="mb-2 rounded-lg border border-black/10 dark:border-white/10 p-1.5"
+                >
                   {/* Fix 2: header row with task name + 取消 button */}
                   <div className="flex items-center gap-1 mb-1">
                     <div className="flex-1 text-[13px] font-medium px-1 py-0.5 opacity-80">
@@ -151,7 +176,14 @@ export function AIPlanDialog({ plan, tabs, taskNames, sourceNames, onApply, onCl
                   {a.tabIds.map((id) => {
                     const t = byId.get(id);
                     if (!t) return null;
-                    return <TabItem key={id} tab={t} source={sourceNames?.[id]} onRemove={() => dropFromAssign(i, id)} />;
+                    return (
+                      <TabItem
+                        key={id}
+                        tab={t}
+                        source={sourceNames?.[id]}
+                        onRemove={() => dropFromAssign(i, id)}
+                      />
+                    );
                   })}
                 </div>
               ))}
@@ -160,7 +192,10 @@ export function AIPlanDialog({ plan, tabs, taskNames, sourceNames, onApply, onCl
         </div>
 
         <div className="flex items-center justify-end gap-2 px-3 py-2 border-t border-black/10 dark:border-white/10">
-          <button onClick={onClose} className="px-2.5 py-1 rounded-md text-[12px] opacity-60 hover:opacity-100">
+          <button
+            onClick={onClose}
+            className="px-2.5 py-1 rounded-md text-[12px] opacity-60 hover:opacity-100"
+          >
             取消
           </button>
           <button
