@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { UndoManager } from '@/core/background/undo';
 
 describe('UndoManager', () => {
@@ -25,5 +25,29 @@ describe('UndoManager', () => {
     u.consume(token);
     expect(u.consume(token)).toBeUndefined();
     expect(u.consume('nope')).toBeUndefined();
+  });
+
+  it('TTL 到期后自动作废(archive):consume 返回 undefined', () => {
+    vi.useFakeTimers();
+    try {
+      const u = new UndoManager();
+      const { token } = u.register('archive', 'x', 5000);
+      vi.advanceTimersByTime(5001);
+      expect(u.consume(token)).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('TTL 到期后自动作废(reorg)', () => {
+    vi.useFakeTimers();
+    try {
+      const u = new UndoManager();
+      const { token } = u.registerReorg({ moves: [], recreate: [], deleteContextIds: [] }, 3000);
+      vi.advanceTimersByTime(3001);
+      expect(u.consume(token)).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

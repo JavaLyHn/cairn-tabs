@@ -251,6 +251,32 @@ describe('APPLY_AI_PLAN {global:true}', () => {
     expect(after.contexts.find((c) => c.name === '别处')).toBeUndefined();
   });
 
+  it('同一标签同时在 newGroups 与 assign:落到 assign 目标,撤销准确移回原组', async () => {
+    // 边界:AI 若把同一标签既放新组又并入已有任务,assign 在 newGroups 之后 → 最终在 assign 目标;
+    // before 用 Set 去重,只记一次原组,撤销移回原组(不因重复出现而错乱)。
+    await handleCommand({ type: 'CREATE_CONTEXT', name: 'B' }, ctx);
+    const B = (await repo.getSnapshot()).contexts.find((c) => c.name === 'B')!;
+    await fake.userOpenTab('https://a.com', { title: 'A' });
+    const [tid] = (await repo.getContext(INBOX_ID))!.tabOrder; // 原组 = 未分类
+
+    const ev = await handleCommand(
+      {
+        type: 'APPLY_AI_PLAN',
+        global: true,
+        plan: {
+          newGroups: [{ name: 'NG', tabIds: [tid!] }],
+          assign: [{ taskId: B.id, tabIds: [tid!] }],
+        },
+      },
+      ctx,
+    );
+    expect((await repo.getTab(tid!))!.contextId).toBe(B.id); // assign 后置 → 落 B
+
+    const token = (ev as { token: string }).token;
+    await handleCommand({ type: 'UNDO', token }, ctx);
+    expect((await repo.getTab(tid!))!.contextId).toBe(INBOX_ID); // 移回原组(未分类)
+  });
+
   it('非 global 保持原行为:不返回 UNDOABLE、移动打锁', async () => {
     await fake.userOpenTab('https://a.com', { title: 'A' });
     const [tid] = (await repo.getContext(INBOX_ID))!.tabOrder;

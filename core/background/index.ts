@@ -10,7 +10,7 @@ import { PenaltyStore } from './penalties';
 import { PortMappingStore, FlagsStore, MemoryStore, AISettingsStore } from './settings';
 import { PROVIDERS } from '../ai/provider';
 import { runDiscardScan } from './discard-scan';
-import { archiveUnrestoredContexts } from './session-recovery';
+import { runRecoverySequence, shouldPurgeNow } from './session-recovery';
 import { isSyncPaused } from './sync-lock';
 import { COMMAND_TYPES, type Command } from '@/shared/messaging';
 import { friendlyAIError } from '@/shared/ai';
@@ -88,9 +88,9 @@ async function reconcileNow(force = false): Promise<void> {
   lastReconcileAt = now;
   // 冷启动宽限期内:只重绑/重连、不清删(防止抢在会话恢复判定前把未恢复任务清掉)
   const { graceUntil } = await chrome.storage.session.get('graceUntil');
-  const inGrace = typeof graceUntil === 'number' && Date.now() < graceUntil;
-  await reconcile(repository, scheduleBroadcast, { purge: !inGrace });
-  await reconcileGroups(repository, scheduleBroadcast, { prune: !inGrace });
+  const purge = shouldPurgeNow(graceUntil, Date.now());
+  await reconcile(repository, scheduleBroadcast, { purge });
+  await reconcileGroups(repository, scheduleBroadcast, { prune: purge });
 }
 
 /** 宽限结束(RECOVERY_ALARM):接住迟到的恢复 → 归档没恢复的命名任务 → 常规清理。 */
@@ -98,12 +98,7 @@ async function runSessionRecovery(): Promise<void> {
   sessionRecovering = true;
   try {
     await chrome.storage.session.remove('graceUntil'); // 先清标志:此后对账恢复清删
-    await reconcile(repository, scheduleBroadcast, { purge: false });
-    await reconcileGroups(repository, scheduleBroadcast, { prune: false });
-    await archiveUnrestoredContexts(repository, Date.now());
-    await reconcile(repository, scheduleBroadcast, { purge: true });
-    await reconcileGroups(repository, scheduleBroadcast, { prune: true });
-    scheduleBroadcast();
+    await runRecoverySequence(repository, scheduleBroadcast, Date.now());
   } finally {
     sessionRecovering = false;
   }

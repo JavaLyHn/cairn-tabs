@@ -2,6 +2,8 @@
 
 import type { Repository } from '../store/repositories';
 import { INBOX_ID } from '@/shared/types';
+import { reconcile } from './tab-sync';
+import { reconcileGroups } from './group-sync';
 
 /**
  * 归档「Chrome 没恢复回来」的活跃命名任务(标签与原生分组都没回来 = 真丢了)。
@@ -27,4 +29,45 @@ export async function archiveUnrestoredContexts(repo: Repository, now: number): 
     }
   }
   return archived;
+}
+
+/** 宽限判定:graceUntil 为数字且未过 → 处于宽限期,应「不清删」(返回 false)。 */
+export function shouldPurgeNow(graceUntil: unknown, now: number): boolean {
+  return !(typeof graceUntil === 'number' && now < graceUntil);
+}
+
+/** runRecoverySequence 的可注入依赖(测试用假实现,断言调用顺序)。 */
+export interface RecoveryDeps {
+  reconcile: (repo: Repository, onChange: () => void, opts?: { purge?: boolean }) => Promise<void>;
+  reconcileGroups: (
+    repo: Repository,
+    onChange: () => void,
+    opts?: { prune?: boolean },
+  ) => Promise<void>;
+  archiveUnrestored: (repo: Repository, now: number) => Promise<string[]>;
+}
+
+const defaultRecoveryDeps: RecoveryDeps = {
+  reconcile,
+  reconcileGroups,
+  archiveUnrestored: archiveUnrestoredContexts,
+};
+
+/**
+ * 宽限结束的会话恢复编排(严格顺序):
+ *   接住迟到恢复(非破坏)→ 归档没恢复的命名任务 → 常规清理(清删)。
+ * 顺序错乱会静默破坏崩溃恢复,故抽成纯编排 + 依赖注入,便于 spy 断言顺序。
+ */
+export async function runRecoverySequence(
+  repo: Repository,
+  onChange: () => void,
+  now: number,
+  deps: RecoveryDeps = defaultRecoveryDeps,
+): Promise<void> {
+  await deps.reconcile(repo, onChange, { purge: false });
+  await deps.reconcileGroups(repo, onChange, { prune: false });
+  await deps.archiveUnrestored(repo, now);
+  await deps.reconcile(repo, onChange, { purge: true });
+  await deps.reconcileGroups(repo, onChange, { prune: true });
+  onChange();
 }
