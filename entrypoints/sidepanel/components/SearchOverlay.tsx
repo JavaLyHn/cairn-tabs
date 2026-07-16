@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { SearchResult } from '@/shared/types';
 import { dispatch } from '../store';
 import { hostname } from '../util';
+import { useDialog } from '../hooks/useDialog';
 
 interface Props {
   onClose: () => void;
@@ -14,6 +15,8 @@ export function SearchOverlay({ onClose, onActivate, onRestoreContext }: Props) 
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialog(panelRef, onClose, { esc: false });
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -59,6 +62,11 @@ export function SearchOverlay({ onClose, onActivate, onRestoreContext }: Props) 
 
   return (
     <div
+      ref={panelRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="搜索"
+      tabIndex={-1}
       className="absolute inset-0 z-20 flex justify-center bg-black/30 backdrop-blur-[1px]"
       onClick={onClose}
     >

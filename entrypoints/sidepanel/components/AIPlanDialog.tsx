@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { TabRecord } from '@/shared/types';
 import type { AIPlan } from '@/shared/ai';
+import { useDialog } from '../hooks/useDialog';
 
 interface Props {
   plan: AIPlan;
@@ -45,6 +46,8 @@ interface LocalAssign {
 
 export function AIPlanDialog({ plan, tabs, taskNames, onApply, onClose }: Props) {
   const byId = new Map(tabs.map((t) => [t.id, t]));
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialog(panelRef, onClose);
 
   // Fix 3: stable _id added at init time; assign uses taskId as key
   const [groups, setGroups] = useState<LocalGroup[]>(
@@ -79,6 +82,11 @@ export function AIPlanDialog({ plan, tabs, taskNames, onApply, onClose }: Props)
   return (
     <div className="absolute inset-0 z-30 flex justify-center bg-black/30" onClick={onClose}>
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="AI 整理建议"
+        tabIndex={-1}
         className="mt-6 w-[92%] max-h-[82%] flex flex-col rounded-xl overflow-hidden shadow-2xl
                    bg-white dark:bg-neutral-900 border border-black/10 dark:border-white/10"
         onClick={(e) => e.stopPropagation()}

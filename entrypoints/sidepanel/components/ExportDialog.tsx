@@ -1,4 +1,5 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, useRef, type ReactNode } from 'react';
+import { useDialog } from '../hooks/useDialog';
 import type { Context, TabRecord } from '@/shared/types';
 import { contextToMarkdown, contextToJSON } from '@/shared/export';
 import { downloadText, sanitizeFilename } from '../util';
@@ -51,6 +52,8 @@ interface Props {
 
 export function ExportDialog({ context, tabs, exportedAt, onFlash, onClose }: Props) {
   const [format, setFormat] = useState<'md' | 'json'>('md');
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialog(panelRef, onClose);
   const md = useMemo(() => contextToMarkdown(context, tabs), [context, tabs]);
   const json = useMemo(() => contextToJSON(context, tabs, exportedAt), [context, tabs, exportedAt]);
   const content = format === 'md' ? md : json;
@@ -84,6 +87,11 @@ export function ExportDialog({ context, tabs, exportedAt, onFlash, onClose }: Pr
   return (
     <div className="absolute inset-0 z-30 flex justify-center bg-black/30" onClick={onClose}>
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="导出任务"
+        tabIndex={-1}
         className="mt-6 w-[92%] max-h-[82%] flex flex-col rounded-xl overflow-hidden shadow-2xl
                    bg-white dark:bg-neutral-900 border border-black/10 dark:border-white/10"
         onClick={(e) => e.stopPropagation()}

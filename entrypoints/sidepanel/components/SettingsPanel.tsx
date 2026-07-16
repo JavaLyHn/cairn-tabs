@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react';
+import { useDialog } from '../hooks/useDialog';
 import type { Flags } from '@/shared/types';
 import type { AIProviderId, AIStatus } from '@/shared/ai';
 
@@ -152,20 +153,18 @@ export function SettingsPanel({
   onExportAll,
   onClose,
 }: Props) {
-  // Esc 关闭设置页
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialog(panelRef, onClose);
 
   return (
-    <div className="settings-sheet absolute inset-0 z-30 flex flex-col bg-white dark:bg-neutral-900">
+    <div
+      ref={panelRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="设置"
+      tabIndex={-1}
+      className="settings-sheet absolute inset-0 z-30 flex flex-col bg-white dark:bg-neutral-900"
+    >
       {/* 固定标题栏 */}
       <header className="shrink-0 flex items-center gap-2 px-3 py-2.5 border-b border-black/10 dark:border-white/10">
         <svg
