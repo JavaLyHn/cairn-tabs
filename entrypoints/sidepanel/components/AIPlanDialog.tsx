@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import type { TabRecord } from '@/shared/types';
 import type { AIPlan } from '@/shared/ai';
 import { useDialog } from '../hooks/useDialog';
+import { Favicon } from './Favicon';
 
 interface Props {
   plan: AIPlan;
@@ -16,11 +17,7 @@ interface Props {
 function TabItem({ tab, source, onRemove }: { tab: TabRecord; source?: string; onRemove: () => void }) {
   return (
     <div className="group/r flex items-center gap-2 px-2 py-1 rounded hover:bg-black/5 dark:hover:bg-white/5">
-      {tab.faviconUrl ? (
-        <img src={tab.faviconUrl} alt="" className="w-4 h-4 shrink-0" />
-      ) : (
-        <div className="w-4 h-4 shrink-0 rounded-sm bg-black/10 dark:bg-white/10" />
-      )}
+      <Favicon url={tab.url} title={tab.title} faviconUrl={tab.faviconUrl} />
       <span className="flex-1 truncate text-[12.5px]">{tab.title}</span>
       {source && <span className="shrink-0 text-[10.5px] opacity-40">原 {source}</span>}
       <button
