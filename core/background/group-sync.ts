@@ -184,25 +184,55 @@ export function registerGroupListeners(repo: Repository, onChange: () => void): 
   });
 }
 
-/** hydrate 时按真实分组归属全量校对(补偿 SW 休眠丢失的分组事件)。 */
-export async function reconcileGroups(repo: Repository, onChange: () => void): Promise<void> {
+/** hydrate / 聚焦时按真实分组归属全量校对。prune=false 时只重连、不删不解绑(冷启动用)。 */
+export async function reconcileGroups(
+  repo: Repository,
+  onChange: () => void,
+  opts?: { prune?: boolean },
+): Promise<void> {
+  const prune = opts?.prune !== false;
   const now = Date.now();
 
-  // 1) 分组在浏览器里已消失:空壳的活跃命名任务直接删除(补偿 SW 休眠期漏收的分组删除事件,
-  //    否则侧边栏残留空任务);仍有标签的只解除分组引用、保留任务。
-  const liveGroupIds = new Set((await chrome.tabGroups.query({})).map((g) => g.id));
+  const liveGroups = await chrome.tabGroups.query({});
+  const liveGroupIds = new Set(liveGroups.map((g) => g.id));
   const { contexts } = await repo.getSnapshot();
+
+  // 已被现存 context 正确引用的分组先占位,避免重连时重复占用
+  const claimedGroups = new Set<number>();
   for (const c of contexts) {
-    if (c.nativeGroupId != null && !liveGroupIds.has(c.nativeGroupId)) {
+    if (c.nativeGroupId != null && liveGroupIds.has(c.nativeGroupId)) claimedGroups.add(c.nativeGroupId);
+  }
+  // 标题 → 实时分组 id 列表(用于按标题重连)
+  const liveByTitle = new Map<string, number[]>();
+  for (const g of liveGroups) {
+    const title = (g.title ?? '').trim();
+    if (!title) continue;
+    const arr = liveByTitle.get(title);
+    if (arr) arr.push(g.id);
+    else liveByTitle.set(title, [g.id]);
+  }
+
+  // 1) 死 nativeGroupId 的 context:先按标题重连,连不上再(仅 prune 下)删/解绑
+  for (const c of contexts) {
+    if (c.nativeGroupId == null || liveGroupIds.has(c.nativeGroupId)) continue; // 无组 / 引用有效
+    const candidates = liveByTitle.get(c.name.trim()) ?? [];
+    const gid = candidates.find((id) => !claimedGroups.has(id));
+    if (gid != null) {
+      await repo.setNativeGroupId(c.id, gid); // 重连(任务保留)
+      claimedGroups.add(gid);
+      continue;
+    }
+    if (prune) {
       if (c.id !== INBOX_ID && c.status === 'active' && c.tabOrder.length === 0) {
         await repo.deleteContext(c.id, now);
       } else {
         await repo.setNativeGroupId(c.id, undefined);
       }
     }
+    // prune:false → 原样保留死 nativeGroupId,供之后对账重连
   }
 
-  // 2) 每个活跃标签的归属对齐其原生分组
+  // 2) 每个活跃标签的归属对齐其原生分组(未知分组则收编)
   const liveTabs = await chrome.tabs.query({});
   for (const tab of liveTabs) {
     if (tab.id == null) continue;

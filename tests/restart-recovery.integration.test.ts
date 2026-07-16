@@ -3,7 +3,7 @@ import { FakeChrome } from './fake-chrome';
 import { Repository } from '@/core/store/repositories';
 import { CairnTabsDB } from '@/core/store/db';
 import { registerTabListeners } from '@/core/background/tab-sync';
-import { registerGroupListeners } from '@/core/background/group-sync';
+import { registerGroupListeners, reconcileGroups } from '@/core/background/group-sync';
 import { reconcile } from '@/core/background/tab-sync';
 import { INBOX_ID } from '@/shared/types';
 
@@ -80,5 +80,42 @@ describe('reconcile 按 URL 重绑', () => {
     fake.tabsById.clear(); // 会话恢复未就绪:无实时标签
     await reconcile(repo, () => {}, { purge: false });
     expect(await repo.getTab(rid!)).toBeTruthy(); // purge:false → 保留
+  });
+});
+
+describe('reconcileGroups 按标题重连', () => {
+  it('重启后死 nativeGroupId 的任务按标题重连到同名新分组,不删任务', async () => {
+    // 造一个带原生分组的任务:context.nativeGroupId=900,fake 里有个同标题分组 900
+    const ctx = await repo.createContext('任务甲', Date.now(), { nativeGroupId: 900 });
+    fake.groupsById.set(900, { id: 900, title: '任务甲', color: 'blue', windowId: 1, collapsed: false, shared: false });
+    // 该任务里放一个打开的标签(使其非空)
+    await fake.userOpenTab('https://a.com', { title: 'A' });
+    const [rid] = (await repo.getContext(INBOX_ID))!.tabOrder;
+    await repo.moveTab(rid!, ctx.id, Date.now());
+
+    simulateSessionRestore(); // group 900 → 100900(标题不变),tab id 也变
+
+    // 先重绑标签(否则 step 2 找不到记录),再重连分组
+    await reconcile(repo, () => {}, { purge: false });
+    await reconcileGroups(repo, () => {}, { prune: true });
+
+    const after = (await repo.getContext(ctx.id))!;
+    expect(after).toBeTruthy();                 // 任务未删
+    expect(after.nativeGroupId).toBe(100900);   // 重连到新分组 id
+  });
+
+  it('prune:false:死 nativeGroupId 且无同名分组 → 任务原样保留(不删不解绑)', async () => {
+    const ctx = await repo.createContext('孤儿任务', Date.now(), { nativeGroupId: 900 });
+    // fake 里没有任何分组
+    await reconcileGroups(repo, () => {}, { prune: false });
+    const after = (await repo.getContext(ctx.id))!;
+    expect(after).toBeTruthy();
+    expect(after.nativeGroupId).toBe(900); // 保留死 id,供之后重连
+  });
+
+  it('prune:true:死 nativeGroupId、空、无同名分组 → 删任务(原行为)', async () => {
+    const ctx = await repo.createContext('将删任务', Date.now(), { nativeGroupId: 900 });
+    await reconcileGroups(repo, () => {}, { prune: true });
+    expect(await repo.getContext(ctx.id)).toBeUndefined();
   });
 });
