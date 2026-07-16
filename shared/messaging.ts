@@ -42,7 +42,8 @@ export type Command =
       baseUrl?: string;
     }
   | { type: 'TEST_AI_CONNECTION' }
-  | { type: 'CANCEL_AI' };
+  | { type: 'CANCEL_AI' }
+  | { type: 'IMPORT_DATA'; contexts: Context[]; tabs: TabRecord[] };
 
 export type Event =
   | {
@@ -61,7 +62,8 @@ export type Event =
   | { type: 'AI_PLAN'; plan: AIPlan; tabs: TabRecord[] }
   | { type: 'AI_ERROR'; reason: AIErrorReason }
   | { type: 'AI_TEST_RESULT'; ok: boolean; detail: string }
-  | { type: 'AI_NAME'; name: string };
+  | { type: 'AI_NAME'; name: string }
+  | { type: 'IMPORTED'; contexts: number; tabs: number };
 
 /** 新建上下文时的默认草稿名(用于「至多一个草稿」去重) */
 export const DRAFT_CONTEXT_NAME = '新任务';
@@ -100,6 +102,7 @@ export const COMMAND_TYPES = new Set<Command['type']>([
   'TEST_AI_CONNECTION',
   'CANCEL_AI',
   'AI_SUGGEST_NAME',
+  'IMPORT_DATA',
 ]);
 
 /** UI → SW:发送命令,await 到 SW 处理完成 */

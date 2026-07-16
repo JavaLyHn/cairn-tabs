@@ -23,6 +23,7 @@ interface Props {
   ) => Promise<void>;
   onTestAi: () => Promise<{ ok: boolean; detail: string }>;
   onExportAll: () => void;
+  onImport: (file: File) => void;
   onClose: () => void;
 }
 
@@ -155,10 +156,12 @@ export function SettingsPanel({
   onSaveAi,
   onTestAi,
   onExportAll,
+  onImport,
   onClose,
 }: Props) {
   const { t, locale, setLocale } = useT();
   const panelRef = useRef<HTMLDivElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
   useDialog(panelRef, onClose);
 
   return (
@@ -300,6 +303,27 @@ export function SettingsPanel({
               {t('settings.data.exportAll.desc')}
             </div>
           </button>
+          <button
+            onClick={() => importInputRef.current?.click()}
+            className="w-full text-left px-3 py-2.5 hover:bg-black/5 dark:hover:bg-white/5"
+          >
+            <div className="text-[12.5px]">{t('settings.data.import')}</div>
+            <div className="text-[11px] opacity-50 leading-snug mt-0.5">
+              {t('settings.data.importDesc')}
+            </div>
+          </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            aria-label={t('settings.data.import')}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onImport(file);
+              e.target.value = ''; // 允许再次选同一文件
+            }}
+          />
         </Group>
       </div>
     </div>

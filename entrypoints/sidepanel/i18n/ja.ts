@@ -2,6 +2,14 @@ import type { Messages } from './en';
 
 // 日本語 —— 键与 en 完全一致(TS 强制)。
 export const ja: Messages = {
+  'settings.data.import': 'JSON をインポート',
+  'settings.data.importDesc': 'JSON バックアップからタスクを復元(「アーカイブ」に追加)',
+  'import.done': '{contexts} 件のタスク · {tabs} 件のタブをインポートしました(「アーカイブ」内)',
+  'import.nothing': '新しくインポートする内容はありません',
+  'import.error.json': '有効な JSON ファイルではありません',
+  'import.error.schema': 'Cairn Tabs のバックアップファイルではありません',
+  'import.error.version': 'サポートされていないバックアップのバージョンです',
+  'import.error.empty': 'ファイルにインポートできる内容がありません',
   'app.exportedAll': '全データをエクスポートしました (JSON)',
   'settings.group.language': '表示言語',
   'context.inboxName': '未分類',

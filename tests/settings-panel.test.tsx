@@ -28,6 +28,7 @@ function props(over: Record<string, unknown> = {}) {
     onSaveAi: async () => {},
     onTestAi: async () => ({ ok: true, detail: 'ok' }),
     onExportAll: noop,
+    onImport: noop,
     onClose: noop,
     ...over,
   };

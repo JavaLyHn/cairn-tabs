@@ -2,6 +2,14 @@ import type { Messages } from './en';
 
 // 简体中文 —— 键与 en 完全一致(TS 强制)。值为原文中文。
 export const zhCN: Messages = {
+  'settings.data.import': '导入 JSON',
+  'settings.data.importDesc': '从 JSON 备份恢复任务(导入到「已归档」)',
+  'import.done': '已导入 {contexts} 个任务 · {tabs} 个标签(在「已归档」)',
+  'import.nothing': '没有可新增导入的内容',
+  'import.error.json': '文件不是合法的 JSON',
+  'import.error.schema': '不是 Cairn Tabs 的备份文件',
+  'import.error.version': '备份版本不支持',
+  'import.error.empty': '文件里没有可导入的内容',
   'app.exportedAll': '已导出全部数据 (JSON)',
   'settings.group.language': '界面语言',
   'context.inboxName': '未分类',

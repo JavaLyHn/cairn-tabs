@@ -569,6 +569,13 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
 
     case 'SEARCH':
       return { type: 'SEARCH_RESULTS', query: cmd.query, results: search.query(cmd.query) };
+
+    case 'IMPORT_DATA': {
+      // 非破坏性导入:新任务作为「已归档」落库(不动现有数据、不碰 chrome 标签,故无需同步锁)。
+      const res = await repo.importData(cmd.contexts, cmd.tabs, now);
+      onChange();
+      return { type: 'IMPORTED', contexts: res.contexts, tabs: res.tabs };
+    }
   }
 }
 

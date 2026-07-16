@@ -234,6 +234,50 @@ export class Repository {
     await this.db.tabs.update(tabRecordId, { chromeTabId, windowId, lastActiveAt: now });
   }
 
+  // ---- 导入(F-12 反向)----
+
+  /**
+   * 非破坏性导入:只新增「id 尚不存在」的 context/tab(已存在的一律跳过,绝不覆盖现有数据)。
+   * 导入的 context 一律置 archived(URL 保留、可经「恢复」重开);tab 清 chromeTabId/windowId/discarded。
+   * 跳过内置未分类;只导入「已导入的非未分类任务」名下的标签。返回新增计数。
+   */
+  async importData(
+    contexts: Context[],
+    tabs: TabRecord[],
+    now: number,
+  ): Promise<{ contexts: number; tabs: number }> {
+    return this.db.transaction('rw', this.db.contexts, this.db.tabs, async () => {
+      const importedIds = new Set<string>();
+      let cCount = 0;
+      for (const c of contexts) {
+        if (c.id === INBOX_ID) continue; // 不碰内置未分类
+        if (await this.db.contexts.get(c.id)) continue; // 已存在则跳过(纯增量)
+        await this.db.contexts.put({
+          ...c,
+          status: 'archived',
+          archivedAt: c.archivedAt ?? now,
+          nativeGroupId: undefined,
+          restoreTo: undefined,
+        });
+        importedIds.add(c.id);
+        cCount++;
+      }
+      let tCount = 0;
+      for (const t of tabs) {
+        if (!importedIds.has(t.contextId)) continue; // 只收本次新导入任务的标签
+        if (await this.db.tabs.get(t.id)) continue;
+        await this.db.tabs.put({
+          ...t,
+          chromeTabId: undefined,
+          windowId: undefined,
+          discarded: undefined,
+        });
+        tCount++;
+      }
+      return { contexts: cCount, tabs: tCount };
+    });
+  }
+
   // ---- 私有:tabOrder 维护 ----
 
   private async appendToOrder(contextId: string, tabId: string, now: number): Promise<void> {

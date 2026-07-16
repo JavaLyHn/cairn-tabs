@@ -5,6 +5,7 @@ import type { Event } from '@/shared/messaging';
 import { AIPlanDialog } from './components/AIPlanDialog';
 import { formatReclaimed } from '@/shared/discard';
 import { exportAllJSON } from '@/shared/export';
+import { parseImport } from '@/shared/import';
 import { usePanelStore, dispatch } from './store';
 import { useFlash } from './hooks/useFlash';
 import { useAiActions } from './hooks/useAiActions';
@@ -236,6 +237,24 @@ export default function App() {
     );
     setSettingsOpen(false);
     showFlash(t('app.exportedAll'));
+  };
+  const doImport = async (file: File) => {
+    const res = parseImport(await file.text());
+    if (!res.ok) {
+      showFlash(t(`import.error.${res.reason}`));
+      return;
+    }
+    const ev = await dispatch({
+      type: 'IMPORT_DATA',
+      contexts: res.data.contexts,
+      tabs: res.data.tabs,
+    });
+    setSettingsOpen(false);
+    if (ev?.type === 'IMPORTED' && (ev.contexts > 0 || ev.tabs > 0)) {
+      showFlash(t('import.done', { contexts: ev.contexts, tabs: ev.tabs }));
+    } else {
+      showFlash(t('import.nothing'));
+    }
   };
   const doUndo = async () => {
     if (undo) await dispatch({ type: 'UNDO', token: undo.token });
@@ -520,6 +539,7 @@ export default function App() {
           onSetDiscardAfterMinutes={setDiscardAfterMinutes}
           onToggleDiscardSkipsLocalhost={toggleDiscardSkipsLocalhost}
           onExportAll={exportAllData}
+          onImport={doImport}
           onClose={() => setSettingsOpen(false)}
         />
       )}

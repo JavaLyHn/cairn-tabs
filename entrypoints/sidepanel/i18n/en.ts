@@ -1,6 +1,14 @@
 // 文案目录 —— en 为类型源。新增文案先加到这里,其余语种类型不匹配即报错提醒补全。
 
 export const en = {
+  'settings.data.import': 'Import JSON',
+  'settings.data.importDesc': 'Restore tasks from a JSON backup (added to Archived)',
+  'import.done': 'Imported {contexts} tasks · {tabs} tabs (in Archived)',
+  'import.nothing': 'Nothing new to import',
+  'import.error.json': 'Not a valid JSON file',
+  'import.error.schema': 'Not a Cairn Tabs backup file',
+  'import.error.version': 'Unsupported backup version',
+  'import.error.empty': 'No importable content in the file',
   'app.exportedAll': 'Exported all data (JSON)',
   'settings.group.language': 'Language',
   'context.inboxName': 'Unclassified',

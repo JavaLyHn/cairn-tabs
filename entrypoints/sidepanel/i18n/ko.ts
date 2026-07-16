@@ -2,6 +2,14 @@ import type { Messages } from './en';
 
 // 한국어 —— 键与 en 完全一致(TS 强制)。
 export const ko: Messages = {
+  'settings.data.import': 'JSON 가져오기',
+  'settings.data.importDesc': 'JSON 백업에서 작업 복원(「보관됨」에 추가)',
+  'import.done': '{contexts}개 작업 · {tabs}개 탭을 가져왔습니다(「보관됨」에 있음)',
+  'import.nothing': '새로 가져올 내용이 없습니다',
+  'import.error.json': '유효한 JSON 파일이 아닙니다',
+  'import.error.schema': 'Cairn Tabs 백업 파일이 아닙니다',
+  'import.error.version': '지원하지 않는 백업 버전입니다',
+  'import.error.empty': '파일에 가져올 내용이 없습니다',
   'app.exportedAll': '모든 데이터를 내보냈습니다 (JSON)',
   'settings.group.language': '표시 언어',
   'context.inboxName': '미분류',
