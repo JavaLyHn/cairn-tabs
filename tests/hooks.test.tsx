@@ -89,7 +89,7 @@ describe('useDraftNaming', () => {
 describe('useAiActions', () => {
   const plan = { newGroups: [], assign: [] };
 
-  it('applyAiPlan 全局 UNDOABLE → setUndo + flash', async () => {
+  it('applyAiPlan 全局 UNDOABLE → 只 setUndo(reorg),不再弹多余 flash', async () => {
     dispatch.mockResolvedValue({ type: 'UNDOABLE', action: 'reorg', token: 'tk', ttlMs: 5000 });
     const setUndo = vi.fn();
     const showFlash = vi.fn();
@@ -99,7 +99,8 @@ describe('useAiActions', () => {
     });
     expect(dispatch).toHaveBeenCalledWith({ type: 'APPLY_AI_PLAN', plan, global: true });
     expect(setUndo).toHaveBeenCalledWith({ action: 'reorg', token: 'tk', ttlMs: 5000 });
-    expect(showFlash).toHaveBeenCalledTimes(1);
+    // 撤销条自身即「已整理全部 · 撤销」,不再另弹 flash(避免双提示)
+    expect(showFlash).not.toHaveBeenCalled();
   });
 
   it('aiOrganize 错误 → flash 提示、不设 plan', async () => {

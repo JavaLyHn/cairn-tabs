@@ -479,7 +479,7 @@ export default function App() {
 
       {undo && (
         <UndoToast
-          label={t('undo.label')}
+          label={t(undo.action === 'reorg' ? 'ai.flash.organizedAll' : 'undo.label')}
           ttlMs={undo.ttlMs}
           onUndo={doUndo}
           onDismiss={clearUndo}

@@ -84,8 +84,8 @@ export function useAiActions(deps: {
     // 记下 AI 拿不准、留原位的标签 → 供未分类行内提示(仅本次会话)
     setUnclearReasons(Object.fromEntries((plan.unclear ?? []).map((u) => [u.tabId, u.reason])));
     if (opts?.global && ev?.type === 'UNDOABLE') {
+      // 撤销条已显示「已整理全部 · 撤销」(标签随 action=reorg),不再另弹 flash,避免双提示
       deps.setUndo({ action: ev.action, token: ev.token, ttlMs: ev.ttlMs });
-      deps.showFlash(t('ai.flash.organizedAll'));
     } else {
       deps.showFlash(t('ai.flash.applied'));
     }
