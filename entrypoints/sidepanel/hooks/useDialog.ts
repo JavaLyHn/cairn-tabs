@@ -17,6 +17,14 @@ export function useDialog(
   onCloseRef.current = onClose; // 每次渲染刷新为最新,避免把 onClose 放进 effect 依赖导致重订阅/焦点被抢
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
+    // 仅当弹窗由键盘打开(触发元素处于 :focus-visible)才在关闭时回焦。
+    // 否则鼠标点开→关闭会把 :focus-visible 描边程序化留在触发按钮上(甩不掉的绿框)。
+    let restoreFocus = false;
+    try {
+      restoreFocus = !!prev && typeof prev.matches === 'function' && prev.matches(':focus-visible');
+    } catch {
+      restoreFocus = false; // 老环境/jsdom 不支持该伪类时安全降级为不回焦
+    }
     const el = ref.current;
     // 打开:聚焦容器内首个可聚焦元素,否则聚焦容器本身
     const first = el?.querySelector<HTMLElement>(FOCUSABLE);
@@ -48,7 +56,7 @@ export function useDialog(
     window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('keydown', onKey);
-      prev?.focus?.(); // 关闭:焦点还回去
+      if (restoreFocus) prev?.focus?.(); // 关闭:仅键盘打开时把焦点还回去
     };
   }, [ref, esc]);
 }
