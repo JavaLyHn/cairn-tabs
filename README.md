@@ -34,10 +34,12 @@ The MVP core loop, v1.1 developer specialization, and v1.5 AI are all implemente
 - **AI rename** (needs AI configured) — when renaming a task, the "✦ AI" button next to the input asks the AI to suggest a short task name from that task's tab titles + domains and fills it in for you to confirm or edit (sends only titles + domains, never auto-applies; while running the button becomes "✦ Cancel" to abort).
 - **Stale detection** (F-10) — open tabs not visited for more than a threshold (default 7 days, adjustable) are pulled out of their tasks into a dimmed "sunk" area at the bottom, with a one-click "Archive all" (undoable). No notifications; can be disabled in settings.
 - **Tab discard & memory reclaim** (F-11) — **off by default**; when on, scans every 5 minutes and discards tabs idle beyond a threshold (default 30 min, adjustable) that are non-active / non-audible / non-pinned and not localhost, freeing memory (click to auto-reload); the bottom status bar shows the cumulative estimated reclaim. A localhost whitelist protects your dev server.
-- **Export** (F-12) — one-click export of a task to Markdown (title + links, copied to clipboard, for standups / Notion); "Export all data (JSON)" in settings for backup / migration.
+- **Export & import** (F-12) — one-click export of a task to Markdown (title + links, copied to clipboard, for standups / Notion); in settings, "Export all data (JSON)" backs everything up and "Import JSON" restores it. Import is **additive and non-destructive** — imported tasks land in Archived and existing data is never overwritten, so it's safe for backup / migration across machines.
 - **AI-organize the Inbox** (F-13, optional) — after entering your own Anthropic / OpenAI API key, an "✦ AI organize" button appears in the Inbox header; the AI reads tab titles + domains **and each existing task's domains + sample titles**, then proposes new tasks or **merging into a suitable existing task**, applied after preview. **You can cancel mid-analysis.** Off by default; sends only titles + domains + task names (including existing tasks' domains/samples), connects directly to the official API, and the key stays on your machine.
   - **Custom relay** — besides the official APIs you can choose a "custom relay", entering an OpenAI-compatible endpoint (e.g. `https://newapi.elevatesphere.com/v1`) + key + model to connect to your own relay. The privacy boundary is unchanged (still only titles + domains + task names), the key stays local, and permission is scoped only to the host you enter.
   - **Test connection** — a one-click "Test connection" in settings fires a tiny request to verify the key / endpoint / model, with instant feedback `✓ Connected · model · Nms` or a plain-language error (auth failed / endpoint or model not found / timeout / network error…).
+
+- **Multilingual UI** — the whole interface ships in English, 简体中文, 日本語, and 한국어; it follows your browser's UI language by default and can be switched anytime in Settings.
 
 Not yet implemented (see the design-doc Roadmap): Firefox support, cross-device sync.
 
@@ -75,7 +77,7 @@ Then go to `chrome://extensions` and click the extension's **Refresh ↻** (no n
 
 **4. (Optional) Enable AI** — Settings ⚙ → AI organize → pick a provider and enter your API key (or a custom relay's endpoint + key + model) → click "Test connection" to confirm → save. Off by default; sends only tab titles + domains + task names.
 
-**Data & backup:** all tasks/tabs live in the browser's local IndexedDB and are never uploaded. Use "Export all data (JSON)" in settings to back up / migrate any time.
+**Data & backup:** all tasks/tabs live in the browser's local IndexedDB and are never uploaded. Use "Export all data (JSON)" in settings to back up any time, and "Import JSON" to restore or move to another machine (imported tasks arrive in Archived; nothing existing is overwritten).
 
 ## Tech stack
 
