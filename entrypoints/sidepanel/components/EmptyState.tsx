@@ -1,20 +1,16 @@
 import { useT } from '../i18n';
+import { BrandMark } from './BrandMark';
 
 interface Props {
   onNew: () => void;
 }
 
-/** 侧边栏空状态:没有任何标签/上下文时展示 logo + 引导。 */
+/** 侧边栏空状态:没有任何标签/上下文时展示动效字标 + 引导。 */
 export function EmptyState({ onNew }: Props) {
   const { t } = useT();
   return (
     <div className="flex flex-col items-center justify-center min-h-full px-6 py-10 text-center gap-3">
-      <img
-        src={chrome.runtime.getURL('icon/128.png')}
-        alt=""
-        className="w-14 h-14 opacity-90 select-none"
-        draggable={false}
-      />
+      <BrandMark className="mb-1" />
       <div className="text-[13px] font-medium">{t('empty.heading')}</div>
       <p className="text-[11.5px] opacity-55 leading-relaxed max-w-[220px]">{t('empty.body')}</p>
       <button
