@@ -57,6 +57,9 @@ body {
   color: var(--color-accent);
   opacity: 0.85;
 }
+.sig-shine:hover {
+  opacity: 1;
+}
 @media (prefers-reduced-motion: no-preference) {
   .sig-shine {
     background: linear-gradient(
