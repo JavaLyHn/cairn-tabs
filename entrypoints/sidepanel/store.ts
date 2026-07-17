@@ -13,6 +13,7 @@ interface UndoState {
   action: string;
   token: string;
   ttlMs: number;
+  name?: string; // 目标任务名(archive-tab 撤销 toast 文案用)
 }
 
 interface PanelState {

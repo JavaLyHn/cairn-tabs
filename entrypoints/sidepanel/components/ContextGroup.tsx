@@ -75,7 +75,8 @@ export function ContextGroup({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const isInbox = context.id === INBOX_ID;
-  const canDrop = variant !== 'archived';
+  // 所有分组(含已归档)都可接收拖拽:拖进已归档任务 = 把开着的标签直接归档进去(SW 侧处理)
+  const canDrop = true;
 
   // 显示名本地化:未分类(名存于 DB)与「新任务」草稿哨兵按当前语言显示;其余用原名
   const displayName = isInbox

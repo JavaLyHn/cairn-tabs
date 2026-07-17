@@ -130,6 +130,20 @@ describe('ContextGroup 一键折叠', () => {
   });
 });
 
+describe('ContextGroup 归档组可接收拖拽', () => {
+  it('archived variant:drop 触发 onDropTab(把开着的标签直接归档进来)', () => {
+    const onDropTab = vi.fn();
+    const { container } = render(
+      <I18nProvider initialLocale="zh-CN">
+        <ContextGroup {...baseProps({ variant: 'archived', editing: false, onDropTab })} />
+      </I18nProvider>,
+    );
+    const root = container.firstElementChild as HTMLElement;
+    fireEvent.drop(root, { dataTransfer: { getData: () => 'x1' } });
+    expect(onDropTab).toHaveBeenCalledWith('x1');
+  });
+});
+
 describe('ContextGroup 不确定标记', () => {
   const t = {
     id: 'x1',

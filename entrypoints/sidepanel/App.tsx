@@ -282,7 +282,13 @@ export default function App() {
     onRestore: () => restore(ctx.id),
     onExport: () => setExportTarget({ id: ctx.id, at: Date.now() }),
     onDelete: () => del(ctx.id),
-    onDropTab: (tabId: string) => moveTab(tabId, ctx.id),
+    onDropTab: async (tabId: string) => {
+      // 拖进已归档任务时 SW 会归档该标签并返回 UNDOABLE;弹带任务名的撤销 toast
+      const ev = await moveTab(tabId, ctx.id);
+      if (ev?.type === 'UNDOABLE') {
+        setUndo({ action: ev.action, token: ev.token, ttlMs: ev.ttlMs, name: ctx.name });
+      }
+    },
     onActivateTab: (tabId: string) => activate(tabId),
     onCloseTab: (tabId: string) => closeTab(tabId),
     onToggleStar: toggleStar,
@@ -479,7 +485,13 @@ export default function App() {
 
       {undo && (
         <UndoToast
-          label={t(undo.action === 'reorg' ? 'ai.flash.organizedAll' : 'undo.label')}
+          label={
+            undo.action === 'reorg'
+              ? t('ai.flash.organizedAll')
+              : undo.action === 'archive-tab'
+                ? t('undo.archivedInto', { name: undo.name ?? '' })
+                : t('undo.label')
+          }
           ttlMs={undo.ttlMs}
           onUndo={doUndo}
           onDismiss={clearUndo}

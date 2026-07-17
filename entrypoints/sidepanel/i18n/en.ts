@@ -245,6 +245,7 @@ export const en = {
 
   // ── undo ────────────────────────────────────────────────────────────────────
   'undo.label': 'Archived',
+  'undo.archivedInto': 'Archived into “{name}”',
   'undo.action': 'Undo',
 
   // ── domain ──────────────────────────────────────────────────────────────────
