@@ -7,11 +7,11 @@ import { AUTHOR } from '@/shared/meta';
 afterEach(cleanup);
 
 describe('Signature 署名水印', () => {
-  it('渲染 LyHn 艺术字,带强调色类与 aria-label', () => {
+  it('渲染 LyHn 艺术字,带鎏金流光类与 aria-label', () => {
     render(<Signature />);
     const el = screen.getByLabelText(AUTHOR);
     expect(el.textContent).toBe('LyHn');
-    expect(el.className).toContain('text-accent');
+    expect(el.className).toContain('sig-shine');
   });
 
   it('透传 className 便于定位', () => {

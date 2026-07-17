@@ -51,6 +51,36 @@ body {
   border-width: 0.5px;
 }
 
+/* 作者署名水印:默认静态强调色;允许动效时鎏金流光扫过(见 spec 2026-07-17-…-shine)。
+   边缘色跟随外观强调色,高光固定鎏金。 */
+.sig-shine {
+  color: var(--color-accent);
+  opacity: 0.85;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sig-shine {
+    background: linear-gradient(
+      100deg,
+      var(--color-accent) 30%,
+      #ffe08a 45%,
+      #fff6d8 50%,
+      #ffe08a 55%,
+      var(--color-accent) 70%
+    );
+    background-size: 220% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: sig-shine 3.4s linear infinite;
+  }
+  @keyframes sig-shine {
+    to {
+      background-position: 200% center;
+    }
+  }
+}
+
 /* a11y:键盘聚焦可见(Tailwind preflight 清了浏览器默认 outline)。
    仅键盘焦点(:focus-visible)显示,鼠标点击不显,避免视觉噪音。 */
 :focus-visible {
