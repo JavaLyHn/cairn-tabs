@@ -444,6 +444,8 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       await flags?.patch({
         discardAfterMinutes: Math.max(5, Math.min(480, Math.round(cmd.minutes))),
       });
+      // 扫描周期跟随阈值自适应 → 阈值变化后按开启状态重注册 alarm(关闭时为 no-op)
+      ctx.onAutoDiscardChanged?.(flags?.get().autoDiscard ?? false);
       onChange();
       return;
 

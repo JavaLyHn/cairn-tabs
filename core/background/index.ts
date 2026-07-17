@@ -10,6 +10,7 @@ import { PenaltyStore } from './penalties';
 import { PortMappingStore, FlagsStore, MemoryStore, AISettingsStore } from './settings';
 import { PROVIDERS } from '../ai/provider';
 import { runDiscardScan } from './discard-scan';
+import { discardScanPeriodMinutes } from '@/shared/discard';
 import { runRecoverySequence, shouldPurgeNow } from './session-recovery';
 import { isSyncPaused } from './sync-lock';
 import { COMMAND_TYPES, type Command } from '@/shared/messaging';
@@ -48,16 +49,22 @@ async function broadcast(): Promise<void> {
     .catch(() => {});
 }
 
-/** 挂起扫描 alarm:仅在自动挂起开启时注册,关闭时取消(默认关 → 零后台开销)。 */
+/**
+ * 挂起扫描 alarm:仅在自动挂起开启时注册,关闭时取消(默认关 → 零后台开销)。
+ * 周期跟随休眠阈值自适应(见 discardScanPeriodMinutes),阈值变化时需重新注册。
+ */
 function ensureDiscardAlarm(enabled: boolean): void {
   if (!chrome.alarms) return;
-  if (enabled) chrome.alarms.create(DISCARD_ALARM, { periodInMinutes: 5 });
-  else chrome.alarms.clear(DISCARD_ALARM).catch(() => {});
+  if (enabled) {
+    const periodInMinutes = discardScanPeriodMinutes(flags.get().discardAfterMinutes);
+    chrome.alarms.create(DISCARD_ALARM, { periodInMinutes });
+  } else chrome.alarms.clear(DISCARD_ALARM).catch(() => {});
 }
 
-function runScanNow(): void {
+/** 跑一轮挂起扫描;返回 promise 以便 alarm 回调 await 保活 SW(防扫描半途 SW 被杀)。 */
+function runScanNow(): Promise<number> {
   const f = flags.get();
-  void runDiscardScan(
+  return runDiscardScan(
     repository,
     { discardAfterMinutes: f.discardAfterMinutes, skipLocalhost: f.discardSkipsLocalhost },
     (bytes) => memory.add(bytes),
@@ -242,9 +249,10 @@ export function initBackground(): void {
   registerGroupListeners(repository, scheduleBroadcast);
 
   // 挂起扫描 alarm(F-11)+ 会话恢复 alarm(宽限结束)
-  chrome.alarms?.onAlarm.addListener((a) => {
-    if (a.name === DISCARD_ALARM) runScanNow();
-    else if (a.name === RECOVERY_ALARM) void runSessionRecovery();
+  // await 扫描:MV3 里回调返回后 SW 可能被杀,发射后不管会让扫描半途中断、只睡了前几个标签。
+  chrome.alarms?.onAlarm.addListener(async (a) => {
+    if (a.name === DISCARD_ALARM) await runScanNow();
+    else if (a.name === RECOVERY_ALARM) await runSessionRecovery();
   });
 
   // 冷启动:进入宽限窗口(期间对账不清删),GRACE_MS 后跑会话恢复判定

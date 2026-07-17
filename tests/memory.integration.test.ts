@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { FakeChrome } from './fake-chrome';
 import { Repository } from '@/core/store/repositories';
 import { CairnTabsDB } from '@/core/store/db';
@@ -116,6 +116,21 @@ describe('runDiscardScan (F-11)', () => {
     expect(fake.tabsById.get(idle.chromeId)!.discarded).toBe(true);
     expect((await repo.getTab(idle.recId))!.discarded).toBe(true);
     expect(reclaimed).toBe(BYTES_PER_DISCARD);
+  });
+
+  it('Chrome 拒绝挂起(返回空)→ 不误标 discarded,留待下轮重试', async () => {
+    const idle = await openAndAge('https://declined.com/x', 40 * MIN);
+    const spy = vi.spyOn(chrome.tabs, 'discard').mockResolvedValue(undefined as never);
+    const n = await runDiscardScan(
+      repo,
+      opts,
+      async () => {},
+      () => {},
+    );
+    spy.mockRestore();
+    expect(n).toBe(0); // 没有真正挂起
+    expect((await repo.getTab(idle.recId))!.discarded).not.toBe(true); // 不留假睡
+    expect(fake.tabsById.get(idle.chromeId)!.discarded).toBe(false); // 标签仍在内存
   });
 
   it('活跃(未到阈值)与 localhost 不挂起', async () => {

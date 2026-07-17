@@ -29,9 +29,16 @@ export async function runDiscardScan(
     await withSyncPaused(async () => {
       try {
         const t = await chrome.tabs.discard(rec.chromeTabId!);
-        // discard 可能返回新 id(旧版 Chrome 会换 id);一并回填,避免记录陈旧
-        await repo.updateTab(rec.id, { discarded: true, chromeTabId: t?.id ?? rec.chromeTabId });
-        count++;
+        // 只有 Chrome 真正卸载了(返回的 tab.discarded===true)才回填 discarded。
+        // 若 Chrome 拒绝(返回空 / discarded=false),不误标,留待下轮重试——
+        // 否则会出现「显示💤实则没睡、且再不重试」的假睡(见 spec 2026-07-17-discard-fixes)。
+        if (t?.discarded) {
+          // discard 可能返回新 id(旧版 Chrome 会换 id);一并回填,避免记录陈旧
+          await repo.updateTab(rec.id, { discarded: true, chromeTabId: t.id ?? rec.chromeTabId });
+          count++;
+        } else {
+          logDebug('runDiscardScan: Chrome 未挂起该标签(拒绝或返回空),留待下轮', rec.id);
+        }
       } catch (e) {
         logDebug('runDiscardScan: 挂起失败(标签可能刚被关闭)', e);
       }

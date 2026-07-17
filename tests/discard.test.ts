@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { shouldDiscard, formatReclaimed, BYTES_PER_DISCARD } from '@/shared/discard';
+import {
+  shouldDiscard,
+  formatReclaimed,
+  discardScanPeriodMinutes,
+  BYTES_PER_DISCARD,
+} from '@/shared/discard';
 import type { TabRecord } from '@/shared/types';
 
 const MIN = 60_000;
@@ -52,6 +57,20 @@ describe('shouldDiscard', () => {
     expect(
       shouldDiscard(tab({ chromeTabId: undefined, lastActiveAt: NOW - 60 * MIN }), idle, NOW, OPTS),
     ).toBe(false);
+  });
+});
+
+describe('discardScanPeriodMinutes', () => {
+  it('跟阈值自适应,夹在 [1,5] 分钟(阈值越小扫得越勤)', () => {
+    expect(discardScanPeriodMinutes(5)).toBe(1);
+    expect(discardScanPeriodMinutes(10)).toBe(2);
+    expect(discardScanPeriodMinutes(25)).toBe(5);
+    expect(discardScanPeriodMinutes(30)).toBe(5);
+    expect(discardScanPeriodMinutes(480)).toBe(5);
+  });
+  it('异常输入兜底(非有限数 → 5;0 → 1)', () => {
+    expect(discardScanPeriodMinutes(Number.NaN)).toBe(5);
+    expect(discardScanPeriodMinutes(0)).toBe(1);
   });
 });
 

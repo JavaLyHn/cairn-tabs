@@ -28,6 +28,16 @@ export function shouldDiscard(
   return now - record.lastActiveAt >= opts.discardAfterMinutes * 60_000;
 }
 
+/**
+ * 挂起扫描周期(分钟):跟随休眠阈值自适应,夹在 [1, 5] 分钟。
+ * 阈值越小扫得越勤(设 5 分钟 → ~1 分钟扫一次;设 ≥25 分钟 → 封顶 5 分钟一次),
+ * 避免固定 5 分钟扫描让小阈值的标签晚很久才挂起。非有限数兜底为 5。
+ */
+export function discardScanPeriodMinutes(discardAfterMinutes: number): number {
+  const mins = Number.isFinite(discardAfterMinutes) ? discardAfterMinutes : 30;
+  return Math.max(1, Math.min(5, Math.round(mins / 5)));
+}
+
 /** "~1.8 GB" —— 估算回收量的人类可读表示。 */
 export function formatReclaimed(bytes: number): string {
   if (bytes <= 0) return '0';
