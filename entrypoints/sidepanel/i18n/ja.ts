@@ -10,6 +10,7 @@ export const ja: Messages = {
   'import.error.schema': 'Cairn Tabs のバックアップファイルではありません',
   'import.error.version': 'サポートされていないバックアップのバージョンです',
   'import.error.empty': 'ファイルにインポートできる内容がありません',
+  'update.updated': 'v{version} に更新しました',
   'app.exportedAll': '全データをエクスポートしました (JSON)',
   'settings.group.language': '表示言語',
   'context.inboxName': '未分類',

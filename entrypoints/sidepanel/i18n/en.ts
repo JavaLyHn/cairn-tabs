@@ -9,6 +9,7 @@ export const en = {
   'import.error.schema': 'Not a Cairn Tabs backup file',
   'import.error.version': 'Unsupported backup version',
   'import.error.empty': 'No importable content in the file',
+  'update.updated': 'Updated to v{version}',
   'app.exportedAll': 'Exported all data (JSON)',
   'settings.group.language': 'Language',
   'context.inboxName': 'Unclassified',

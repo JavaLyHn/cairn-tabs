@@ -4,6 +4,7 @@ import { useT, type MessageKey } from '../i18n';
 import { SUPPORTED, LOCALE_NAMES, type Locale } from '../i18n/locales';
 import { useTheme } from '../theme';
 import { ACCENTS, accentPresetId, resolveAccentHex, isValidHex, type ThemeMode } from '../theme/theme';
+import { APP_NAME, AUTHOR, appVersion } from '@/shared/meta';
 import type { Flags } from '@/shared/types';
 import type { AIProviderId, AIStatus } from '@/shared/ai';
 
@@ -438,6 +439,11 @@ export function SettingsPanel({
             }}
           />
         </Group>
+
+        {/* 关于:当前版本 + 署名(版本供用户自查更新是否生效) */}
+        <div className="px-3 pt-1 text-center text-[10.5px] opacity-40 select-none">
+          {APP_NAME} v{appVersion()} · © {AUTHOR} · AGPL-3.0
+        </div>
       </div>
     </div>
   );

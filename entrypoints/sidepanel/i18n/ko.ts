@@ -10,6 +10,7 @@ export const ko: Messages = {
   'import.error.schema': 'Cairn Tabs 백업 파일이 아닙니다',
   'import.error.version': '지원하지 않는 백업 버전입니다',
   'import.error.empty': '파일에 가져올 내용이 없습니다',
+  'update.updated': 'v{version}(으)로 업데이트되었습니다',
   'app.exportedAll': '모든 데이터를 내보냈습니다 (JSON)',
   'settings.group.language': '표시 언어',
   'context.inboxName': '미분류',

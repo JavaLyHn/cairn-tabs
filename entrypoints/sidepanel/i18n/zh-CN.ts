@@ -10,6 +10,7 @@ export const zhCN: Messages = {
   'import.error.schema': '不是 Cairn Tabs 的备份文件',
   'import.error.version': '备份版本不支持',
   'import.error.empty': '文件里没有可导入的内容',
+  'update.updated': '已更新到 v{version}',
   'app.exportedAll': '已导出全部数据 (JSON)',
   'settings.group.language': '界面语言',
   'context.inboxName': '未分类',

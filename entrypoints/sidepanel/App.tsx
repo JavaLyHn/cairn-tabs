@@ -11,6 +11,7 @@ import { useFlash } from './hooks/useFlash';
 import { useAiActions } from './hooks/useAiActions';
 import { useDraftNaming } from './hooks/useDraftNaming';
 import { useDerived } from './hooks/useDerived';
+import { useUpdateNotice } from './hooks/useUpdateNotice';
 import { StatsBar } from './components/StatsBar';
 import { ContextGroup } from './components/ContextGroup';
 import { StaleGroup } from './components/StaleGroup';
@@ -75,6 +76,9 @@ export default function App() {
   const [exportTarget, setExportTarget] = useState<{ id: string; at: number } | null>(null);
   const { flash, showFlash } = useFlash();
   const { t } = useT();
+
+  // 更新感知:版本变化后首次打开面板,弹「已更新到 vX.Y.Z」(纯本地比对,不联网)
+  useUpdateNotice((v) => showFlash(t('update.updated', { version: v })));
 
   const {
     aiBusy,
