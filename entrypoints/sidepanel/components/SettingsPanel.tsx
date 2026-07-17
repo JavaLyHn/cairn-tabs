@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { useDialog } from '../hooks/useDialog';
-import { useT } from '../i18n';
+import { useT, type MessageKey } from '../i18n';
 import { SUPPORTED, LOCALE_NAMES, type Locale } from '../i18n/locales';
+import { useTheme } from '../theme';
+import { ACCENTS, accentPresetId, resolveAccentHex, isValidHex, type ThemeMode } from '../theme/theme';
 import type { Flags } from '@/shared/types';
 import type { AIProviderId, AIStatus } from '@/shared/ai';
 
@@ -143,6 +145,114 @@ function StepperRow({
   );
 }
 
+/** 外观:主题模式分段控件 + 强调色预设/自定义。纯 UI 偏好(chrome.storage.local),即时全局生效。 */
+function AppearanceSection() {
+  const { t } = useT();
+  const { mode, accent, setMode, setAccent } = useTheme();
+  const selectedPreset = accentPresetId(accent);
+  const currentHex = resolveAccentHex(accent);
+  const [hexDraft, setHexDraft] = useState(currentHex);
+  useEffect(() => setHexDraft(currentHex), [currentHex]);
+
+  const modes: ThemeMode[] = ['auto', 'light', 'dark'];
+  const modeLabel: Record<ThemeMode, string> = {
+    auto: t('settings.appearance.theme.auto'),
+    light: t('settings.appearance.theme.light'),
+    dark: t('settings.appearance.theme.dark'),
+  };
+  const accentName = (id: string) => t(`settings.appearance.accent.name.${id}` as MessageKey);
+  // <input type=color> 只认 #rrggbb:把 #rgb 展开,其余原样
+  const sixHex = (h: string) =>
+    /^#[0-9a-f]{3}$/i.test(h) ? `#${h[1]}${h[1]}${h[2]}${h[2]}${h[3]}${h[3]}` : h;
+  const onHexInput = (v: string) => {
+    setHexDraft(v);
+    if (isValidHex(v)) setAccent(v.trim().toLowerCase());
+  };
+
+  return (
+    <>
+      {/* 主题模式 */}
+      <div className="px-3 py-2.5">
+        <div className="text-[12.5px]">{t('settings.appearance.theme.title')}</div>
+        <div className="text-[11px] opacity-50 leading-snug mt-0.5">
+          {t('settings.appearance.theme.desc')}
+        </div>
+        <div className="inline-flex mt-2 rounded-lg p-0.5 gap-0.5 bg-black/[0.06] dark:bg-white/[0.08]">
+          {modes.map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              aria-pressed={mode === m}
+              className={`px-3 py-1 rounded-md text-[12px] ${
+                mode === m
+                  ? 'bg-white dark:bg-neutral-700 shadow-sm font-medium'
+                  : 'opacity-60 hover:opacity-100'
+              }`}
+            >
+              {modeLabel[m]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 强调色 */}
+      <div className="px-3 py-2.5 bg-black/[0.02] dark:bg-white/[0.03]">
+        <div className="text-[12.5px]">{t('settings.appearance.accent.title')}</div>
+        <div className="text-[11px] opacity-50 leading-snug mt-0.5">
+          {t('settings.appearance.accent.desc')}
+        </div>
+        <div className="flex items-center gap-2.5 mt-2.5 flex-wrap">
+          {ACCENTS.map((a) => {
+            const on = selectedPreset === a.id;
+            return (
+              <button
+                key={a.id}
+                onClick={() => setAccent(a.id)}
+                aria-label={accentName(a.id)}
+                aria-pressed={on}
+                title={accentName(a.id)}
+                className={`relative w-6 h-6 rounded-full transition-transform hover:scale-110
+                            ring-offset-2 ring-offset-white dark:ring-offset-neutral-900
+                            ${on ? 'ring-2 ring-black/40 dark:ring-white/50' : ''}`}
+                style={{ backgroundColor: a.hex }}
+              >
+                {on && (
+                  <span className="absolute inset-0 m-auto w-2 h-2 rounded-full bg-white shadow" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 自定义 hex */}
+        <div className="flex items-center gap-2 mt-3">
+          <input
+            type="color"
+            value={sixHex(currentHex)}
+            onChange={(e) => setAccent(e.target.value)}
+            aria-label={t('settings.appearance.accent.customAria')}
+            className="w-7 h-7 shrink-0 rounded-md cursor-pointer bg-transparent p-0
+                       border border-black/15 dark:border-white/20"
+          />
+          <input
+            type="text"
+            value={hexDraft}
+            onChange={(e) => onHexInput(e.target.value)}
+            spellCheck={false}
+            placeholder="#1d9e75"
+            aria-label={t('settings.appearance.accent.customAria')}
+            className="w-24 px-2 py-1 text-[12px] font-mono rounded bg-transparent outline-none
+                       border border-black/15 dark:border-white/20 focus:border-accent"
+          />
+          <span className={`text-[11px] ${selectedPreset === null ? 'text-accent' : 'opacity-45'}`}>
+            {t('settings.appearance.accent.custom')}
+          </span>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function SettingsPanel({
   flags,
   ai,
@@ -202,6 +312,9 @@ export function SettingsPanel({
 
       {/* 可滚动内容:分组卡片,铺满整幅宽度 */}
       <div className="flex-1 overflow-y-auto py-3 space-y-4">
+        <Group title={t('settings.group.appearance')}>
+          <AppearanceSection />
+        </Group>
         <Group title={t('settings.group.language')}>
           <div className="flex items-center justify-between px-3 py-2">
             <span className="text-[13px]">{t('settings.group.language')}</span>

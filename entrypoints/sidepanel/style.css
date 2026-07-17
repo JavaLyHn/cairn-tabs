@@ -1,10 +1,14 @@
 @import 'tailwindcss';
 
-/* 视觉规范(见设计文档 §9):单一强调色 teal,克制。 */
+/* 视觉规范(见设计文档 §9):强调色默认 teal,克制。运行时可在 :root 覆盖 --color-accent
+   来换强调色(外观设置);Tailwind 的 bg-accent/text-accent 等均走 var(--color-accent)。 */
 @theme {
   --color-accent: #1d9e75;
   --font-mono: 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
 }
+
+/* 暗色不再仅跟随系统:dark: 变体改为跟随 <html data-theme="dark">(外观设置可强制明暗)。 */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 :root {
   color-scheme: light dark;
@@ -24,8 +28,19 @@ body {
   color: #1a1a1a;
 }
 
+/* 显式主题(JS 挂载前会先设好 data-theme,故组件不会明暗闪帧) */
+[data-theme='light'] body {
+  background: #ffffff;
+  color: #1a1a1a;
+}
+[data-theme='dark'] body {
+  background: #17181a;
+  color: #e4e4e7;
+}
+
+/* JS 接管前(冷启动空 index.html)按系统兜底,防闪白 */
 @media (prefers-color-scheme: dark) {
-  body {
+  :root:not([data-theme]) body {
     background: #17181a;
     color: #e4e4e7;
   }
