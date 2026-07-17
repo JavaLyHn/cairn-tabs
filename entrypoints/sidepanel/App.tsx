@@ -87,6 +87,7 @@ export default function App() {
     aiOrganize,
     aiOrganizeAll,
     applyAiPlan,
+    unclearReasons,
     aiSuggestName,
     saveAi,
     testAi,
@@ -429,6 +430,7 @@ export default function App() {
             key={inbox.id}
             variant="inbox"
             collapseAll={allCollapsed}
+            unclearReasons={unclearReasons}
             {...groupProps(inbox)}
           />
         )}

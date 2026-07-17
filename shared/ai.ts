@@ -2,10 +2,15 @@
 
 export type AIProviderId = 'anthropic' | 'openai' | 'custom';
 
-/** AI 提案:新建分组 + 并入已有任务;未提及的标签留在未分类。 */
+/**
+ * AI 提案:新建分组 + 并入已有任务;未提及的标签留在原处。
+ * unclear:AI 拿不准归属、刻意不归类的标签(保持原位)+ 一句理由,供 UI 提示。
+ * 可选(既有 Command/测试字面量无需带);消费方一律用 `plan.unclear ?? []`。
+ */
 export interface AIPlan {
   newGroups: { name: string; tabIds: string[] }[];
   assign: { taskId: string; tabIds: string[] }[];
+  unclear?: { tabId: string; reason: string }[];
 }
 
 /** 脱敏状态,随快照广播给 UI —— 永不含 key(baseUrl 非机密,用于 UI 回填)。 */

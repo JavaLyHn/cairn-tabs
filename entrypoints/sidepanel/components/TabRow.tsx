@@ -47,6 +47,7 @@ interface Props {
   dupState?: 'keeper' | 'redundant';
   portMap: Record<number, string>;
   ageLabel?: string; // 陈旧簇里显示「N 天前」
+  unclearReason?: string; // AI 整理拿不准、留原位 → 显示小标记 + 悬停理由
   onActivate: () => void;
   onClose: () => void;
   onToggleStar?: () => void; // 提供则显示重点标注星按钮
@@ -97,6 +98,7 @@ export function TabRow({
   dupState,
   portMap,
   ageLabel,
+  unclearReason,
   onActivate,
   onClose,
   onToggleStar,
@@ -138,6 +140,24 @@ export function TabRow({
     >
       <Favicon url={tab.url} title={tab.title} faviconUrl={tab.faviconUrl} asleep={asleep} />
       <span className={`flex-1 truncate ${asleep ? 'opacity-55' : ''}`}>{displayTitle}</span>
+      {unclearReason !== undefined && (
+        <span
+          className="shrink-0 inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-medium
+                     bg-amber-500/15 text-amber-600 dark:text-amber-500"
+          title={
+            unclearReason
+              ? t('tabRow.unclear', { reason: unclearReason })
+              : t('tabRow.unclearGeneric')
+          }
+          aria-label={
+            unclearReason
+              ? t('tabRow.unclear', { reason: unclearReason })
+              : t('tabRow.unclearGeneric')
+          }
+        >
+          ?
+        </span>
+      )}
       {asleep && (
         <span
           className="shrink-0 inline-flex items-center gap-1 font-mono text-[10.5px] opacity-45"

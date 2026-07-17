@@ -16,6 +16,8 @@ export function useAiActions(deps: {
   aiOrganize: () => Promise<void>;
   aiOrganizeAll: () => Promise<void>;
   applyAiPlan: (plan: AIPlan, opts?: { global?: boolean }) => void;
+  /** 本次会话:上次整理里 AI 拿不准、留原位的标签 → 理由(供未分类行内提示)。 */
+  unclearReasons: Record<string, string>;
   aiSuggestName: (contextId: string) => Promise<string | null>;
   saveAi: (
     provider: AIProviderId,
@@ -33,9 +35,12 @@ export function useAiActions(deps: {
     scope: 'inbox' | 'all';
   } | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
+  // AI 拿不准、留原位的标签 → 理由;每次发起整理时清空,应用后由 plan.unclear 写入。会话态,不持久。
+  const [unclearReasons, setUnclearReasons] = useState<Record<string, string>>({});
 
   const aiOrganize = async () => {
     if (aiBusy) return;
+    setUnclearReasons({});
     setAiBusy(true); // 持久「分析中」指示见下方 pill(AI 调用可能超过 flash 的 1.8s)
     const ev = await dispatch({ type: 'AI_ORGANIZE_INBOX' });
     setAiBusy(false);
@@ -55,6 +60,7 @@ export function useAiActions(deps: {
 
   const aiOrganizeAll = async () => {
     if (aiBusy) return;
+    setUnclearReasons({});
     setAiBusy(true);
     const ev = await dispatch({ type: 'AI_ORGANIZE_ALL' });
     setAiBusy(false);
@@ -75,6 +81,8 @@ export function useAiActions(deps: {
   const applyAiPlan = async (plan: AIPlan, opts?: { global?: boolean }) => {
     const ev = await dispatch({ type: 'APPLY_AI_PLAN', plan, global: opts?.global });
     setAiPlan(null);
+    // 记下 AI 拿不准、留原位的标签 → 供未分类行内提示(仅本次会话)
+    setUnclearReasons(Object.fromEntries((plan.unclear ?? []).map((u) => [u.tabId, u.reason])));
     if (opts?.global && ev?.type === 'UNDOABLE') {
       deps.setUndo({ action: ev.action, token: ev.token, ttlMs: ev.ttlMs });
       deps.showFlash(t('ai.flash.organizedAll'));
@@ -131,6 +139,7 @@ export function useAiActions(deps: {
     aiOrganize,
     aiOrganizeAll,
     applyAiPlan,
+    unclearReasons,
     aiSuggestName,
     saveAi,
     testAi,

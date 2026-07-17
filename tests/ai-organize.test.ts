@@ -23,7 +23,7 @@ describe('buildOrganizePrompt', () => {
     expect(user).toContain('react.dev');
     expect(user).toContain('React 文档');
   });
-  it('激进档:提示"尽量归类 + 可跨组移动";默认档不含', () => {
+  it('激进档:可跨组移动;默认档保守;两档都要求拿不准列 unclear', () => {
     const args: [
       Parameters<typeof buildOrganizePrompt>[0],
       Parameters<typeof buildOrganizePrompt>[1],
@@ -35,8 +35,13 @@ describe('buildOrganizePrompt', () => {
     const aggressive = buildOrganizePrompt(...args, { aggressive: true });
     expect(conservative.system).toContain('保守');
     expect(aggressive.system).not.toContain('保守');
-    expect(aggressive.system).toContain('尽量');
     expect(aggressive.system).toContain('跨组');
+    // 两档都不再「尽量归类」,都要求把拿不准的列入 unclear
+    expect(aggressive.system).not.toContain('尽量');
+    expect(conservative.system).toContain('unclear');
+    expect(aggressive.system).toContain('unclear');
+    expect(conservative.system).toContain('拿不准');
+    expect(aggressive.system).toContain('拿不准');
   });
 });
 
@@ -113,6 +118,35 @@ describe('parseOrganizeResponse', () => {
     expect(parseOrganizeResponse(raw, TABS, TASKS)).toEqual({
       newGroups: [{ name: 'g', tabIds: ['t2'] }],
       assign: [{ taskId: 'c1', tabIds: ['t1'] }],
+    });
+  });
+  it('解析 unclear:有效保留、无效丢弃、与已归类去重、理由截断', () => {
+    const raw = JSON.stringify({
+      newGroups: [],
+      assign: [{ taskId: 'c1', tabIds: ['t1'] }],
+      unclear: [
+        { tabId: 't2', reason: '主题不明确' },
+        { tabId: 'BAD', reason: '无效 tabId' }, // 丢弃
+        { tabId: 't1', reason: '已归类应丢弃' }, // 与 assign 去重
+        { tabId: 't3', reason: 'x'.repeat(60) }, // 理由截断到 40
+      ],
+    });
+    const plan = parseOrganizeResponse(raw, TABS, TASKS);
+    expect(plan?.unclear).toEqual([
+      { tabId: 't2', reason: '主题不明确' },
+      { tabId: 't3', reason: 'x'.repeat(40) },
+    ]);
+  });
+  it('无 unclear 时结果不含该键(兼容旧断言)', () => {
+    const raw = '{"newGroups":[{"name":"g","tabIds":["t1"]}],"assign":[]}';
+    expect(parseOrganizeResponse(raw, TABS, TASKS)).not.toHaveProperty('unclear');
+  });
+  it('仅 unclear(无归类)也返回方案', () => {
+    const raw = '{"newGroups":[],"assign":[],"unclear":[{"tabId":"t1","reason":"看不出主题"}]}';
+    expect(parseOrganizeResponse(raw, TABS, TASKS)).toEqual({
+      newGroups: [],
+      assign: [],
+      unclear: [{ tabId: 't1', reason: '看不出主题' }],
     });
   });
 });

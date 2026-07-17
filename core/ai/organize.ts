@@ -44,21 +44,21 @@ export function buildOrganizePrompt(
 ): { system: string; user: string } {
   const classifyRule = opts?.aggressive
     ? [
-        '- 尽量给每个标签找到最合适的归属;只有实在与任何任务/主题都无关的,才不归类。',
-        '- 这些标签可能来自不同的已有分组;可以把明显更合适别处的标签跨组移动、也可以重新平衡已有分组。',
+        '- 只在明显合适时才归类;这些标签可能来自不同的已有分组,可以把明显更合适别处的标签跨组移动、也可以重新平衡已有分组。',
       ]
-    : ['- 保守:拿不准就不要归类(该标签不出现在输出里,自动留在未分类)。'];
+    : ['- 保守:只在明显合适时归类;不出现在输出里的标签自动留在未分类。'];
   const system = [
     '你是帮程序员整理浏览器标签的助手。',
-    '把「零散标签」按任务/主题归类:可新建命名分组,或并入某个「已有任务」。',
+    '把标签按任务/主题归类:可新建命名分组,或并入某个「已有任务」。',
     '规则:',
     ...classifyRule,
+    '- 拿不准归属的标签,不要硬塞进某组;把它列入 "unclear",并附一句简短理由(不超过 20 字,说明为何难归类)。宁可留着不动,也不要凭猜测归类。',
     '- 明显属于某个已有任务时,优先并入该任务而不是新建同类分组。',
     '- 判断是否并入已有任务时,参考该任务的 domains(域名)与 samples(示例标题)是否与标签一致。',
     '- 新建分组名简短(不超过 16 字),语言与标签标题一致。',
     '- 只输出严格 JSON,不要任何解释、不要 Markdown 代码块。',
     'JSON 结构:',
-    '{"newGroups":[{"name":"组名","tabIds":["标签id"]}],"assign":[{"taskId":"任务id","tabIds":["标签id"]}]}',
+    '{"newGroups":[{"name":"组名","tabIds":["标签id"]}],"assign":[{"taskId":"任务id","tabIds":["标签id"]}],"unclear":[{"tabId":"标签id","reason":"简短理由"}]}',
   ].join('\n');
   const user = JSON.stringify({
     looseTabs: tabs.map((t) => ({ id: t.id, title: t.title, domain: t.domain })),
@@ -139,7 +139,7 @@ export function parseOrganizeResponse(
     return out;
   };
 
-  const d = data as { newGroups?: unknown; assign?: unknown };
+  const d = data as { newGroups?: unknown; assign?: unknown; unclear?: unknown };
 
   // Process assign first so existing tasks win in dedup
   const assign: AIPlan['assign'] = [];
@@ -166,6 +166,21 @@ export function parseOrganizeResponse(
     }
   }
 
-  if (newGroups.length === 0 && assign.length === 0) return null;
-  return { newGroups, assign };
+  // unclear:AI 拿不准、刻意留原位的标签 + 理由。放最后解析,seen 已含所有已归类标签 → 去重。
+  const unclear: NonNullable<AIPlan['unclear']> = [];
+  if (Array.isArray(d.unclear)) {
+    for (const u of d.unclear) {
+      if (!u || typeof u !== 'object') continue;
+      const rawId = (u as { tabId?: unknown }).tabId;
+      const tabId = typeof rawId === 'string' ? rawId : '';
+      if (!validTabIds.has(tabId) || seen.has(tabId)) continue;
+      seen.add(tabId);
+      const rawReason = (u as { reason?: unknown }).reason;
+      const reason = (typeof rawReason === 'string' ? rawReason : '').trim().slice(0, 40);
+      unclear.push({ tabId, reason });
+    }
+  }
+
+  if (newGroups.length === 0 && assign.length === 0 && unclear.length === 0) return null;
+  return unclear.length ? { newGroups, assign, unclear } : { newGroups, assign };
 }

@@ -32,6 +32,7 @@ interface Props {
   onAiSuggestName?: () => Promise<string | null>; // AI 命名:返回建议名(不自动应用)
   onAiCancel?: () => void; // 进行中点「✦ 取消」中止(复用 CANCEL_AI)
   collapseAll?: boolean; // 传了则折叠态随一键开关同步(归档组不传 → 不受影响)
+  unclearReasons?: Record<string, string>; // tabId→理由:AI 整理拿不准、留原位的标签(仅未分类传)
 }
 
 export function ContextGroup({
@@ -60,6 +61,7 @@ export function ContextGroup({
   onAiSuggestName,
   onAiCancel,
   collapseAll,
+  unclearReasons,
 }: Props) {
   const { t } = useT();
   const [collapsed, setCollapsed] = useState(variant === 'archived');
@@ -335,6 +337,7 @@ export function ContextGroup({
                 tab={t}
                 dupState={dupMarks.get(t.id)}
                 portMap={portMap}
+                unclearReason={unclearReasons?.[t.id]}
                 onActivate={() => onActivateTab(t.id)}
                 onClose={() => onCloseTab(t.id)}
                 onToggleStar={

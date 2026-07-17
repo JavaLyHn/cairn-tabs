@@ -87,13 +87,17 @@ export function AIPlanDialog({ plan, tabs, taskNames, sourceNames, onApply, onCl
   const removeAssign = (i: number) => setAssign((as) => as.filter((_, j) => j !== i));
 
   // Fix 3: finalPlan strips _id — only { name, tabIds } / { taskId, tabIds } go out
+  const unclear = plan.unclear ?? [];
   const finalPlan: AIPlan = {
     newGroups: groups
       .filter((g) => g.name.trim() && g.tabIds.length)
       .map(({ name, tabIds }) => ({ name, tabIds })),
     assign: assign.filter((a) => a.tabIds.length).map(({ taskId, tabIds }) => ({ taskId, tabIds })),
+    ...(unclear.length ? { unclear } : {}), // 透传:供应用后的会话内标记
   };
-  const empty = finalPlan.newGroups.length === 0 && finalPlan.assign.length === 0;
+  // 仅 unclear 也允许「应用」:虽不移动任何标签,但据此点亮未分类里的行内提示。
+  const empty =
+    finalPlan.newGroups.length === 0 && finalPlan.assign.length === 0 && unclear.length === 0;
 
   return (
     <div className="absolute inset-0 z-30 flex justify-center bg-black/30" onClick={onClose}>
@@ -197,6 +201,34 @@ export function AIPlanDialog({ plan, tabs, taskNames, sourceNames, onApply, onCl
                   })}
                 </div>
               ))}
+            </div>
+          )}
+
+          {unclear.length > 0 && (
+            <div>
+              <div className="text-[11px] uppercase tracking-wide opacity-40 mb-1">
+                {t('aiPlan.unclear')}
+              </div>
+              <div className="rounded-lg border border-black/10 dark:border-white/10 p-1.5">
+                {unclear.map((u) => {
+                  const tab = byId.get(u.tabId);
+                  if (!tab) return null;
+                  return (
+                    <div key={u.tabId} className="flex items-center gap-2 px-2 py-1">
+                      <Favicon url={tab.url} title={tab.title} faviconUrl={tab.faviconUrl} />
+                      <span className="flex-1 truncate text-[12.5px] opacity-70">{tab.title}</span>
+                      {u.reason && (
+                        <span
+                          className="shrink-0 max-w-[45%] truncate text-[10.5px] opacity-40"
+                          title={u.reason}
+                        >
+                          {u.reason}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

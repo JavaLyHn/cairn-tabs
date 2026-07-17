@@ -54,6 +54,25 @@ describe('AIPlanDialog 来源组显示', () => {
   });
 });
 
+describe('AIPlanDialog 拿不准区', () => {
+  it('展示「拿不准 · 保持原位」区与 AI 理由', () => {
+    render(
+      <I18nProvider initialLocale="zh-CN">
+        <AIPlanDialog
+          plan={{ newGroups: [], assign: [], unclear: [{ tabId: 't1', reason: '看不出主题' }] }}
+          tabs={[tab('t1', '标签一')]}
+          taskNames={{}}
+          onApply={noop}
+          onClose={noop}
+        />
+      </I18nProvider>,
+    );
+    expect(screen.getByText('拿不准 · 保持原位')).toBeTruthy();
+    expect(screen.getByText('看不出主题')).toBeTruthy();
+    expect(screen.getByText('标签一')).toBeTruthy();
+  });
+});
+
 describe('AIPlanDialog favicon 兜底', () => {
   it('无 faviconUrl → 用域名首字母字标(不裂图、不空方块)', () => {
     const { container } = render(

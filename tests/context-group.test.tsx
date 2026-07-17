@@ -129,3 +129,43 @@ describe('ContextGroup 一键折叠', () => {
     expect(screen.queryByText('A标签')).toBeNull();
   });
 });
+
+describe('ContextGroup 不确定标记', () => {
+  const t = {
+    id: 'x1',
+    contextId: 'c1',
+    url: 'https://a.com',
+    title: 'A标签',
+    chromeTabId: 1,
+    firstOpenedAt: 0,
+    lastActiveAt: 0,
+  };
+  it('传 unclearReasons → 对应标签显示「?」标记,悬停含理由', () => {
+    render(
+      <I18nProvider initialLocale="zh-CN">
+        <ContextGroup
+          {...baseProps({ editing: false, tabs: [t], unclearReasons: { x1: '看不出主题' } })}
+        />
+      </I18nProvider>,
+    );
+    const marker = screen.getByTitle(/看不出主题/);
+    expect(marker.textContent).toBe('?');
+  });
+  it('无 unclearReasons → 不显示标记', () => {
+    render(
+      <I18nProvider initialLocale="zh-CN">
+        <ContextGroup {...baseProps({ editing: false, tabs: [t] })} />
+      </I18nProvider>,
+    );
+    expect(screen.queryByText('?')).toBeNull();
+  });
+  it('unclear 但理由为空 → 仍显示标记(通用提示)', () => {
+    render(
+      <I18nProvider initialLocale="zh-CN">
+        <ContextGroup {...baseProps({ editing: false, tabs: [t], unclearReasons: { x1: '' } })} />
+      </I18nProvider>,
+    );
+    const marker = screen.getByText('?');
+    expect(marker.getAttribute('title')).toBe('AI 拿不准怎么归类,已留原位');
+  });
+});
