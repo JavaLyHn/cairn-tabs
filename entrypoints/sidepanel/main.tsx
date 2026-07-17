@@ -1,3 +1,8 @@
+/*
+ * Cairn Tabs — Copyright (C) 2026 LyHn (JavaLyHn).
+ * Licensed under AGPL-3.0-only. Derivative works must retain this attribution
+ * and be released under the same license. See LICENSE.
+ */
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';

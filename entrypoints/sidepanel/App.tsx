@@ -22,6 +22,7 @@ import { DomainPromoteSuggestions } from './components/DomainPromoteSuggestions'
 import { EmptyState } from './components/EmptyState';
 import { SettingsPanel } from './components/SettingsPanel';
 import { ExportDialog } from './components/ExportDialog';
+import { Signature } from './components/Signature';
 import { downloadText } from './util';
 import { useT } from './i18n';
 
@@ -452,19 +453,22 @@ export default function App() {
         )}
       </div>
 
-      {/* 底部状态栏:归档量 + 累计回收内存(F-11) */}
-      <footer className="px-3 py-1.5 text-[11px] opacity-50 hairline border-t border-black/10 dark:border-white/10">
-        {t('app.footer.archived')} <span className="font-mono">{archivedContexts.length}</span>{' '}
-        {t('app.footer.tasks')} · <span className="font-mono">{archivedTabCount}</span>{' '}
-        {t('app.footer.tabs')}
-        {discardedBytes > 0 && (
-          <>
-            {' · '}
-            {t('app.footer.reclaimed')}{' '}
-            <span className="font-mono">{formatReclaimed(discardedBytes)}</span>
-            <span className="ml-1 opacity-70">{t('app.footer.reclaimedEstimate')}</span>
-          </>
-        )}
+      {/* 底部状态栏:归档量 + 累计回收内存(F-11) + 作者署名水印 */}
+      <footer className="flex items-center gap-2 px-3 py-1.5 text-[11px] hairline border-t border-black/10 dark:border-white/10">
+        <span className="opacity-50">
+          {t('app.footer.archived')} <span className="font-mono">{archivedContexts.length}</span>{' '}
+          {t('app.footer.tasks')} · <span className="font-mono">{archivedTabCount}</span>{' '}
+          {t('app.footer.tabs')}
+          {discardedBytes > 0 && (
+            <>
+              {' · '}
+              {t('app.footer.reclaimed')}{' '}
+              <span className="font-mono">{formatReclaimed(discardedBytes)}</span>
+              <span className="ml-1 opacity-70">{t('app.footer.reclaimedEstimate')}</span>
+            </>
+          )}
+        </span>
+        <Signature className="ml-auto shrink-0" />
       </footer>
 
       {undo && (
