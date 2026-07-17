@@ -2,7 +2,7 @@
 
 import type { Repository } from '../store/repositories';
 import type { SearchIndex } from '../search';
-import type { UndoManager, ReorgUndo } from './undo';
+import type { UndoManager, ReorgUndo, TabArchiveUndo } from './undo';
 import { pauseSync, resumeSync } from './sync-lock';
 import { ensureTabInContextGroup, groupTabsForContext, syncGroupTitle } from './group-sync';
 import { DRAFT_CONTEXT_NAME, type Command, type Event } from '@/shared/messaging';
@@ -161,6 +161,45 @@ async function undoReorg(reorg: ReorgUndo, repo: Repository, now: number): Promi
   }
 }
 
+/** 撤销「把开着的标签归档进已归档任务」:重开该标签 + 移回原任务(原任务已删则兜回未分类)。 */
+async function undoTabArchive(tabArchive: TabArchiveUndo, ctx: CommandContext): Promise<void> {
+  const { repo } = ctx;
+  const record = await repo.getTab(tabArchive.tabId);
+  if (!record) return;
+  const fromExists = await repo.getContext(tabArchive.fromContextId);
+  const target = fromExists ? tabArchive.fromContextId : INBOX_ID;
+
+  let windowId: number | undefined;
+  try {
+    const win = await chrome.windows.getLastFocused({ windowTypes: ['normal'] });
+    windowId = win.id;
+  } catch {
+    windowId = undefined;
+  }
+
+  pauseSync();
+  try {
+    if (record.chromeTabId == null) {
+      const created = await chrome.tabs.create({ url: record.url, active: false, windowId });
+      if (created.id != null) {
+        await repo.bindChromeTab(
+          record.id,
+          created.id,
+          created.windowId ?? windowId ?? 0,
+          Date.now(),
+        );
+      }
+    }
+    await repo.moveTab(record.id, target, Date.now());
+    const after = await repo.getTab(record.id);
+    if (after?.chromeTabId != null) {
+      await ensureTabInContextGroup(repo, target, after.chromeTabId);
+    }
+  } finally {
+    resumeSync();
+  }
+}
+
 export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<Event | void> {
   const { repo, search, undo, onChange, recordNegative, ports, flags, onReclaim } = ctx;
   const now = Date.now();
@@ -212,15 +251,43 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
 
     case 'MOVE_TAB': {
       const before = await repo.getTab(cmd.tabRecordId);
+      const target = await repo.getContext(cmd.toContextId);
       await repo.moveTab(cmd.tabRecordId, cmd.toContextId, now);
       await repo.pinTab(cmd.tabRecordId); // 人工归属,引擎不再改动(PRD §6.1)
       const rec = await repo.getTab(cmd.tabRecordId);
-      if (rec?.chromeTabId != null) {
-        await ensureTabInContextGroup(repo, cmd.toContextId, rec.chromeTabId);
-      }
+
       // 从命名簇拖出 → 记负样本(降低该域名再归入该簇的权重,PRD §6.2)
       if (before && before.contextId !== INBOX_ID && before.contextId !== cmd.toContextId) {
         await recordNegative?.(before.url, before.contextId);
+      }
+
+      // 拖进「已归档任务」:把这个开着的标签直接归档进去(关标签、清 chromeTabId),
+      // 任务保持归档、不恢复重开。可撤销(见 undoTabArchive)。
+      if (target?.status === 'archived') {
+        if (before && before.contextId !== cmd.toContextId && rec?.chromeTabId != null) {
+          const closedId = rec.chromeTabId;
+          await repo.updateTab(rec.id, { chromeTabId: undefined, windowId: undefined });
+          pauseSync();
+          try {
+            await chrome.tabs.remove(closedId).catch(() => {});
+          } finally {
+            resumeSync();
+          }
+          await onReclaim?.(BYTES_PER_DISCARD);
+          onChange();
+          const { token, ttlMs } = undo.registerTabArchive(
+            { tabId: rec.id, fromContextId: before.contextId },
+            UNDO_TTL_MS,
+          );
+          return { type: 'UNDOABLE', action: 'archive-tab', token, ttlMs };
+        }
+        // 已归档标签在归档任务间挪动:纯移动,无标签可关、不撤销
+        onChange();
+        return;
+      }
+
+      if (rec?.chromeTabId != null) {
+        await ensureTabInContextGroup(repo, cmd.toContextId, rec.chromeTabId);
       }
       onChange();
       return;
@@ -290,6 +357,11 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       if (!e) return;
       if (e.reorg) {
         await undoReorg(e.reorg, repo, now);
+        onChange();
+        return;
+      }
+      if (e.tabArchive) {
+        await undoTabArchive(e.tabArchive, ctx);
         onChange();
         return;
       }

@@ -11,11 +11,18 @@ export interface ReorgUndo {
   deleteContextIds: string[]; // 撤销时删掉 plan 新建的组(其标签已移回,应为空)
 }
 
+/** 「把开着的标签归档进已归档任务」的逆操作:重开标签 + 移回原任务。 */
+export interface TabArchiveUndo {
+  tabId: string;
+  fromContextId: string; // 归档前所属任务(撤销时移回;若已删则由调用方兜回未分类)
+}
+
 interface UndoEntry {
   token: string;
   action: string;
   contextId?: string;
   reorg?: ReorgUndo;
+  tabArchive?: TabArchiveUndo;
   timer: ReturnType<typeof setTimeout>;
 }
 
@@ -23,6 +30,7 @@ export interface UndoConsumed {
   action: string;
   contextId?: string;
   reorg?: ReorgUndo;
+  tabArchive?: TabArchiveUndo;
 }
 
 export class UndoManager {
@@ -42,12 +50,24 @@ export class UndoManager {
     return { token, ttlMs };
   }
 
+  registerTabArchive(tabArchive: TabArchiveUndo, ttlMs: number): { token: string; ttlMs: number } {
+    const token = nanoid();
+    const timer = setTimeout(() => this.entries.delete(token), ttlMs);
+    this.entries.set(token, { token, action: 'archive-tab', tabArchive, timer });
+    return { token, ttlMs };
+  }
+
   /** 取出并作废 token,返回其关联的动作与载荷(过期返回 undefined)。 */
   consume(token: string): UndoConsumed | undefined {
     const entry = this.entries.get(token);
     if (!entry) return undefined;
     clearTimeout(entry.timer);
     this.entries.delete(token);
-    return { action: entry.action, contextId: entry.contextId, reorg: entry.reorg };
+    return {
+      action: entry.action,
+      contextId: entry.contextId,
+      reorg: entry.reorg,
+      tabArchive: entry.tabArchive,
+    };
   }
 }

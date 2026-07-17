@@ -19,6 +19,13 @@ describe('UndoManager', () => {
     expect(u.consume(token)).toEqual({ action: 'reorg', contextId: undefined, reorg });
   });
 
+  it('archive-tab:registerTabArchive 后 consume 返回 action + tabArchive', () => {
+    const u = new UndoManager();
+    const tabArchive = { tabId: 't1', fromContextId: 'c0' };
+    const { token } = u.registerTabArchive(tabArchive, 5000);
+    expect(u.consume(token)).toEqual({ action: 'archive-tab', tabArchive });
+  });
+
   it('consume 后 token 作废;未知 token → undefined', () => {
     const u = new UndoManager();
     const { token } = u.register('archive', 'x', 5000);
