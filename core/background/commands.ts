@@ -387,6 +387,12 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
           if (record.windowId != null) {
             await chrome.windows.update(record.windowId, { focused: true }).catch(() => {});
           }
+          // 唤醒休眠标签:激活会让 Chrome 自动重载该标签,但 onUpdated(discarded:false)
+          // 事件不总可靠 —— 主动清 discarded,面板立即脱离💤(见 bug: 点击休眠页不恢复)。
+          if (record.discarded) {
+            await repo.updateTab(record.id, { discarded: false });
+            onChange();
+          }
         } catch {
           // 记录指向的标签已不存在(幻影,点了没反应)→ 对账清除,让面板与浏览器恢复一致
           await ctx.reconcile?.(true);

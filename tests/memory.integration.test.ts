@@ -166,4 +166,19 @@ describe('runDiscardScan (F-11)', () => {
       ),
     ).toBe(0);
   });
+
+  it('点击休眠标签 → 激活并清 discarded(不再赌 onUpdated 事件、面板脱离💤)', async () => {
+    const idle = await openAndAge('https://sleepy.com/x', 40 * MIN);
+    await runDiscardScan(
+      repo,
+      opts,
+      async () => {},
+      () => {},
+    );
+    expect((await repo.getTab(idle.recId))!.discarded).toBe(true); // 先确认已休眠
+
+    await handleCommand({ type: 'ACTIVATE_TAB', tabRecordId: idle.recId }, ctx);
+
+    expect((await repo.getTab(idle.recId))!.discarded).toBe(false); // 唤醒后立即脱离休眠态
+  });
 });
