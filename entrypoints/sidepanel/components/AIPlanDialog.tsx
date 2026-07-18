@@ -132,14 +132,17 @@ export function AIPlanDialog({ plan, tabs, taskNames, sourceNames, onApply, onCl
   const chip = 'shrink-0 px-2 py-0.5 rounded-full text-[11px]';
 
   return (
-    <div className="absolute inset-0 z-30 flex justify-center bg-black/30" onClick={onClose}>
+    <div
+      className="absolute inset-0 z-30 flex items-center justify-center py-4 bg-black/30"
+      onClick={onClose}
+    >
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label={t('aiPlan.ariaLabel')}
         tabIndex={-1}
-        className="mt-6 w-[92%] max-h-[82%] flex flex-col rounded-xl overflow-hidden shadow-2xl
+        className="w-[92%] max-h-full flex flex-col rounded-xl overflow-hidden shadow-2xl
                    bg-white dark:bg-neutral-900 border border-black/10 dark:border-white/10"
         onClick={(e) => e.stopPropagation()}
       >
