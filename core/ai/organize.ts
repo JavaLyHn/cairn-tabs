@@ -19,7 +19,7 @@ export interface TaskSignals {
   samples: string[];
 }
 
-/** 汇总一个任务里标签的内容信号:域名(按频次 top 5、去重)+ 示例标题(前 3)。供 AI 判断归属。 */
+/** 汇总一个任务里标签的内容信号:域名(按频次 top 5、去重)+ 示例标题(前 5)。供 AI 判断归属。 */
 export function summarizeTaskTabs(tabs: { title: string; domain: string }[]): TaskSignals {
   const freq = new Map<string, number>();
   for (const t of tabs) {
@@ -33,7 +33,7 @@ export function summarizeTaskTabs(tabs: { title: string; domain: string }[]): Ta
   const samples = tabs
     .map((t) => t.title.trim())
     .filter((s) => s !== '')
-    .slice(0, 3);
+    .slice(0, 5);
   return { domains, samples };
 }
 
@@ -44,19 +44,26 @@ export function buildOrganizePrompt(
 ): { system: string; user: string } {
   const classifyRule = opts?.aggressive
     ? [
-        '- 只在明显合适时才归类;这些标签可能来自不同的已有分组,可以把明显更合适别处的标签跨组移动、也可以重新平衡已有分组。',
+        '- 这些标签可能来自不同的已有分组;可以把明显更适合别处的标签跨组移动、也可以重新平衡已有分组。',
       ]
     : ['- 保守:只在明显合适时归类;不出现在输出里的标签自动留在未分类。'];
   const system = [
-    '你是帮程序员整理浏览器标签的助手。',
-    '把标签按任务/主题归类:可新建命名分组,或并入某个「已有任务」。',
+    '你是帮程序员整理浏览器标签的助手。目标:把标签按「同一个具体任务/项目」归类,能并入已有任务就并入,拿不准就留原位。',
+    '对每个标签,依次这样判断:',
+    '1) 能并入某个「已有任务」吗?逐个对照 existingTasks 的 name / domains / samples,只要明显属于其中某个任务,就 assign 到该任务(最优先)。',
+    '2) 否则,能和其它零散标签凑成「同一个具体任务」的新组吗?能就放进 newGroups。',
+    '3) 都不行 → 列入 unclear,附一句简短理由(不超过 20 字,说明为何难归类)。',
     '规则:',
     ...classifyRule,
-    '- 拿不准归属的标签,不要硬塞进某组;把它列入 "unclear",并附一句简短理由(不超过 20 字,说明为何难归类)。宁可留着不动,也不要凭猜测归类。',
-    '- 明显属于某个已有任务时,优先并入该任务而不是新建同类分组。',
-    '- 判断是否并入已有任务时,参考该任务的 domains(域名)与 samples(示例标题)是否与标签一致。',
-    '- 新建分组名简短(不超过 16 字),语言与标签标题一致。',
+    '- 「同一任务」= 明显服务于同一个具体项目/目标。仅仅同域名、同类型(都是搜索/文档/视频/社交)、或主题笼统相关,都【不算】同一任务,不要硬凑。',
+    '- 禁止新建与某个已有任务主题重叠的分组 —— 那必须用 assign 并入,不要造重复的组;newGroups 只用于确实没有对应已有任务的新主题。',
+    '- 拿不准归属的标签,不要硬塞进某组或塞进不合适的任务;列入 unclear 并附简短理由。宁可少归、多留 unclear,也不要把不相关的标签凑一起。',
+    '- 新建分组名简短(不超过 16 字),概括该组共同任务,语言与标签标题一致。',
     '- 只输出严格 JSON,不要任何解释、不要 Markdown 代码块。',
+    '示例(仅示意判断方式,勿照抄内容):',
+    'existingTasks=[{"id":"t1","name":"支付重构","domains":["github.com","stripe.com"],"samples":["Refactor checkout #42","Stripe API"]}]',
+    'looseTabs=[{"id":"a","title":"checkout webhook #47","domain":"github.com"},{"id":"b","title":"抖音-记录美好生活","domain":"douyin.com"},{"id":"c","title":"Stripe 退款文档","domain":"stripe.com"}]',
+    '输出:{"newGroups":[],"assign":[{"taskId":"t1","tabIds":["a","c"]}],"unclear":[{"tabId":"b","reason":"与其它标签无共同任务"}]}',
     'JSON 结构:',
     '{"newGroups":[{"name":"组名","tabIds":["标签id"]}],"assign":[{"taskId":"任务id","tabIds":["标签id"]}],"unclear":[{"tabId":"标签id","reason":"简短理由"}]}',
   ].join('\n');

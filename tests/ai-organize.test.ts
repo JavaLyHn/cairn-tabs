@@ -43,10 +43,20 @@ describe('buildOrganizePrompt', () => {
     expect(conservative.system).toContain('拿不准');
     expect(aggressive.system).toContain('拿不准');
   });
+  it('提示词强调:先并入已有任务、禁止重复建组、抬高「同一任务」门槛', () => {
+    const { system } = buildOrganizePrompt(
+      [{ id: 't1', title: 'x', domain: 'a.com' }],
+      [{ id: 'c1', name: '任务', domains: [], samples: [] }],
+    );
+    expect(system).toContain('已有任务'); // 三步优先级里最优先并入
+    expect(system).toContain('禁止新建与某个已有任务主题重叠'); // 治重复建组
+    expect(system).toContain('同一任务'); // 抬高门槛
+    expect(system).toContain('示例'); // few-shot 示例
+  });
 });
 
 describe('summarizeTaskTabs', () => {
-  it('域名按频次取 top5、去重;标题取前 3', () => {
+  it('域名按频次取 top5、去重;标题取前 5', () => {
     const s = summarizeTaskTabs([
       { title: 'A', domain: 'x.com' },
       { title: 'B', domain: 'x.com' },
@@ -58,7 +68,7 @@ describe('summarizeTaskTabs', () => {
     ]);
     expect(s.domains[0]).toBe('x.com'); // 频次最高在前
     expect(s.domains).toHaveLength(5); // 至多 5
-    expect(s.samples).toEqual(['A', 'B', 'C']); // 前 3 标题
+    expect(s.samples).toEqual(['A', 'B', 'C', 'D', 'E']); // 前 5 标题
   });
   it('空输入 → 空', () => {
     expect(summarizeTaskTabs([])).toEqual({ domains: [], samples: [] });
