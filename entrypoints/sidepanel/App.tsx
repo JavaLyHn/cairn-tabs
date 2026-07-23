@@ -86,6 +86,7 @@ export default function App() {
     setAiPlan,
     aiOrganize,
     aiOrganizeAll,
+    aiOrganizeTask,
     applyAiPlan,
     unclearReasons,
     aiSuggestName,
@@ -295,6 +296,7 @@ export default function App() {
     aiEnabled: ai.hasKey,
     aiBusy,
     onAiOrganize: aiOrganize,
+    onAiPrune: () => aiOrganizeTask(ctx.id, ctx.name),
     onAiSuggestName: () => aiSuggestName(ctx.id),
     onAiCancel: () => dispatch({ type: 'CANCEL_AI' }),
   });
@@ -487,9 +489,11 @@ export default function App() {
           label={
             undo.action === 'reorg'
               ? t('ai.flash.organizedAll')
-              : undo.action === 'archive-tab'
-                ? t('undo.archivedInto', { name: undo.name ?? '' })
-                : t('undo.label')
+              : undo.action === 'prune'
+                ? t('ai.flash.pruned', { name: undo.name ?? '' })
+                : undo.action === 'archive-tab'
+                  ? t('undo.archivedInto', { name: undo.name ?? '' })
+                  : t('undo.label')
           }
           ttlMs={undo.ttlMs}
           onUndo={doUndo}
@@ -530,9 +534,12 @@ export default function App() {
         <AIPlanDialog
           plan={aiPlan.plan}
           tabs={aiPlan.tabs}
-          taskNames={Object.fromEntries(contexts.map((c) => [c.id, c.name]))}
+          taskNames={{
+            ...Object.fromEntries(contexts.map((c) => [c.id, c.name])),
+            [INBOX_ID]: t('context.inboxName'), // 净化时踢向未分类,显示本地化名
+          }}
           sourceNames={
-            aiPlan.scope === 'all'
+            aiPlan.scope !== 'inbox'
               ? Object.fromEntries(
                   aiPlan.tabs.map((tab) => [
                     tab.id,
@@ -541,7 +548,15 @@ export default function App() {
                 )
               : undefined
           }
-          onApply={(plan) => applyAiPlan(plan, { global: aiPlan.scope === 'all' })}
+          onApply={(plan) =>
+            aiPlan.scope === 'task'
+              ? applyAiPlan(plan, {
+                  prune: true,
+                  fromContextId: aiPlan.taskId,
+                  taskName: aiPlan.taskName,
+                })
+              : applyAiPlan(plan, { global: aiPlan.scope === 'all' })
+          }
           onClose={() => setAiPlan(null)}
         />
       )}

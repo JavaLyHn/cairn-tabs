@@ -6,16 +6,28 @@ import { permissionOriginFor } from '@/core/ai/provider';
 import { logError } from '@/shared/log';
 import { useT } from '../i18n';
 
+type AiPlanState = {
+  plan: AIPlan;
+  tabs: TabRecord[];
+  scope: 'inbox' | 'all' | 'task';
+  taskId?: string; // scope==='task':被净化的任务
+  taskName?: string;
+};
+
 export function useAiActions(deps: {
   showFlash: (msg: string) => void;
-  setUndo: (u: { action: string; token: string; ttlMs: number }) => void;
+  setUndo: (u: { action: string; token: string; ttlMs: number; name?: string }) => void;
 }): {
   aiBusy: boolean;
-  aiPlan: { plan: AIPlan; tabs: TabRecord[]; scope: 'inbox' | 'all' } | null;
-  setAiPlan: (v: { plan: AIPlan; tabs: TabRecord[]; scope: 'inbox' | 'all' } | null) => void;
+  aiPlan: AiPlanState | null;
+  setAiPlan: (v: AiPlanState | null) => void;
   aiOrganize: () => Promise<void>;
   aiOrganizeAll: () => Promise<void>;
-  applyAiPlan: (plan: AIPlan, opts?: { global?: boolean }) => void;
+  aiOrganizeTask: (contextId: string, taskName: string) => Promise<void>;
+  applyAiPlan: (
+    plan: AIPlan,
+    opts?: { global?: boolean; prune?: boolean; fromContextId?: string; taskName?: string },
+  ) => void;
   /** 本次会话:上次整理里 AI 拿不准、留原位的标签 → 理由(供未分类行内提示)。 */
   unclearReasons: Record<string, string>;
   aiSuggestName: (contextId: string) => Promise<string | null>;
@@ -29,11 +41,7 @@ export function useAiActions(deps: {
 } {
   const { t } = useT();
 
-  const [aiPlan, setAiPlan] = useState<{
-    plan: AIPlan;
-    tabs: TabRecord[];
-    scope: 'inbox' | 'all';
-  } | null>(null);
+  const [aiPlan, setAiPlan] = useState<AiPlanState | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
   // AI 拿不准、留原位的标签 → 理由;每次发起整理时清空,应用后由 plan.unclear 写入。会话态,不持久。
   const [unclearReasons, setUnclearReasons] = useState<Record<string, string>>({});
@@ -78,9 +86,49 @@ export function useAiActions(deps: {
     }
   };
 
-  const applyAiPlan = async (plan: AIPlan, opts?: { global?: boolean }) => {
-    const ev = await dispatch({ type: 'APPLY_AI_PLAN', plan, global: opts?.global });
+  const aiOrganizeTask = async (contextId: string, taskName: string) => {
+    if (aiBusy) return;
+    setUnclearReasons({});
+    setAiBusy(true);
+    const ev = await dispatch({ type: 'AI_ORGANIZE_TASK', contextId });
+    setAiBusy(false);
+    if (ev?.type === 'AI_PLAN')
+      setAiPlan({ plan: ev.plan, tabs: ev.tabs, scope: 'task', taskId: contextId, taskName });
+    else if (ev?.type === 'AI_ERROR') {
+      const msg: Record<string, string> = {
+        no_key: t('ai.error.no_key'),
+        permission: t('ai.error.permission'),
+        network: t('ai.error.network'),
+        parse: t('ai.error.parse'),
+        empty: t('ai.error.empty.task'),
+        cancelled: t('ai.error.cancelled'),
+      };
+      deps.showFlash(msg[ev.reason] ?? t('ai.error.default'));
+    }
+  };
+
+  const applyAiPlan = async (
+    plan: AIPlan,
+    opts?: { global?: boolean; prune?: boolean; fromContextId?: string; taskName?: string },
+  ) => {
     setAiPlan(null);
+    if (opts?.prune && opts.fromContextId) {
+      // 净化:把 plan 里(可能被逐个否决后)确认踢出的标签移回未分类
+      const tabIds = plan.assign.flatMap((a) => a.tabIds);
+      const ev = await dispatch({
+        type: 'AI_PRUNE_APPLY',
+        fromContextId: opts.fromContextId,
+        tabIds,
+      });
+      setUnclearReasons(Object.fromEntries((plan.unclear ?? []).map((u) => [u.tabId, u.reason])));
+      if (ev?.type === 'UNDOABLE') {
+        deps.setUndo({ action: ev.action, token: ev.token, ttlMs: ev.ttlMs, name: opts.taskName });
+      } else {
+        deps.showFlash(t('ai.flash.applied')); // 无踢出(全属于)
+      }
+      return;
+    }
+    const ev = await dispatch({ type: 'APPLY_AI_PLAN', plan, global: opts?.global });
     // 记下 AI 拿不准、留原位的标签 → 供未分类行内提示(仅本次会话)
     setUnclearReasons(Object.fromEntries((plan.unclear ?? []).map((u) => [u.tabId, u.reason])));
     if (opts?.global && ev?.type === 'UNDOABLE') {
@@ -138,6 +186,7 @@ export function useAiActions(deps: {
     setAiPlan,
     aiOrganize,
     aiOrganizeAll,
+    aiOrganizeTask,
     applyAiPlan,
     unclearReasons,
     aiSuggestName,

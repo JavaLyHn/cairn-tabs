@@ -51,6 +51,7 @@ export const en = {
   'ai.error.parse': 'AI could not produce usable grouping suggestions — no changes made',
   'ai.error.empty.inbox': 'No tabs in Unclassified to organize',
   'ai.error.empty.all': 'No tabs to organize (★ starred and manually sorted stay put)',
+  'ai.error.empty.task': 'No movable tabs in this task (★ starred and manually sorted stay put)',
   'ai.error.cancelled': 'AI organize cancelled',
   'ai.error.default': 'AI call failed',
   'ai.error.name.empty': 'This task has no tabs to reference',
@@ -59,6 +60,7 @@ export const en = {
 
   // ── ai.flash ──────────────────────────────────────────────────────────────
   'ai.flash.organizedAll': 'All tabs organized',
+  'ai.flash.pruned': 'Tidied “{name}”',
   'ai.flash.applied': 'AI organize applied',
 
   // ── settings ──────────────────────────────────────────────────────────────
@@ -150,6 +152,7 @@ export const en = {
   'context.ai.organize': '✦ AI organize',
   'context.ai.organizeBusy': '✦ Analyzing…',
   'context.ai.organizeTitle': 'Use AI to group scattered tabs',
+  'context.ai.pruneTitle': 'AI tidy this task — move tabs that don’t belong to Unsorted',
   'context.archiveAll': 'Archive all',
   'context.archiveAllTitle': 'Archive all scattered tabs (saved as one task)',
   'context.rename': 'Rename',

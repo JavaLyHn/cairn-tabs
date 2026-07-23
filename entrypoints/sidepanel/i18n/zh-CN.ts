@@ -51,6 +51,7 @@ export const zhCN: Messages = {
   'ai.error.parse': 'AI 没能给出可用的分组建议,已保持原样',
   'ai.error.empty.inbox': '未分类里没有可整理的标签',
   'ai.error.empty.all': '没有可整理的标签(★重点和手动分好的不动)',
+  'ai.error.empty.task': '这个任务里没有可动标签(★重点和手动分好的不动)',
   'ai.error.cancelled': '已取消 AI 整理',
   'ai.error.default': 'AI 调用失败',
   'ai.error.name.empty': '这个任务里没有标签可参考',
@@ -59,6 +60,7 @@ export const zhCN: Messages = {
 
   // ── ai.flash ──────────────────────────────────────────────────────────────
   'ai.flash.organizedAll': '已整理全部',
+  'ai.flash.pruned': '已整理「{name}」',
   'ai.flash.applied': '已应用 AI 整理',
 
   // ── settings ──────────────────────────────────────────────────────────────
@@ -147,6 +149,7 @@ export const zhCN: Messages = {
   'context.ai.organize': '✦ AI 整理',
   'context.ai.organizeBusy': '✦ 分析中…',
   'context.ai.organizeTitle': '用 AI 把零散标签分组',
+  'context.ai.pruneTitle': 'AI 整理本组 —— 把不属于这个任务的标签移到未分类',
   'context.archiveAll': '全部归档',
   'context.archiveAllTitle': '把全部零散标签归档(存为一个任务)',
   'context.rename': '改名',

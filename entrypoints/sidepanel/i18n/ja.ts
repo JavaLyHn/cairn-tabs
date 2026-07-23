@@ -51,6 +51,8 @@ export const ja: Messages = {
   'ai.error.parse': 'AI が有効なグループ提案を返せませんでした — 変更なし',
   'ai.error.empty.inbox': '未分類に整理できるタブがありません',
   'ai.error.empty.all': '整理できるタブがありません(★スター付き・手動整理済みはそのまま)',
+  'ai.error.empty.task':
+    'このタスクに移動可能なタブがありません(★スター付き・手動整理済みはそのまま)',
   'ai.error.cancelled': 'AI 整理をキャンセルしました',
   'ai.error.default': 'AI の呼び出しに失敗しました',
   'ai.error.name.empty': 'このタスクには参照できるタブがありません',
@@ -59,6 +61,7 @@ export const ja: Messages = {
 
   // ── ai.flash ──────────────────────────────────────────────────────────────
   'ai.flash.organizedAll': '全タブを整理しました',
+  'ai.flash.pruned': '「{name}」を整理しました',
   'ai.flash.applied': 'AI 整理を適用しました',
 
   // ── settings ──────────────────────────────────────────────────────────────
@@ -149,6 +152,7 @@ export const ja: Messages = {
   'context.ai.organize': '✦ AI 整理',
   'context.ai.organizeBusy': '✦ 分析中…',
   'context.ai.organizeTitle': 'AI で散らばったタブをグループ化',
+  'context.ai.pruneTitle': 'AI でこのタスクを整理 — 主題に合わないタブを未分類へ移動',
   'context.archiveAll': '全てアーカイブ',
   'context.archiveAllTitle': '散らばったタブを全てアーカイブ(1つのタスクとして保存)',
   'context.rename': '名前変更',

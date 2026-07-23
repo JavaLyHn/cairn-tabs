@@ -130,6 +130,38 @@ describe('ContextGroup 一键折叠', () => {
   });
 });
 
+describe('ContextGroup 命名任务 AI 整理(净化)入口', () => {
+  const movable = {
+    id: 'm1',
+    contextId: 'c1',
+    url: 'https://a.com',
+    title: '可动标签',
+    chromeTabId: 1,
+    firstOpenedAt: 0,
+    lastActiveAt: 0,
+  };
+  it('命名任务(有可动标签、AI 开)显示「✦ AI 整理」并触发 onAiPrune', () => {
+    const onAiPrune = vi.fn();
+    render(
+      <I18nProvider initialLocale="zh-CN">
+        <ContextGroup {...baseProps({ editing: false, tabs: [movable], onAiPrune })} />
+      </I18nProvider>,
+    );
+    const btn = screen.getByRole('button', { name: '✦ AI 整理' });
+    fireEvent.click(btn);
+    expect(onAiPrune).toHaveBeenCalledTimes(1);
+  });
+  it('全是★重点/无可动标签 → 不显示 AI 整理', () => {
+    const starred = { ...movable, starred: true };
+    render(
+      <I18nProvider initialLocale="zh-CN">
+        <ContextGroup {...baseProps({ editing: false, tabs: [starred], onAiPrune: () => {} })} />
+      </I18nProvider>,
+    );
+    expect(screen.queryByRole('button', { name: '✦ AI 整理' })).toBeNull();
+  });
+});
+
 describe('ContextGroup 命名任务直接 AI 改名入口', () => {
   const tab = {
     id: 'x1',

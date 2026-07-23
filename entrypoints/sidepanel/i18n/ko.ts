@@ -52,6 +52,7 @@ export const ko: Messages = {
   'ai.error.parse': 'AI가 유효한 그룹 제안을 생성하지 못했습니다 — 변경 사항 없음',
   'ai.error.empty.inbox': '미분류에 정리할 탭이 없습니다',
   'ai.error.empty.all': '정리할 탭이 없습니다 (★ 즐겨찾기 및 수동 정렬 탭은 유지)',
+  'ai.error.empty.task': '이 작업에 이동 가능한 탭이 없습니다 (★ 즐겨찾기 및 수동 정렬 탭은 유지)',
   'ai.error.cancelled': 'AI 정리가 취소되었습니다',
   'ai.error.default': 'AI 호출 실패',
   'ai.error.name.empty': '이 작업에 참조할 탭이 없습니다',
@@ -60,6 +61,7 @@ export const ko: Messages = {
 
   // ── ai.flash ──────────────────────────────────────────────────────────────
   'ai.flash.organizedAll': '모든 탭 정리 완료',
+  'ai.flash.pruned': "'{name}' 정리 완료",
   'ai.flash.applied': 'AI 정리가 적용되었습니다',
 
   // ── settings ──────────────────────────────────────────────────────────────
@@ -151,6 +153,7 @@ export const ko: Messages = {
   'context.ai.organize': '✦ AI 정리',
   'context.ai.organizeBusy': '✦ 분석 중…',
   'context.ai.organizeTitle': 'AI로 흩어진 탭 그룹화',
+  'context.ai.pruneTitle': 'AI로 이 작업 정리 — 주제에 맞지 않는 탭을 미분류로 이동',
   'context.archiveAll': '모두 보관',
   'context.archiveAllTitle': '흩어진 탭 전체 보관 (하나의 작업으로 저장)',
   'context.rename': '이름 변경',

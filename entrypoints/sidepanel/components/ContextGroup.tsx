@@ -29,6 +29,7 @@ interface Props {
   aiEnabled?: boolean;
   aiBusy?: boolean; // AI 整理进行中 → 按钮显示「分析中…」并禁用
   onAiOrganize?: () => void;
+  onAiPrune?: () => void; // 命名任务:AI 整理本组(踢出不属于的到未分类)
   onAiSuggestName?: () => Promise<string | null>; // AI 命名:返回建议名(不自动应用)
   onAiCancel?: () => void; // 进行中点「✦ 取消」中止(复用 CANCEL_AI)
   collapseAll?: boolean; // 传了则折叠态随一键开关同步(归档组不传 → 不受影响)
@@ -58,6 +59,7 @@ export function ContextGroup({
   aiEnabled,
   aiBusy,
   onAiOrganize,
+  onAiPrune,
   onAiSuggestName,
   onAiCancel,
   collapseAll,
@@ -289,6 +291,21 @@ export function ContextGroup({
                   {t('context.archiveAll')}
                 </button>
               )}
+              {!isInbox &&
+                !editing &&
+                aiEnabled &&
+                onAiPrune &&
+                tabs.some((tab) => tab.chromeTabId != null && !tab.starred && !tab.pinned) && (
+                  <button
+                    onClick={onAiPrune}
+                    disabled={aiBusy}
+                    aria-label={aiBusy ? t('context.ai.organizeBusy') : t('context.ai.organize')}
+                    className="text-[11px] text-accent hover:underline disabled:opacity-60 disabled:no-underline"
+                    title={t('context.ai.pruneTitle')}
+                  >
+                    {aiBusy ? t('context.ai.organizeBusy') : t('context.ai.organize')}
+                  </button>
+                )}
               {!isInbox && !editing && aiEnabled && onAiSuggestName && tabs.length > 0 && (
                 <button
                   onClick={() => {
