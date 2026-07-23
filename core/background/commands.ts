@@ -14,11 +14,13 @@ import { hostnameOf, registrableDomain } from '../clustering/signals';
 import {
   buildOrganizePrompt,
   parseOrganizeResponse,
+  buildPruneTaskPrompt,
+  parsePruneResponse,
   buildNamePrompt,
   parseNameResponse,
   summarizeTaskTabs,
 } from '../ai/organize';
-import type { AIProviderId, AIStatus } from '@/shared/ai';
+import type { AIProviderId, AIStatus, AIPlan } from '@/shared/ai';
 import { isAICancelled } from '@/shared/ai';
 
 export interface CommandContext {
@@ -583,6 +585,66 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       );
       if (!plan) return { type: 'AI_ERROR', reason: 'parse' };
       return { type: 'AI_PLAN', plan, tabs: movable };
+    }
+
+    case 'AI_ORGANIZE_TASK': {
+      if (!ctx.ai || !ctx.ai.configured()) return { type: 'AI_ERROR', reason: 'no_key' };
+      if (cmd.contextId === INBOX_ID) return { type: 'AI_ERROR', reason: 'empty' };
+      const task = await repo.getContext(cmd.contextId);
+      if (!task || task.status !== 'active') return { type: 'AI_ERROR', reason: 'empty' };
+      const { tabs } = await repo.getSnapshot();
+      // 可动集:本任务里 打开中、非 ★重点、非手动拖过(pinned)
+      const movable = tabs.filter(
+        (t) => t.contextId === cmd.contextId && t.chromeTabId != null && !t.starred && !t.pinned,
+      );
+      if (movable.length === 0) return { type: 'AI_ERROR', reason: 'empty' };
+      const { system, user } = buildPruneTaskPrompt(
+        task.name,
+        movable.map((t) => ({
+          id: t.id,
+          title: t.title,
+          domain: registrableDomain(hostnameOf(t.url)),
+        })),
+      );
+      let raw: string;
+      try {
+        raw = await ctx.ai.complete(system, user);
+      } catch (e) {
+        if (isAICancelled(e)) return { type: 'AI_ERROR', reason: 'cancelled' };
+        return { type: 'AI_ERROR', reason: 'network' };
+      }
+      const pruned = parsePruneResponse(raw, new Set(movable.map((t) => t.id)));
+      if (!pruned) return { type: 'AI_ERROR', reason: 'parse' };
+      // 组装成 AIPlan 复用预览:踢出 → assign 到未分类;拿不准 → unclear;明显属于的不动。
+      const plan: AIPlan = {
+        newGroups: [],
+        assign: pruned.evict.length
+          ? [{ taskId: INBOX_ID, tabIds: pruned.evict.map((e) => e.tabId) }]
+          : [],
+        ...(pruned.unclear.length ? { unclear: pruned.unclear } : {}),
+      };
+      return { type: 'AI_PLAN', plan, tabs: movable };
+    }
+
+    case 'AI_PRUNE_APPLY': {
+      // 净化应用:把确认踢出的标签从原任务移回未分类(不 pin、不删空任务、不碰其它组)。
+      const moves: ReorgUndo['moves'] = [];
+      for (const tabId of cmd.tabIds) {
+        const t = await repo.getTab(tabId);
+        if (!t || t.contextId !== cmd.fromContextId) continue; // 只移仍在原任务里的
+        await repo.moveTab(tabId, INBOX_ID, now);
+        const after = await repo.getTab(tabId);
+        if (after?.chromeTabId != null)
+          await ensureTabInContextGroup(repo, INBOX_ID, after.chromeTabId);
+        moves.push({ tabId, toContextId: cmd.fromContextId }); // 撤销:移回原任务
+      }
+      onChange();
+      if (moves.length === 0) return;
+      const { token, ttlMs } = undo.registerReorg(
+        { moves, recreate: [], deleteContextIds: [] },
+        UNDO_TTL_MS,
+      );
+      return { type: 'UNDOABLE', action: 'prune', token, ttlMs };
     }
 
     case 'APPLY_AI_PLAN': {

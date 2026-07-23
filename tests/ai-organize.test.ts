@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { buildOrganizePrompt, parseOrganizeResponse, summarizeTaskTabs } from '@/core/ai/organize';
+import {
+  buildOrganizePrompt,
+  parseOrganizeResponse,
+  buildPruneTaskPrompt,
+  parsePruneResponse,
+  summarizeTaskTabs,
+} from '@/core/ai/organize';
 
 const TABS = new Set(['t1', 't2', 't3']);
 const TASKS = new Set(['c1']);
@@ -52,6 +58,56 @@ describe('buildOrganizePrompt', () => {
     expect(system).toContain('禁止新建与某个已有任务主题重叠'); // 治重复建组
     expect(system).toContain('同一任务'); // 抬高门槛
     expect(system).toContain('示例'); // few-shot 示例
+  });
+});
+
+describe('buildPruneTaskPrompt', () => {
+  it('系统含任务名 + 「不属于/踢出」净化语义 + JSON;user 含任务与标签', () => {
+    const { system, user } = buildPruneTaskPrompt('支付重构', [
+      { id: 't1', title: 'checkout #47', domain: 'github.com' },
+    ]);
+    expect(system).toContain('支付重构');
+    expect(system).toContain('不属于');
+    expect(system).toContain('evict');
+    expect(system).toContain('JSON');
+    expect(user).toContain('t1');
+    expect(user).toContain('github.com');
+  });
+});
+
+describe('parsePruneResponse', () => {
+  const VALID = new Set(['t1', 't2', 't3']);
+  it('解析 evict / unclear,校验 tabId、理由截断', () => {
+    const raw = JSON.stringify({
+      evict: [{ tabId: 't1', reason: '与主题无关' }],
+      unclear: [
+        { tabId: 't2', reason: 'x'.repeat(60) },
+        { tabId: 'BAD', reason: '非法' },
+      ],
+    });
+    expect(parsePruneResponse(raw, VALID)).toEqual({
+      evict: [{ tabId: 't1', reason: '与主题无关' }],
+      unclear: [{ tabId: 't2', reason: 'x'.repeat(40) }],
+    });
+  });
+  it('一个标签至多一处(evict 优先于 unclear)', () => {
+    const raw = JSON.stringify({
+      evict: [{ tabId: 't1', reason: 'a' }],
+      unclear: [{ tabId: 't1', reason: 'b' }],
+    });
+    expect(parsePruneResponse(raw, VALID)).toEqual({
+      evict: [{ tabId: 't1', reason: 'a' }],
+      unclear: [],
+    });
+  });
+  it('去围栏 + 合法但空 → 空结构', () => {
+    expect(parsePruneResponse('```json\n{"evict":[],"unclear":[]}\n```', VALID)).toEqual({
+      evict: [],
+      unclear: [],
+    });
+  });
+  it('不可解析 → null', () => {
+    expect(parsePruneResponse('not json', VALID)).toBeNull();
   });
 });
 

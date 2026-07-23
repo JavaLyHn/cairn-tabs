@@ -79,6 +79,82 @@ export function buildOrganizePrompt(
   return { system, user };
 }
 
+/**
+ * 净化单个任务:只判断「哪些标签明显不属于这个任务的主题」→ 踢回未分类;拿不准的留原位。
+ * 明显属于的不必列出(留下)。不往任务里塞新标签,只做「清理出界的」。
+ */
+export function buildPruneTaskPrompt(
+  taskName: string,
+  tabs: OrganizeTab[],
+): { system: string; user: string } {
+  const system = [
+    '你在帮程序员「净化」一个已命名的浏览器标签任务分组。',
+    `分组名:「${taskName}」。下面是它当前的标签。`,
+    '判断每个标签是否属于这个分组的主题:',
+    '- 明显【不属于】这个主题的 → 列入 "evict"(会被移回未分类),附一句简短理由(≤20 字)。',
+    '- 明显属于的 → 不用列出(默认留在原组)。',
+    '- 拿不准的 → 列入 "unclear"(保持原位),附简短理由。',
+    '规则:',
+    '- 只踢「明显跑题」的;宁可留着不动,也不要凭猜测踢出。仅仅同域名/同类型不构成「属于/不属于」的理由,看主题。',
+    '- 不要新建分组、不要往这个组里加别的标签 —— 只输出该踢出的与拿不准的。',
+    '- 只输出严格 JSON,不要任何解释、不要 Markdown 代码块。',
+    'JSON 结构:',
+    '{"evict":[{"tabId":"标签id","reason":"简短理由"}],"unclear":[{"tabId":"标签id","reason":"简短理由"}]}',
+  ].join('\n');
+  const user = JSON.stringify({
+    task: taskName,
+    tabs: tabs.map((t) => ({ id: t.id, title: t.title, domain: t.domain })),
+  });
+  return { system, user };
+}
+
+/** 解析净化响应:返回 evict / unclear(去重:一个标签至多一处;校验 tabId;理由截断)。JSON 不可解析 → null。 */
+export function parsePruneResponse(
+  raw: string,
+  validTabIds: Set<string>,
+): {
+  evict: { tabId: string; reason: string }[];
+  unclear: { tabId: string; reason: string }[];
+} | null {
+  let data: unknown;
+  const text = stripFences(raw);
+  try {
+    data = JSON.parse(text);
+  } catch {
+    const s = text.indexOf('{');
+    const e = text.lastIndexOf('}');
+    if (s < 0 || e <= s) return null;
+    try {
+      data = JSON.parse(text.slice(s, e + 1));
+    } catch {
+      return null;
+    }
+  }
+  if (!data || typeof data !== 'object') return null;
+
+  const seen = new Set<string>();
+  const take = (arr: unknown): { tabId: string; reason: string }[] => {
+    if (!Array.isArray(arr)) return [];
+    const out: { tabId: string; reason: string }[] = [];
+    for (const x of arr) {
+      if (!x || typeof x !== 'object') continue;
+      const rawId = (x as { tabId?: unknown }).tabId;
+      const tabId = typeof rawId === 'string' ? rawId : '';
+      if (!validTabIds.has(tabId) || seen.has(tabId)) continue;
+      seen.add(tabId);
+      const rawReason = (x as { reason?: unknown }).reason;
+      const reason = (typeof rawReason === 'string' ? rawReason : '').trim().slice(0, 40);
+      out.push({ tabId, reason });
+    }
+    return out;
+  };
+
+  const d = data as { evict?: unknown; unclear?: unknown };
+  const evict = take(d.evict); // 先处理 evict,占用 seen → unclear 与之去重
+  const unclear = take(d.unclear);
+  return { evict, unclear };
+}
+
 export function stripFences(s: string): string {
   const m = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
   return (m ? m[1]! : s).trim();

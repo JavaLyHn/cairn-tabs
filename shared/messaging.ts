@@ -33,6 +33,8 @@ export type Command =
   | { type: 'SEARCH'; query: string }
   | { type: 'AI_ORGANIZE_INBOX' }
   | { type: 'AI_ORGANIZE_ALL' }
+  | { type: 'AI_ORGANIZE_TASK'; contextId: string }
+  | { type: 'AI_PRUNE_APPLY'; fromContextId: string; tabIds: string[] }
   | { type: 'APPLY_AI_PLAN'; plan: AIPlan; global?: boolean }
   | {
       type: 'SET_AI_SETTINGS';
@@ -97,6 +99,8 @@ export const COMMAND_TYPES = new Set<Command['type']>([
   'SEARCH',
   'AI_ORGANIZE_INBOX',
   'AI_ORGANIZE_ALL',
+  'AI_ORGANIZE_TASK',
+  'AI_PRUNE_APPLY',
   'APPLY_AI_PLAN',
   'SET_AI_SETTINGS',
   'TEST_AI_CONNECTION',
