@@ -145,6 +145,8 @@ export const ko: Messages = {
   'context.aiNaming.ariaLabel': 'AI 이름 지정',
   'context.aiNaming.cancelAriaLabel': 'AI 이름 지정 취소',
   'context.aiNaming.button': '✦ AI',
+  'context.aiRename': 'AI 이름 변경',
+  'context.aiRenameTitle': 'AI가 이름 제안 (적용 전 미리보기)',
   'context.aiNaming.cancelButton': '✦ 취소',
   'context.ai.organize': '✦ AI 정리',
   'context.ai.organizeBusy': '✦ 분석 중…',

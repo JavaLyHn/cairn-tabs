@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Context, TabRecord } from '@/shared/types';
 import { INBOX_ID } from '@/shared/types';
 import { TabRow } from './TabRow';
@@ -73,6 +73,31 @@ export function ContextGroup({
   const [aiNaming, setAiNaming] = useState(false);
   const cancelledRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const pendingAiRef = useRef(false); // 操作行「✦ AI」点击 → 进入编辑态后自动跑一次 AI 命名
+
+  // 跑一次 AI 命名 → 把建议名预填进输入框(不自动提交,用户回车确认)。编辑态内按钮与自动触发共用。
+  const runAiNaming = useCallback(async () => {
+    if (!onAiSuggestName) return;
+    setAiNaming(true);
+    try {
+      const name = await onAiSuggestName();
+      if (name && inputRef.current) {
+        inputRef.current.value = name;
+        inputRef.current.focus();
+        inputRef.current.select();
+      }
+    } finally {
+      setAiNaming(false); // 无论成功/失败/异常都复位,避免按钮卡在「✦ 取消」
+    }
+  }, [onAiSuggestName]);
+
+  // 进入编辑态且带 pending(来自操作行「✦ AI」)→ 自动跑一次 AI 命名
+  useEffect(() => {
+    if (editing && pendingAiRef.current) {
+      pendingAiRef.current = false;
+      void runAiNaming();
+    }
+  }, [editing, runAiNaming]);
 
   const isInbox = context.id === INBOX_ID;
   // 所有分组(含已归档)都可接收拖拽:拖进已归档任务 = 把开着的标签直接归档进去(SW 侧处理)
@@ -186,22 +211,12 @@ export function ContextGroup({
                 title={aiNaming ? t('context.aiNaming.cancelTitle') : t('context.aiNaming.title')}
                 // mousedown 不让 input 失焦(否则会触发 commit 提前退出编辑)
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={async () => {
+                onClick={() => {
                   if (aiNaming) {
                     onAiCancel?.(); // 进行中 → 中止;promise 以 null 结束,不回填
                     return;
                   }
-                  setAiNaming(true);
-                  try {
-                    const name = await onAiSuggestName();
-                    if (name && inputRef.current) {
-                      inputRef.current.value = name;
-                      inputRef.current.focus();
-                      inputRef.current.select();
-                    }
-                  } finally {
-                    setAiNaming(false); // 无论成功/失败/异常都复位,避免按钮卡在「✦ 取消」
-                  }
+                  void runAiNaming();
                 }}
                 className="shrink-0 text-[11px] text-accent hover:underline"
               >
@@ -272,6 +287,19 @@ export function ContextGroup({
                   title={t('context.archiveAllTitle')}
                 >
                   {t('context.archiveAll')}
+                </button>
+              )}
+              {!isInbox && !editing && aiEnabled && onAiSuggestName && tabs.length > 0 && (
+                <button
+                  onClick={() => {
+                    pendingAiRef.current = true; // 进入编辑态后自动跑 AI 命名(见 effect)
+                    onStartEdit();
+                  }}
+                  aria-label={t('context.aiRename')}
+                  className="text-[11px] text-accent hover:underline"
+                  title={t('context.aiRenameTitle')}
+                >
+                  {t('context.aiNaming.button')}
                 </button>
               )}
               {!isInbox && (

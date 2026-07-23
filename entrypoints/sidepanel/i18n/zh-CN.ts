@@ -141,6 +141,8 @@ export const zhCN: Messages = {
   'context.aiNaming.ariaLabel': 'AI 命名',
   'context.aiNaming.cancelAriaLabel': '取消 AI 命名',
   'context.aiNaming.button': '✦ AI',
+  'context.aiRename': 'AI 改名',
+  'context.aiRenameTitle': 'AI 建议一个任务名(预填,确认后生效)',
   'context.aiNaming.cancelButton': '✦ 取消',
   'context.ai.organize': '✦ AI 整理',
   'context.ai.organizeBusy': '✦ 分析中…',

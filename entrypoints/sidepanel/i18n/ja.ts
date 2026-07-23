@@ -143,6 +143,8 @@ export const ja: Messages = {
   'context.aiNaming.ariaLabel': 'AI 命名',
   'context.aiNaming.cancelAriaLabel': 'AI 命名をキャンセル',
   'context.aiNaming.button': '✦ AI',
+  'context.aiRename': 'AI で名前変更',
+  'context.aiRenameTitle': 'AI が名前を提案(適用前にプレビュー)',
   'context.aiNaming.cancelButton': '✦ キャンセル',
   'context.ai.organize': '✦ AI 整理',
   'context.ai.organizeBusy': '✦ 分析中…',

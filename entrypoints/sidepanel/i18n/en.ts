@@ -144,6 +144,8 @@ export const en = {
   'context.aiNaming.ariaLabel': 'AI name',
   'context.aiNaming.cancelAriaLabel': 'Cancel AI naming',
   'context.aiNaming.button': '✦ AI',
+  'context.aiRename': 'AI rename',
+  'context.aiRenameTitle': 'Suggest a name with AI (preview before applying)',
   'context.aiNaming.cancelButton': '✦ Cancel',
   'context.ai.organize': '✦ AI organize',
   'context.ai.organizeBusy': '✦ Analyzing…',

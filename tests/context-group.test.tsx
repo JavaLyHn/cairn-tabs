@@ -130,6 +130,44 @@ describe('ContextGroup 一键折叠', () => {
   });
 });
 
+describe('ContextGroup 命名任务直接 AI 改名入口', () => {
+  const tab = {
+    id: 'x1',
+    contextId: 'c1',
+    url: 'https://a.com',
+    title: 'A标签',
+    chromeTabId: 1,
+    firstOpenedAt: 0,
+    lastActiveAt: 0,
+  };
+  it('命名任务(非编辑态、有标签、AI 开)显示「✦ AI 改名」,点击进入编辑', () => {
+    const onStartEdit = vi.fn();
+    render(
+      <I18nProvider initialLocale="zh-CN">
+        <ContextGroup {...baseProps({ editing: false, tabs: [tab], onStartEdit })} />
+      </I18nProvider>,
+    );
+    const btn = screen.getByRole('button', { name: 'AI 改名' });
+    fireEvent.click(btn);
+    expect(onStartEdit).toHaveBeenCalledTimes(1);
+  });
+  it('未分类(inbox)不显示 AI 改名', () => {
+    render(
+      <I18nProvider initialLocale="zh-CN">
+        <ContextGroup
+          {...baseProps({
+            variant: 'inbox',
+            editing: false,
+            tabs: [tab],
+            context: { ...ctx, id: 'inbox' },
+          })}
+        />
+      </I18nProvider>,
+    );
+    expect(screen.queryByRole('button', { name: 'AI 改名' })).toBeNull();
+  });
+});
+
 describe('ContextGroup 归档组可接收拖拽', () => {
   it('archived variant:drop 触发 onDropTab(把开着的标签直接归档进来)', () => {
     const onDropTab = vi.fn();
