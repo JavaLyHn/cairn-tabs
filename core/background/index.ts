@@ -236,6 +236,8 @@ export function initBackground(): void {
   chrome.commands.onCommand.addListener((command, tab) => {
     if (command === 'open-search') void openSidePanel(tab?.windowId, { search: true });
     else if (command === 'open-panel') void openSidePanel(tab?.windowId);
+    else if (command === 'merge-duplicates')
+      void handleCommand({ type: 'MERGE_DUPLICATES' }, cmdCtx);
   });
 
   // 标签事件 → DB(带聚簇引擎;读负样本 + 自动聚簇开关)

@@ -4,5 +4,6 @@
     "message": "面向程序员的标签页上下文管理器 —— 按任务归类、归档恢复、秒搜。本地优先、无账号。"
   },
   "cmdOpenPanel": { "message": "打开 Cairn Tabs 面板" },
-  "cmdOpenSearch": { "message": "打开 Cairn Tabs 搜索" }
+  "cmdOpenSearch": { "message": "打开 Cairn Tabs 搜索" },
+  "cmdMergeDuplicates": { "message": "合并重复标签" }
 }

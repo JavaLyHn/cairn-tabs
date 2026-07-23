@@ -4,5 +4,6 @@
     "message": "개발자를 위한 탭 컨텍스트 관리자 — 작업별로 정리, 보관 및 복원, 즉시 검색. 로컬 우선, 계정 불필요."
   },
   "cmdOpenPanel": { "message": "Cairn Tabs 패널 열기" },
-  "cmdOpenSearch": { "message": "Cairn Tabs 검색 열기" }
+  "cmdOpenSearch": { "message": "Cairn Tabs 검색 열기" },
+  "cmdMergeDuplicates": { "message": "중복 탭 병합" }
 }

@@ -4,5 +4,6 @@
     "message": "Tab context manager for developers — group tabs by task, archive & restore, instant search. Local-first, no account."
   },
   "cmdOpenPanel": { "message": "Open the Cairn Tabs panel" },
-  "cmdOpenSearch": { "message": "Open Cairn Tabs search" }
+  "cmdOpenSearch": { "message": "Open Cairn Tabs search" },
+  "cmdMergeDuplicates": { "message": "Merge duplicate tabs" }
 }

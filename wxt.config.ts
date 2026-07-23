@@ -42,6 +42,10 @@ export default defineConfig({
         suggested_key: { default: 'Ctrl+Shift+K', mac: 'Command+Shift+K' },
         description: '__MSG_cmdOpenSearch__',
       },
+      'merge-duplicates': {
+        suggested_key: { default: 'Ctrl+Shift+D', mac: 'Command+Shift+D' },
+        description: '__MSG_cmdMergeDuplicates__',
+      },
     },
   },
 });
