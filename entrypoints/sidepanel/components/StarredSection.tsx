@@ -7,11 +7,10 @@ interface Props {
   tabs: TabRecord[];
   portMap: Record<number, string>;
   onActivateTab: (tabRecordId: string) => void;
-  onCloseTab: (tabRecordId: string) => void;
   onToggleStar: (tabRecordId: string, starred: boolean) => void;
 }
 
-export function StarredSection({ tabs, portMap, onActivateTab, onCloseTab, onToggleStar }: Props) {
+export function StarredSection({ tabs, portMap, onActivateTab, onToggleStar }: Props) {
   const { t } = useT();
   if (tabs.length === 0) return null;
   return (
@@ -22,14 +21,16 @@ export function StarredSection({ tabs, portMap, onActivateTab, onCloseTab, onTog
         <span className="font-mono text-[11px] opacity-40 shrink-0">{tabs.length}</span>
       </div>
       <div className="pl-5 pr-1 pb-1">
-        {tabs.map((t) => (
+        {tabs.map((tab) => (
           <TabRow
-            key={t.id}
-            tab={t}
+            key={tab.id}
+            tab={tab}
             portMap={portMap}
-            onActivate={() => onActivateTab(t.id)}
-            onClose={() => onCloseTab(t.id)}
-            onToggleStar={() => onToggleStar(t.id, !t.starred)}
+            onActivate={() => onActivateTab(tab.id)}
+            // 重点区是镜像:× 只「移出重点」(取消★),不关标签、原分类保留
+            onClose={() => onToggleStar(tab.id, false)}
+            closeTitle={t('starred.remove')}
+            onToggleStar={() => onToggleStar(tab.id, !tab.starred)}
           />
         ))}
       </div>

@@ -25,13 +25,7 @@ describe('StarredSection', () => {
   it('无重点标签 → 不渲染', () => {
     const { container } = render(
       <I18nProvider initialLocale="zh-CN">
-        <StarredSection
-          tabs={[]}
-          portMap={{}}
-          onActivateTab={() => {}}
-          onCloseTab={() => {}}
-          onToggleStar={() => {}}
-        />
+        <StarredSection tabs={[]} portMap={{}} onActivateTab={() => {}} onToggleStar={() => {}} />
       </I18nProvider>,
     );
     expect(container.firstChild).toBeNull();
@@ -45,7 +39,6 @@ describe('StarredSection', () => {
           tabs={[tab()]}
           portMap={{}}
           onActivateTab={() => {}}
-          onCloseTab={() => {}}
           onToggleStar={onToggleStar}
         />
       </I18nProvider>,
@@ -53,6 +46,23 @@ describe('StarredSection', () => {
     expect(screen.getByText('重点')).toBeTruthy();
     expect(screen.getByText('Pinned')).toBeTruthy();
     fireEvent.click(screen.getByTitle('取消重点'));
+    expect(onToggleStar).toHaveBeenCalledWith('s1', false);
+  });
+
+  it('× 只「移出重点」(取消★),不关闭标签', () => {
+    const onToggleStar = vi.fn();
+    render(
+      <I18nProvider initialLocale="zh-CN">
+        <StarredSection
+          tabs={[tab()]}
+          portMap={{}}
+          onActivateTab={() => {}}
+          onToggleStar={onToggleStar}
+        />
+      </I18nProvider>,
+    );
+    // × 的提示是「移出重点(不关闭标签)」,点击 = 取消★
+    fireEvent.click(screen.getByTitle('移出重点(不关闭标签)'));
     expect(onToggleStar).toHaveBeenCalledWith('s1', false);
   });
 });

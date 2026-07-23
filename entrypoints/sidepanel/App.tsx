@@ -423,7 +423,6 @@ export default function App() {
           tabs={starredTabs}
           portMap={portMap}
           onActivateTab={activate}
-          onCloseTab={closeTab}
           onToggleStar={toggleStar}
         />
 

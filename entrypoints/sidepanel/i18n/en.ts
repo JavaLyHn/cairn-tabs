@@ -235,6 +235,7 @@ export const en = {
 
   // ── starred ─────────────────────────────────────────────────────────────────
   'starred.title': 'Starred',
+  'starred.remove': 'Remove from starred (keeps the tab)',
 
   // ── empty ───────────────────────────────────────────────────────────────────
   'empty.heading': 'No tabs yet',

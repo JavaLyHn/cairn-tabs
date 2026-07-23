@@ -50,6 +50,7 @@ interface Props {
   unclearReason?: string; // AI 整理拿不准、留原位 → 显示小标记 + 悬停理由
   onActivate: () => void;
   onClose: () => void;
+  closeTitle?: string; // 覆盖 × 按钮的提示/无障碍文案(默认「关闭」;重点区用「移出重点」)
   onToggleStar?: () => void; // 提供则显示重点标注星按钮
 }
 
@@ -101,6 +102,7 @@ export function TabRow({
   unclearReason,
   onActivate,
   onClose,
+  closeTitle,
   onToggleStar,
 }: Props) {
   const { t } = useT();
@@ -226,8 +228,8 @@ export function TabRow({
         }}
         className="hidden group-hover/row:flex group-focus-within/row:flex items-center justify-center w-4 h-4 shrink-0
                    rounded opacity-50 hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10"
-        title={t('tabRow.close')}
-        aria-label={t('tabRow.close')}
+        title={closeTitle ?? t('tabRow.close')}
+        aria-label={closeTitle ?? t('tabRow.close')}
       >
         ×
       </button>
