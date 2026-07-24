@@ -71,6 +71,44 @@ export default function App() {
   // 本次会话内被忽略的同域升格建议
   const [ignoredDomains, setIgnoredDomains] = useState<Set<string>>(new Set());
   const activeOrderRef = useRef('');
+  const myWindowIdRef = useRef<number | undefined>(undefined); // 本面板所在窗口(供 open-panel 切换关闭)
+
+  // 挂载时连一条 port(name 带 windowId)→ SW 据此知道本窗口面板开着(open-panel 再按可关)。
+  // 断线(SW 空闲被杀)后自动重连,保证 SW 重启后仍知道面板开着,切换关闭不失效。
+  useEffect(() => {
+    let cancelled = false;
+    let port: chrome.runtime.Port | undefined;
+    const connect = (winId?: number) => {
+      if (cancelled) return;
+      try {
+        port = chrome.runtime.connect({ name: `cairn-panel:${winId ?? ''}` });
+        port.onDisconnect.addListener(() => {
+          if (!cancelled) setTimeout(() => connect(winId), 500); // SW 重启 → 重新登记
+        });
+      } catch {
+        /* SW 未就绪 → 稍后由下次交互/重连兜底 */
+      }
+    };
+    void (async () => {
+      let winId: number | undefined;
+      try {
+        winId = (await chrome.windows.getCurrent()).id;
+      } catch {
+        winId = undefined;
+      }
+      if (cancelled) return;
+      myWindowIdRef.current = winId;
+      connect(winId);
+    })();
+    return () => {
+      cancelled = true;
+      try {
+        port?.disconnect();
+      } catch {
+        /* already gone */
+      }
+    };
+  }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [allCollapsed, setAllCollapsed] = useState(false); // 一键折叠开关(false=展开)
   const [exportTarget, setExportTarget] = useState<{ id: string; at: number } | null>(null);
@@ -133,6 +171,10 @@ export default function App() {
         toggleSearchOnce();
         // 已实时处理,清掉冷启动兜底标志,避免下次开面板残留导致误开搜索
         void chrome.storage.session.remove('pendingSearch');
+      } else if (ev?.type === 'CLOSE_PANEL') {
+        // open-panel 再按一次:SW 通知本窗口面板自关(sidePanel 无关闭 API)
+        const mine = myWindowIdRef.current;
+        if (ev.windowId == null || mine == null || ev.windowId === mine) window.close();
       }
     };
     chrome.runtime.onMessage.addListener(listener);

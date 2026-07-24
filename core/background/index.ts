@@ -32,6 +32,10 @@ const GRACE_MS = 10_000; // 冷启动宽限:等 Chrome 恢复会话,期间对账
 // AI 请求运行器:承载在飞请求的取消/超时逻辑(见 ai-runner.ts)。
 const aiRunner = createAiRunner();
 
+// 各窗口是否开着面板(靠面板挂载时连的 port 追踪)→ open-panel 快捷键据此切换开/关。
+// sidePanel 无「关闭」API,故面板开着时由 SW 通知它 window.close() 自关。
+const openPanelWindows = new Set<number>();
+
 /** 读快照 → 重建搜索索引 → 广播 STATE_SNAPSHOT(侧边栏关闭时 sendMessage 失败,忽略)。 */
 async function broadcast(): Promise<void> {
   const { contexts, tabs } = await repository.getSnapshot();
@@ -231,12 +235,28 @@ export function initBackground(): void {
     return true; // 异步响应
   });
 
-  // 快捷键:open-panel 直接开面板;open-search(⌘⇧K)开面板并展开搜索
+  // 面板挂载时连 port(name: cairn-panel:<windowId>)→ 追踪各窗口面板开关态
+  chrome.runtime.onConnect.addListener((port) => {
+    const m = /^cairn-panel:(-?\d+)$/.exec(port.name);
+    if (!m) return;
+    const winId = Number(m[1]);
+    openPanelWindows.add(winId);
+    port.onDisconnect.addListener(() => openPanelWindows.delete(winId));
+  });
+
+  // 快捷键:open-panel 切换开/关;open-search(⌘⇧K)开面板并展开搜索
   // 用 onCommand 回调给的 tab.windowId 直接开,避免先 await getLastFocused 丢失用户手势
   chrome.commands.onCommand.addListener((command, tab) => {
     if (command === 'open-search') void openSidePanel(tab?.windowId, { search: true });
-    else if (command === 'open-panel') void openSidePanel(tab?.windowId);
-    else if (command === 'merge-duplicates')
+    else if (command === 'open-panel') {
+      const w = tab?.windowId;
+      // 面板已开 → 通知它自关(sidePanel 无关闭 API);未开 → 直接开(同步分支,保住用户手势)
+      if (w != null && openPanelWindows.has(w)) {
+        chrome.runtime.sendMessage({ type: 'CLOSE_PANEL', windowId: w }).catch(() => {});
+      } else {
+        void openSidePanel(w);
+      }
+    } else if (command === 'merge-duplicates')
       void handleCommand({ type: 'MERGE_DUPLICATES' }, cmdCtx);
   });
 
