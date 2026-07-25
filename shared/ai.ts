@@ -13,12 +13,21 @@ export interface AIPlan {
   unclear?: { tabId: string; reason: string }[];
 }
 
-/** 脱敏状态,随快照广播给 UI —— 永不含 key(baseUrl 非机密,用于 UI 回填)。 */
-export interface AIStatus {
+/** 单份配置的脱敏状态(随快照广播,永不含 key)。model 为「生效模型」(覆写或默认)。 */
+export interface AIProfileStatus {
+  id: string;
+  label: string;
   provider: AIProviderId;
-  hasKey: boolean;
   model: string;
   baseUrl?: string;
+  hasKey: boolean;
+}
+
+/** AI 配置总状态:多份 profile + 当前指针 + 当前份是否可用。永不含 key。 */
+export interface AIStatus {
+  profiles: AIProfileStatus[];
+  activeId: string | null;
+  ready: boolean;
 }
 
 export type AIErrorReason = 'no_key' | 'permission' | 'network' | 'parse' | 'empty' | 'cancelled';

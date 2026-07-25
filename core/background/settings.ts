@@ -4,6 +4,7 @@ import { DEFAULT_FLAGS, type Flags, type PortMapping } from '@/shared/types';
 import type { AIProviderId, AIStatus } from '@/shared/ai';
 import { PROVIDERS } from '../ai/provider';
 import { logError } from '@/shared/log';
+import { nanoid } from 'nanoid';
 
 const KEY = 'settings:portMappings';
 const FLAGS_KEY = 'settings:flags';
@@ -117,81 +118,179 @@ export class PortMappingStore extends PersistedStore<PortMapping[]> {
 
 const AI_KEY = 'settings:ai';
 
-interface AIData {
+/** 一份 AI 配置:服务商 + 模型 + (中转)地址 + 备注名。key 不在此,另按 id 存。 */
+export interface AIProfile {
+  id: string;
+  label: string;
   provider: AIProviderId;
-  keys: Partial<Record<AIProviderId, string>>;
-  models: Partial<Record<AIProviderId, string>>;
-  baseUrls: Partial<Record<AIProviderId, string>>;
+  model: string;
+  baseUrl?: string;
 }
 
-/** AI 设置:provider、各家 key/模型覆盖/中转站地址。key 只在 SW 读,永不广播。 */
+interface AIData {
+  profiles: AIProfile[];
+  activeId: string | null;
+  keys: Record<string, string>; // profileId → key;SW-only,永不广播
+}
+
+const PROVIDER_BRAND: Record<AIProviderId, string> = {
+  anthropic: 'Anthropic',
+  openai: 'OpenAI',
+  custom: 'Custom',
+};
+
+/** 备注名兜底:优先模型名,再退服务商品牌名。 */
+function fallbackLabel(model: string, provider: AIProviderId): string {
+  return model.trim() || PROVIDER_BRAND[provider];
+}
+
+/** 旧结构(provider 为主键)→ 新结构;非旧结构或从未配置返回 null。 */
+function migrateLegacy(saved: Record<string, unknown>): AIData | null {
+  const keys = saved.keys as Partial<Record<AIProviderId, string>> | undefined;
+  if (!keys || typeof keys !== 'object') return null;
+  const models = (saved.models as Partial<Record<AIProviderId, string>>) ?? {};
+  const baseUrls = (saved.baseUrls as Partial<Record<AIProviderId, string>>) ?? {};
+  const oldProvider = (saved.provider as AIProviderId) ?? 'anthropic';
+  const profiles: AIProfile[] = [];
+  const newKeys: Record<string, string> = {};
+  let activeId: string | null = null;
+  for (const p of ['anthropic', 'openai', 'custom'] as AIProviderId[]) {
+    const k = keys[p];
+    if (!k || !k.trim()) continue;
+    const id = nanoid();
+    const model = (models[p] ?? '').trim();
+    const baseUrl = p === 'custom' ? (baseUrls[p] ?? '').trim() || undefined : undefined;
+    profiles.push({ id, label: fallbackLabel(model, p), provider: p, model, baseUrl });
+    newKeys[id] = k.trim();
+    if (p === oldProvider) activeId = id;
+  }
+  if (profiles.length === 0) return null;
+  return { profiles, activeId: activeId ?? profiles[0]!.id, keys: newKeys };
+}
+
+/** AI 配置:多份 profile + 当前指针。key 只在 SW 读、永不广播。 */
 export class AISettingsStore extends PersistedStore<AIData> {
+  private needsPersist = false;
+
   constructor() {
-    super(AI_KEY, () => ({ provider: 'anthropic', keys: {}, models: {}, baseUrls: {} }));
+    super(AI_KEY, () => ({ profiles: [], activeId: null, keys: {} }));
   }
 
   protected hydrate(raw: unknown): AIData {
-    const saved = (raw as Partial<AIData>) ?? {};
-    return {
-      provider: saved.provider ?? 'anthropic',
-      keys: saved.keys ?? {},
-      models: saved.models ?? {},
-      baseUrls: saved.baseUrls ?? {},
-    };
+    const saved = (raw as Record<string, unknown>) ?? {};
+    if (Array.isArray(saved.profiles)) {
+      const profiles = (saved.profiles as AIProfile[]).filter(
+        (p) => p && typeof p.id === 'string' && typeof p.provider === 'string',
+      );
+      const keys = (saved.keys as Record<string, string>) ?? {};
+      const ids = new Set(profiles.map((p) => p.id));
+      const activeId =
+        typeof saved.activeId === 'string' && ids.has(saved.activeId)
+          ? saved.activeId
+          : (profiles[0]?.id ?? null);
+      return { profiles, activeId, keys };
+    }
+    const migrated = migrateLegacy(saved);
+    if (migrated) {
+      this.needsPersist = true;
+      return migrated;
+    }
+    return { profiles: [], activeId: null, keys: {} };
   }
 
-  provider(): AIProviderId {
-    return this.data.provider;
+  /** 迁移旧结构时,load 后固化一次新结构(稳定 id)。 */
+  async load(): Promise<void> {
+    await super.load();
+    if (this.needsPersist) {
+      this.needsPersist = false;
+      await this.persist();
+    }
   }
 
-  keyFor(p: AIProviderId = this.data.provider): string | undefined {
-    return this.data.keys[p];
+  profiles(): AIProfile[] {
+    return this.data.profiles;
   }
 
-  effectiveModel(p: AIProviderId = this.data.provider): string {
-    return this.data.models[p] || PROVIDERS[p].defaultModel;
+  activeId(): string | null {
+    return this.data.activeId;
   }
 
-  baseUrlFor(p: AIProviderId = this.data.provider): string | undefined {
-    return this.data.baseUrls[p];
+  active(): AIProfile | null {
+    return this.data.profiles.find((p) => p.id === this.data.activeId) ?? null;
+  }
+
+  keyFor(id: string): string | undefined {
+    return this.data.keys[id];
+  }
+
+  effectiveModel(p: AIProfile): string {
+    return p.model.trim() || PROVIDERS[p.provider].defaultModel;
   }
 
   configured(): boolean {
-    // custom 还需 baseUrl 才算可用(否则 endpoint 无从拼接)
-    if (!this.keyFor()) return false;
-    if (this.data.provider === 'custom') return !!this.baseUrlFor();
+    const p = this.active();
+    if (!p || !this.data.keys[p.id]) return false;
+    if (p.provider === 'custom') return !!p.baseUrl?.trim();
     return true;
   }
 
   status(): AIStatus {
     return {
-      provider: this.data.provider,
-      hasKey: this.configured(),
-      model: this.effectiveModel(),
-      baseUrl: this.baseUrlFor(),
+      profiles: this.data.profiles.map((p) => ({
+        id: p.id,
+        label: p.label,
+        provider: p.provider,
+        model: this.effectiveModel(p),
+        baseUrl: p.baseUrl,
+        hasKey: !!this.data.keys[p.id],
+      })),
+      activeId: this.data.activeId,
+      ready: this.configured(),
     };
   }
 
-  async set(provider: AIProviderId, key?: string, model?: string, baseUrl?: string): Promise<void> {
+  /** 新建(无 id,建后设为当前)或编辑(有 id,不动当前)。key===undefined 表示不改已存 key。返回 id。 */
+  async upsert(
+    input: { id?: string; label: string; provider: AIProviderId; model: string; baseUrl?: string },
+    key?: string,
+  ): Promise<string> {
+    const id = input.id ?? nanoid();
+    const model = input.model.trim();
+    const baseUrl =
+      input.provider === 'custom' ? (input.baseUrl ?? '').trim() || undefined : undefined;
+    const profile: AIProfile = {
+      id,
+      label: input.label.trim() || fallbackLabel(model, input.provider),
+      provider: input.provider,
+      model,
+      baseUrl,
+    };
+    const profiles = input.id
+      ? this.data.profiles.map((p) => (p.id === id ? profile : p))
+      : [...this.data.profiles, profile];
     const keys = { ...this.data.keys };
-    const models = { ...this.data.models };
-    const baseUrls = { ...this.data.baseUrls };
     if (key !== undefined) {
       const k = key.trim();
-      if (k) keys[provider] = k;
-      else delete keys[provider];
+      if (k) keys[id] = k;
     }
-    if (model !== undefined) {
-      const m = model.trim();
-      if (m) models[provider] = m;
-      else delete models[provider];
-    }
-    if (baseUrl !== undefined) {
-      const b = baseUrl.trim();
-      if (b) baseUrls[provider] = b;
-      else delete baseUrls[provider];
-    }
-    this.data = { provider, keys, models, baseUrls };
+    const activeId = input.id ? this.data.activeId : id; // 新建即当前;编辑不动
+    this.data = { profiles, activeId, keys };
+    await this.persist();
+    return id;
+  }
+
+  async activate(id: string): Promise<void> {
+    if (!this.data.profiles.some((p) => p.id === id)) return;
+    this.data = { ...this.data, activeId: id };
+    await this.persist();
+  }
+
+  async remove(id: string): Promise<void> {
+    const profiles = this.data.profiles.filter((p) => p.id !== id);
+    const keys = { ...this.data.keys };
+    delete keys[id];
+    const activeId = this.data.activeId === id ? (profiles[0]?.id ?? null) : this.data.activeId;
+    this.data = { profiles, activeId, keys };
     await this.persist();
   }
 }
