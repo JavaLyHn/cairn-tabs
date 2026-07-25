@@ -35,6 +35,8 @@ export const zhCN: Messages = {
 
   // ── app.archived section ─────────────────────────────────────────────────
   'app.archivedSection': '已归档',
+  'app.restoreAll': '全部恢复',
+  'app.restoreAllConfirm': '将重开 {tabs} 个标签(来自 {tasks} 个任务),确定?',
 
   // ── app.ai ───────────────────────────────────────────────────────────────
   'app.ai.analyzing': '✦ AI 分析中…',

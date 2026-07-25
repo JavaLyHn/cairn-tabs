@@ -342,6 +342,17 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       onChange();
       return;
 
+    case 'RESTORE_ALL_ARCHIVED': {
+      // 一键恢复:逐个恢复所有归档任务(暂存/陈旧簇由 restoreContext 正确处理:标签回未分类、簇删除)。
+      const { contexts } = await repo.getSnapshot();
+      const archived = contexts.filter((c) => c.status === 'archived');
+      for (const c of archived) {
+        await restoreContext(c.id, ctx);
+        onChange(); // 逐个回来渐进刷新面板
+      }
+      return;
+    }
+
     case 'MERGE_DUPLICATES': {
       // 先对账:清掉「非空但已死」的陈旧记录、刷新陈旧 url。否则死记录可能被选作 keeper,
       // 导致合并关掉真实存活的那个、留下打不开的幻影(见 Bug 报告)。

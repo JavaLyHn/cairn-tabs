@@ -35,6 +35,8 @@ export const ja: Messages = {
 
   // ── app.archived section ─────────────────────────────────────────────────
   'app.archivedSection': 'アーカイブ済み',
+  'app.restoreAll': 'すべて復元',
+  'app.restoreAllConfirm': '{tasks} 件のタスクから {tabs} 個のタブを開き直しますか?',
 
   // ── app.ai ───────────────────────────────────────────────────────────────
   'app.ai.analyzing': '✦ 分析中…',

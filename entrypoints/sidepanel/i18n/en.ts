@@ -35,6 +35,8 @@ export const en = {
 
   // ── app.archived section ─────────────────────────────────────────────────
   'app.archivedSection': 'Archived',
+  'app.restoreAll': 'Restore all',
+  'app.restoreAllConfirm': 'Reopen {tabs} tabs from {tasks} tasks?',
 
   // ── app.ai ───────────────────────────────────────────────────────────────
   'app.ai.analyzing': '✦ Analyzing…',

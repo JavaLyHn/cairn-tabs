@@ -36,6 +36,8 @@ export const ko: Messages = {
 
   // ── app.archived section ─────────────────────────────────────────────────
   'app.archivedSection': '보관된 항목',
+  'app.restoreAll': '전체 복원',
+  'app.restoreAllConfirm': '{tasks}개 작업의 탭 {tabs}개를 다시 여시겠어요?',
 
   // ── app.ai ───────────────────────────────────────────────────────────────
   'app.ai.analyzing': '✦ 분석 중…',

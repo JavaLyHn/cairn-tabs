@@ -245,6 +245,18 @@ export default function App() {
     if (ev?.type === 'UNDOABLE') setUndo({ action: ev.action, token: ev.token, ttlMs: ev.ttlMs });
   };
   const restore = (contextId: string) => dispatch({ type: 'RESTORE_CONTEXT', contextId });
+  const restoreAll = () => {
+    // 标签多时先确认(一次重开太多会卡浏览器);不超阈值则真·一键
+    const RESTORE_ALL_CONFIRM_THRESHOLD = 10;
+    if (
+      archivedTabCount > RESTORE_ALL_CONFIRM_THRESHOLD &&
+      !window.confirm(
+        t('app.restoreAllConfirm', { tabs: archivedTabCount, tasks: archivedContexts.length }),
+      )
+    )
+      return;
+    void dispatch({ type: 'RESTORE_ALL_ARCHIVED' });
+  };
   const del = (contextId: string) => dispatch({ type: 'DELETE_CONTEXT', contextId });
   const moveTab = (tabRecordId: string, toContextId: string) =>
     dispatch({ type: 'MOVE_TAB', tabRecordId, toContextId });
@@ -498,8 +510,19 @@ export default function App() {
 
         {archivedContexts.length > 0 && (
           <div className="mt-3 pt-2 border-t border-black/10 dark:border-white/10">
-            <div className="px-2 pb-1 text-[11px] uppercase tracking-wide opacity-40">
-              {t('app.archivedSection')}
+            <div className="flex items-center gap-2 px-2 pb-1">
+              <span className="flex-1 text-[11px] uppercase tracking-wide opacity-40">
+                {t('app.archivedSection')}
+              </span>
+              {archivedContexts.length >= 2 && (
+                <button
+                  onClick={restoreAll}
+                  className="shrink-0 text-[11px] text-accent hover:underline"
+                  title={t('app.restoreAll')}
+                >
+                  {t('app.restoreAll')}
+                </button>
+              )}
             </div>
             {archivedContexts.map((c) => (
               <ContextGroup key={c.id} variant="archived" {...groupProps(c)} />

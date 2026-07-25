@@ -13,6 +13,7 @@ export type Command =
   | { type: 'ARCHIVE_INBOX' }
   | { type: 'ARCHIVE_STALE' }
   | { type: 'RESTORE_CONTEXT'; contextId: string }
+  | { type: 'RESTORE_ALL_ARCHIVED' }
   | { type: 'MERGE_DUPLICATES' }
   | { type: 'SET_PORT_MAPPING'; port: number; project: string }
   | { type: 'REMOVE_PORT_MAPPING'; port: number }
@@ -81,6 +82,7 @@ export const COMMAND_TYPES = new Set<Command['type']>([
   'ARCHIVE_INBOX',
   'ARCHIVE_STALE',
   'RESTORE_CONTEXT',
+  'RESTORE_ALL_ARCHIVED',
   'MERGE_DUPLICATES',
   'SET_PORT_MAPPING',
   'REMOVE_PORT_MAPPING',
