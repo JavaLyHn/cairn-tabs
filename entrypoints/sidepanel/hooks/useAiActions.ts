@@ -31,12 +31,16 @@ export function useAiActions(deps: {
   /** 本次会话:上次整理里 AI 拿不准、留原位的标签 → 理由(供未分类行内提示)。 */
   unclearReasons: Record<string, string>;
   aiSuggestName: (contextId: string) => Promise<string | null>;
-  saveAi: (
-    provider: AIProviderId,
-    key: string | undefined,
-    model: string,
-    baseUrl?: string,
-  ) => Promise<void>;
+  saveProfile: (input: {
+    id?: string;
+    label: string;
+    provider: AIProviderId;
+    model: string;
+    baseUrl?: string;
+    key?: string;
+  }) => Promise<void>;
+  deleteProfile: (id: string) => Promise<void>;
+  activateProfile: (id: string) => Promise<void>;
   testAi: () => Promise<{ ok: boolean; detail: string }>;
 } {
   const { t } = useT();
@@ -161,17 +165,25 @@ export function useAiActions(deps: {
     return null;
   };
 
-  const saveAi = async (
-    provider: AIProviderId,
-    key: string | undefined,
-    model: string,
-    baseUrl?: string,
-  ) => {
+  const saveProfile = async (input: {
+    id?: string;
+    label: string;
+    provider: AIProviderId;
+    model: string;
+    baseUrl?: string;
+    key?: string;
+  }) => {
     // custom 的授权域名由所填 baseUrl 的 origin 派生;官方两档用固定 host(见 permissionOriginFor)
-    const origin = permissionOriginFor(provider, baseUrl);
+    const origin = permissionOriginFor(input.provider, input.baseUrl);
     const granted = await chrome.permissions.request({ origins: [origin] });
     if (!granted) throw new Error(t('settings.ai.permissionRequired'));
-    await dispatch({ type: 'SET_AI_SETTINGS', provider, key, model, baseUrl });
+    await dispatch({ type: 'SAVE_AI_PROFILE', ...input });
+  };
+  const deleteProfile = async (id: string) => {
+    await dispatch({ type: 'DELETE_AI_PROFILE', id });
+  };
+  const activateProfile = async (id: string) => {
+    await dispatch({ type: 'ACTIVATE_AI_PROFILE', id });
   };
 
   const testAi = async (): Promise<{ ok: boolean; detail: string }> => {
@@ -190,7 +202,9 @@ export function useAiActions(deps: {
     applyAiPlan,
     unclearReasons,
     aiSuggestName,
-    saveAi,
+    saveProfile,
+    deleteProfile,
+    activateProfile,
     testAi,
   };
 }
