@@ -38,12 +38,16 @@ export type Command =
   | { type: 'AI_PRUNE_APPLY'; fromContextId: string; tabIds: string[] }
   | { type: 'APPLY_AI_PLAN'; plan: AIPlan; global?: boolean }
   | {
-      type: 'SET_AI_SETTINGS';
+      type: 'SAVE_AI_PROFILE';
+      id?: string;
+      label: string;
       provider: AIProviderId;
-      key?: string;
-      model?: string;
+      model: string;
       baseUrl?: string;
+      key?: string;
     }
+  | { type: 'DELETE_AI_PROFILE'; id: string }
+  | { type: 'ACTIVATE_AI_PROFILE'; id: string }
   | { type: 'TEST_AI_CONNECTION' }
   | { type: 'CANCEL_AI' }
   | { type: 'IMPORT_DATA'; contexts: Context[]; tabs: TabRecord[] };
@@ -105,7 +109,9 @@ export const COMMAND_TYPES = new Set<Command['type']>([
   'AI_ORGANIZE_TASK',
   'AI_PRUNE_APPLY',
   'APPLY_AI_PLAN',
-  'SET_AI_SETTINGS',
+  'SAVE_AI_PROFILE',
+  'DELETE_AI_PROFILE',
+  'ACTIVATE_AI_PROFILE',
   'TEST_AI_CONNECTION',
   'CANCEL_AI',
   'AI_SUGGEST_NAME',

@@ -55,7 +55,18 @@ export interface CommandContext {
     status: () => AIStatus;
     configured: () => boolean;
     complete: (system: string, user: string) => Promise<string>;
-    set: (provider: AIProviderId, key?: string, model?: string, baseUrl?: string) => Promise<void>;
+    saveProfile: (
+      input: {
+        id?: string;
+        label: string;
+        provider: AIProviderId;
+        model: string;
+        baseUrl?: string;
+      },
+      key?: string,
+    ) => Promise<string>;
+    deleteProfile: (id: string) => Promise<void>;
+    activateProfile: (id: string) => Promise<void>;
     test: () => Promise<{ ok: boolean; detail: string }>;
     /** 中止当前在飞的 AI 请求(用户点「取消」)。 */
     cancel: () => void;
@@ -507,8 +518,27 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       return { type: 'AI_NAME', name };
     }
 
-    case 'SET_AI_SETTINGS':
-      await ctx.ai?.set(cmd.provider, cmd.key, cmd.model, cmd.baseUrl);
+    case 'SAVE_AI_PROFILE':
+      await ctx.ai?.saveProfile(
+        {
+          id: cmd.id,
+          label: cmd.label,
+          provider: cmd.provider,
+          model: cmd.model,
+          baseUrl: cmd.baseUrl,
+        },
+        cmd.key,
+      );
+      onChange();
+      return;
+
+    case 'DELETE_AI_PROFILE':
+      await ctx.ai?.deleteProfile(cmd.id);
+      onChange();
+      return;
+
+    case 'ACTIVATE_AI_PROFILE':
+      await ctx.ai?.activateProfile(cmd.id);
       onChange();
       return;
 

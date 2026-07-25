@@ -139,19 +139,19 @@ const cmdCtx: CommandContext = {
     status: () => aiSettings.status(),
     configured: () => aiSettings.configured(),
     complete: (system, user) => {
-      const p = aiSettings.provider();
-      const key = aiSettings.keyFor();
-      if (!key) return Promise.reject(new Error('no key'));
+      const prof = aiSettings.active();
+      const key = prof ? aiSettings.keyFor(prof.id) : undefined;
+      if (!prof || !key) return Promise.reject(new Error('no key'));
       return aiRunner.run(
         (signal) =>
-          PROVIDERS[p].complete(
+          PROVIDERS[prof.provider].complete(
             {
               system,
               user,
-              model: aiSettings.effectiveModel(),
+              model: aiSettings.effectiveModel(prof),
               maxTokens: 1024,
               temperature: 0, // 整理/命名求稳定可复现:同一批标签每次给同样的建议(否则时有时无)
-              baseUrl: aiSettings.baseUrlFor(),
+              baseUrl: prof.baseUrl,
               signal,
             },
             key,
@@ -159,24 +159,26 @@ const cmdCtx: CommandContext = {
         30_000,
       );
     },
-    set: (provider, key, model, baseUrl) => aiSettings.set(provider, key, model, baseUrl),
+    saveProfile: (input, key) => aiSettings.upsert(input, key),
+    deleteProfile: (id) => aiSettings.remove(id),
+    activateProfile: (id) => aiSettings.activate(id),
     test: async () => {
-      const p = aiSettings.provider();
-      const key = aiSettings.keyFor();
-      if (!key) return { ok: false, detail: '未配置 key' };
-      const model = aiSettings.effectiveModel();
+      const prof = aiSettings.active();
+      const key = prof ? aiSettings.keyFor(prof.id) : undefined;
+      if (!prof || !key) return { ok: false, detail: '未配置 key' };
+      const model = aiSettings.effectiveModel(prof);
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 15_000);
       const t0 = Date.now();
       try {
         // 极小请求验证连通(auth + model + endpoint 一次跑通即算成功)
-        await PROVIDERS[p].complete(
+        await PROVIDERS[prof.provider].complete(
           {
             system: '你是连接测试。',
             user: '仅回复 OK。',
             model,
             maxTokens: 8,
-            baseUrl: aiSettings.baseUrlFor(),
+            baseUrl: prof.baseUrl,
             signal: ctrl.signal,
           },
           key,
