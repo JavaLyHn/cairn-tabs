@@ -127,6 +127,18 @@ export const ko: Messages = {
   'settings.ai.desc':
     '직접 API key를 사용하여 선택한 공급자에 직접 연결합니다. 기본적으로 꺼져 있습니다. 탭 제목, 도메인, 작업 이름만 전송되며 전체 URL과 페이지 콘텐츠는 전송되지 않습니다.',
   'settings.ai.configured': '현재: {provider} 구성됨.',
+  'settings.ai.current': '사용 중: {label} · {model}',
+  'settings.ai.profiles.empty': '아직 AI 설정이 없습니다. 하나 추가하면 AI 정리를 켤 수 있어요.',
+  'settings.ai.profiles.add': '+ 설정 추가',
+  'settings.ai.label.placeholder': '이름표 (선택, 예: 업무용 Claude)',
+  'settings.ai.actions.edit': '편집',
+  'settings.ai.actions.delete': '삭제',
+  'settings.ai.actions.setActive': '이걸로 사용',
+  'settings.ai.activeBadge': '사용 중',
+  'settings.ai.deleteConfirm': '설정 "{label}"을(를) 삭제할까요?',
+  'settings.ai.newTitle': '새 설정',
+  'settings.ai.editTitle': '설정 편집',
+  'settings.ai.backToList': '← 뒤로',
   'settings.ai.provider.custom': '커스텀 릴레이',
   'settings.ai.baseUrl.placeholder': '엔드포인트 URL, 예: https://newapi.elevatesphere.com/v1',
   'settings.ai.baseUrl.warning':

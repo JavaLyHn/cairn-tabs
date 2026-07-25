@@ -126,6 +126,18 @@ export const ja: Messages = {
   'settings.ai.desc':
     '独自の API キーを使用 — 選択したプロバイダーに直接接続します。デフォルトはオフ。送信されるのはタブのタイトル、ドメイン、タスク名のみで、完全な URL やページ内容は送信されません。',
   'settings.ai.configured': '現在: {provider} が設定済みです。',
+  'settings.ai.current': '使用中: {label} · {model}',
+  'settings.ai.profiles.empty': 'AI 設定がまだありません。追加すると AI 整理が使えます。',
+  'settings.ai.profiles.add': '+ 設定を追加',
+  'settings.ai.label.placeholder': 'ラベル(任意、例:仕事用 Claude)',
+  'settings.ai.actions.edit': '編集',
+  'settings.ai.actions.delete': '削除',
+  'settings.ai.actions.setActive': 'これを使う',
+  'settings.ai.activeBadge': '使用中',
+  'settings.ai.deleteConfirm': '設定「{label}」を削除しますか?',
+  'settings.ai.newTitle': '新しい設定',
+  'settings.ai.editTitle': '設定を編集',
+  'settings.ai.backToList': '← 戻る',
   'settings.ai.provider.custom': 'カスタムリレー',
   'settings.ai.baseUrl.placeholder': 'エンドポイント URL(例: https://newapi.elevatesphere.com/v1)',
   'settings.ai.baseUrl.warning':

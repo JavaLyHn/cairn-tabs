@@ -126,6 +126,18 @@ export const en = {
   'settings.ai.desc':
     'Bring your own API key — connects directly to the provider you choose. Off by default. Only tab titles, domains, and task names are sent; full URLs and page content are never transmitted.',
   'settings.ai.configured': 'Current: {provider} configured.',
+  'settings.ai.current': 'Active: {label} · {model}',
+  'settings.ai.profiles.empty': 'No AI configs yet. Add one to enable AI organizing.',
+  'settings.ai.profiles.add': '+ Add config',
+  'settings.ai.label.placeholder': 'Label (optional, e.g. Work Claude)',
+  'settings.ai.actions.edit': 'Edit',
+  'settings.ai.actions.delete': 'Delete',
+  'settings.ai.actions.setActive': 'Use this',
+  'settings.ai.activeBadge': 'Active',
+  'settings.ai.deleteConfirm': 'Delete config "{label}"?',
+  'settings.ai.newTitle': 'New config',
+  'settings.ai.editTitle': 'Edit config',
+  'settings.ai.backToList': '← Back',
   'settings.ai.provider.custom': 'Custom relay',
   'settings.ai.baseUrl.placeholder': 'Endpoint URL, e.g. https://newapi.elevatesphere.com/v1',
   'settings.ai.baseUrl.warning':
