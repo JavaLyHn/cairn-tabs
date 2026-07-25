@@ -47,10 +47,12 @@ describe('AI_ORGANIZE_INBOX (F-13)', () => {
     const aiCtx: CommandContext = {
       ...ctx,
       ai: {
-        status: () => ({ provider: 'anthropic', hasKey: true, model: 'm' }),
+        status: () => ({ profiles: [], activeId: null, ready: true }),
         configured: () => true,
         complete: async () => '', // 下面按需覆盖
-        set: async () => {},
+        saveProfile: async () => 'id',
+        deleteProfile: async () => {},
+        activateProfile: async () => {},
         test: async () => ({ ok: true, detail: 'ok' }),
         cancel: () => {},
       },
@@ -71,12 +73,14 @@ describe('AI_ORGANIZE_INBOX (F-13)', () => {
     const aiCtx: CommandContext = {
       ...ctx,
       ai: {
-        status: () => ({ provider: 'anthropic', hasKey: true, model: 'm' }),
+        status: () => ({ profiles: [], activeId: null, ready: true }),
         configured: () => true,
         complete: async () => {
           throw new Error('boom');
         },
-        set: async () => {},
+        saveProfile: async () => 'id',
+        deleteProfile: async () => {},
+        activateProfile: async () => {},
         test: async () => ({ ok: true, detail: 'ok' }),
         cancel: () => {},
       },
@@ -90,10 +94,12 @@ describe('AI_ORGANIZE_INBOX (F-13)', () => {
     const aiCtx: CommandContext = {
       ...ctx,
       ai: {
-        status: () => ({ provider: 'anthropic', hasKey: true, model: 'm' }),
+        status: () => ({ profiles: [], activeId: null, ready: true }),
         configured: () => true,
         complete: async () => '{"newGroups":[],"assign":[]}',
-        set: async () => {},
+        saveProfile: async () => 'id',
+        deleteProfile: async () => {},
+        activateProfile: async () => {},
         test: async () => ({ ok: true, detail: 'ok' }),
         cancel: () => {},
       },
@@ -107,10 +113,12 @@ describe('AI_ORGANIZE_INBOX (F-13)', () => {
     const aiCtx: CommandContext = {
       ...ctx,
       ai: {
-        status: () => ({ provider: 'anthropic', hasKey: true, model: 'm' }),
+        status: () => ({ profiles: [], activeId: null, ready: true }),
         configured: () => true,
         complete: async () => 'not json at all',
-        set: async () => {},
+        saveProfile: async () => 'id',
+        deleteProfile: async () => {},
+        activateProfile: async () => {},
         test: async () => ({ ok: true, detail: 'ok' }),
         cancel: () => {},
       },
@@ -134,15 +142,12 @@ describe('TEST_AI_CONNECTION (自定义中转站)', () => {
     const aiCtx: CommandContext = {
       ...ctx,
       ai: {
-        status: () => ({
-          provider: 'custom',
-          hasKey: true,
-          model: 'gpt-4o',
-          baseUrl: 'https://x/v1',
-        }),
+        status: () => ({ profiles: [], activeId: null, ready: true }),
         configured: () => true,
         complete: async () => 'OK',
-        set: async () => {},
+        saveProfile: async () => 'id',
+        deleteProfile: async () => {},
+        activateProfile: async () => {},
         test: async () => ({ ok: true, detail: '连接成功 · gpt-4o · 12ms' }),
         cancel: () => {},
       },
@@ -155,15 +160,12 @@ describe('TEST_AI_CONNECTION (自定义中转站)', () => {
     const aiCtx: CommandContext = {
       ...ctx,
       ai: {
-        status: () => ({
-          provider: 'custom',
-          hasKey: true,
-          model: 'gpt-4o',
-          baseUrl: 'https://x/v1',
-        }),
+        status: () => ({ profiles: [], activeId: null, ready: true }),
         configured: () => true,
         complete: async () => 'OK',
-        set: async () => {},
+        saveProfile: async () => 'id',
+        deleteProfile: async () => {},
+        activateProfile: async () => {},
         test: async () => ({ ok: false, detail: '认证失败(401)—— 检查 API key' }),
         cancel: () => {},
       },
@@ -179,10 +181,12 @@ describe('AI_SUGGEST_NAME (AI 改名)', () => {
     return {
       ...ctx,
       ai: {
-        status: () => ({ provider: 'anthropic', hasKey: true, model: 'm' }),
+        status: () => ({ profiles: [], activeId: null, ready: true }),
         configured: () => true,
         complete,
-        set: async () => {},
+        saveProfile: async () => 'id',
+        deleteProfile: async () => {},
+        activateProfile: async () => {},
         test: async () => ({ ok: true, detail: 'ok' }),
         cancel: () => {},
       },
@@ -352,13 +356,15 @@ describe('AI_ORGANIZE_INBOX prompt 隐私约束(F-13)', () => {
     const aiCtx: CommandContext = {
       ...ctx,
       ai: {
-        status: () => ({ provider: 'anthropic', hasKey: true, model: 'm' }),
+        status: () => ({ profiles: [], activeId: null, ready: true }),
         configured: () => true,
         complete: async (_system: string, user: string) => {
           captured = user;
           return '{"newGroups":[],"assign":[]}';
         },
-        set: async () => {},
+        saveProfile: async () => 'id',
+        deleteProfile: async () => {},
+        activateProfile: async () => {},
         test: async () => ({ ok: true, detail: 'ok' }),
         cancel: () => {},
       },
@@ -379,12 +385,14 @@ describe('AI 取消', () => {
     const aiCtx: CommandContext = {
       ...ctx,
       ai: {
-        status: () => ({ provider: 'anthropic', hasKey: true, model: 'x' }),
+        status: () => ({ profiles: [], activeId: null, ready: true }),
         configured: () => true,
         complete: async () => {
           throw new AICancelledError();
         },
-        set: async () => {},
+        saveProfile: async () => 'id',
+        deleteProfile: async () => {},
+        activateProfile: async () => {},
         test: async () => ({ ok: true, detail: 'ok' }),
         cancel: () => {},
       },
@@ -398,12 +406,14 @@ describe('AI 取消', () => {
     const aiCtx: CommandContext = {
       ...ctx,
       ai: {
-        status: () => ({ provider: 'anthropic', hasKey: true, model: 'x' }),
+        status: () => ({ profiles: [], activeId: null, ready: true }),
         configured: () => true,
         complete: async () => {
           throw new Error('The operation was aborted'); // 超时:AbortError,非用户取消
         },
-        set: async () => {},
+        saveProfile: async () => 'id',
+        deleteProfile: async () => {},
+        activateProfile: async () => {},
         test: async () => ({ ok: true, detail: 'ok' }),
         cancel: () => {},
       },
@@ -418,10 +428,12 @@ describe('AI 取消', () => {
     const aiCtx: CommandContext = {
       ...ctx,
       ai: {
-        status: () => ({ provider: 'anthropic', hasKey: true, model: 'x' }),
+        status: () => ({ profiles: [], activeId: null, ready: true }),
         configured: () => true,
         complete: async () => '',
-        set: async () => {},
+        saveProfile: async () => 'id',
+        deleteProfile: async () => {},
+        activateProfile: async () => {},
         test: async () => ({ ok: true, detail: 'ok' }),
         cancel: () => {
           cancelled = true;

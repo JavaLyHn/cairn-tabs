@@ -35,10 +35,12 @@ function aiCtx(complete: (system: string, user: string) => Promise<string>): Com
   return {
     ...ctx,
     ai: {
-      status: () => ({ provider: 'anthropic', hasKey: true, model: 'm' }),
+      status: () => ({ profiles: [], activeId: null, ready: true }),
       configured: () => true,
       complete,
-      set: async () => {},
+      saveProfile: async () => 'id',
+      deleteProfile: async () => {},
+      activateProfile: async () => {},
       test: async () => ({ ok: true, detail: 'ok' }),
       cancel: () => {},
     },

@@ -3,10 +3,17 @@ import { useDialog } from '../hooks/useDialog';
 import { useT, type MessageKey } from '../i18n';
 import { SUPPORTED, LOCALE_NAMES, type Locale } from '../i18n/locales';
 import { useTheme } from '../theme';
-import { ACCENTS, accentPresetId, resolveAccentHex, isValidHex, type ThemeMode } from '../theme/theme';
+import {
+  ACCENTS,
+  accentPresetId,
+  resolveAccentHex,
+  isValidHex,
+  type ThemeMode,
+} from '../theme/theme';
 import { APP_NAME, AUTHOR, appVersion } from '@/shared/meta';
 import type { Flags } from '@/shared/types';
 import type { AIProviderId, AIStatus } from '@/shared/ai';
+import { AiProfilesSection } from './AiProfilesSection';
 
 interface Props {
   flags: Flags;
@@ -18,12 +25,16 @@ interface Props {
   onToggleAutoDiscard: (enabled: boolean) => void;
   onSetDiscardAfterMinutes: (minutes: number) => void;
   onToggleDiscardSkipsLocalhost: (enabled: boolean) => void;
-  onSaveAi: (
-    provider: AIProviderId,
-    key: string | undefined,
-    model: string,
-    baseUrl?: string,
-  ) => Promise<void>;
+  onSaveProfile: (input: {
+    id?: string;
+    label: string;
+    provider: AIProviderId;
+    model: string;
+    baseUrl?: string;
+    key?: string;
+  }) => Promise<void>;
+  onDeleteProfile: (id: string) => Promise<void>;
+  onActivateProfile: (id: string) => Promise<void>;
   onTestAi: () => Promise<{ ok: boolean; detail: string }>;
   onExportAll: () => void;
   onImport: (file: File) => void;
@@ -264,7 +275,9 @@ export function SettingsPanel({
   onToggleAutoDiscard,
   onSetDiscardAfterMinutes,
   onToggleDiscardSkipsLocalhost,
-  onSaveAi,
+  onSaveProfile,
+  onDeleteProfile,
+  onActivateProfile,
   onTestAi,
   onExportAll,
   onImport,
@@ -404,7 +417,13 @@ export function SettingsPanel({
         </Group>
 
         <Group title={t('settings.group.ai')}>
-          <AISection ai={ai} onSave={onSaveAi} onTest={onTestAi} />
+          <AiProfilesSection
+            ai={ai}
+            onSave={onSaveProfile}
+            onDelete={onDeleteProfile}
+            onActivate={onActivateProfile}
+            onTest={onTestAi}
+          />
         </Group>
 
         <Group title={t('settings.group.data')}>
@@ -445,218 +464,6 @@ export function SettingsPanel({
           {APP_NAME} v{appVersion()} · © {AUTHOR} · AGPL-3.0
         </div>
       </div>
-    </div>
-  );
-}
-
-const PROVIDER_LABELS: Record<AIProviderId, string> = {
-  anthropic: 'Anthropic',
-  openai: 'OpenAI',
-  custom: 'custom',
-};
-
-function AISection({
-  ai,
-  onSave,
-  onTest,
-}: {
-  ai: AIStatus;
-  onSave: (
-    provider: AIProviderId,
-    key: string | undefined,
-    model: string,
-    baseUrl?: string,
-  ) => Promise<void>;
-  onTest: () => Promise<{ ok: boolean; detail: string }>;
-}) {
-  const { t } = useT();
-  const [provider, setProvider] = useState<AIProviderId>(ai.provider);
-  const [key, setKey] = useState('');
-  const [model, setModel] = useState('');
-  const [baseUrl, setBaseUrl] = useState(ai.baseUrl ?? '');
-  const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
-  const msgTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  // 成功提示约 2.5s 自动消失;失败保留(方便看清)。切档/再次保存或测试时照旧清除。
-  const showMsg = (text: string, ok: boolean) => {
-    if (msgTimer.current) clearTimeout(msgTimer.current);
-    setMsg({ text, ok });
-    if (ok) msgTimer.current = setTimeout(() => setMsg(null), 2500);
-  };
-  useEffect(
-    () => () => {
-      if (msgTimer.current) clearTimeout(msgTimer.current);
-    },
-    [],
-  );
-  const [result, setResult] = useState<{ ok: boolean; detail: string } | null>(null);
-
-  const isCustom = provider === 'custom';
-  const needsUrl = isCustom && !baseUrl.trim();
-  // 当前查看的这一档已存有可用配置(key 已存;custom 还需已存 baseUrl)
-  const savedHere = ai.hasKey && ai.provider === provider;
-  // 可保存:已填 key(首次配置),或本档已保存过(改模型/地址时 key 留空即不改);custom 需有 URL
-  const canSave = !needsUrl && (!!key.trim() || savedHere);
-  // 可测:能保存(先存再测),或本档已保存(直接测已存配置)。
-  // 不能在切到另一档、什么都没填时直接测——否则测的是「已保存的那一档」,结果会误导。
-  const canTest = canSave || savedHere;
-
-  // key 留空 → 传 undefined 表示「不改动已存的 key」(避免误删);填了才发新值。
-  const keyArg = () => (key.trim() ? key : undefined);
-
-  const save = async () => {
-    setSaving(true);
-    setMsg(null);
-    setResult(null);
-    try {
-      await onSave(provider, keyArg(), model, isCustom ? baseUrl : undefined);
-      setKey('');
-      showMsg(t('settings.ai.saved'), true);
-    } catch (e) {
-      showMsg(e instanceof Error ? e.message : t('settings.ai.saveFailed'), false);
-    }
-    setSaving(false);
-  };
-
-  const test = async () => {
-    setTesting(true);
-    setMsg(null);
-    setResult(null);
-    try {
-      // 先把当前表单存下(key 留空则保留已存的),再测——含权限申请
-      if (canSave) {
-        await onSave(provider, keyArg(), model, isCustom ? baseUrl : undefined);
-        setKey('');
-      }
-      setResult(await onTest());
-    } catch (e) {
-      setResult({
-        ok: false,
-        detail: e instanceof Error ? e.message : t('settings.ai.testFailed'),
-      });
-    }
-    setTesting(false);
-  };
-
-  const busy = saving || testing;
-
-  // 显示名:custom 走 i18n,其余沿用大写英文品牌名(不翻译)
-  const providerLabel = (p: AIProviderId) =>
-    p === 'custom' ? t('settings.ai.provider.custom') : PROVIDER_LABELS[p];
-
-  return (
-    <div className="px-3 py-2.5">
-      <div className="text-[11px] opacity-50 leading-snug mb-2">
-        {t('settings.ai.desc')}
-        {ai.hasKey && (
-          <span className="text-accent">
-            {' '}
-            {t('settings.ai.configured', { provider: providerLabel(ai.provider) })}
-          </span>
-        )}
-      </div>
-      <div className="flex gap-1 mb-1.5">
-        {(['anthropic', 'openai', 'custom'] as AIProviderId[]).map((p) => (
-          <button
-            key={p}
-            onClick={() => {
-              setProvider(p);
-              setResult(null);
-              setMsg(null);
-            }}
-            className={`px-2 py-0.5 rounded text-[12px] ${
-              provider === p ? 'bg-accent/15 text-accent' : 'opacity-60 hover:opacity-100'
-            }`}
-          >
-            {providerLabel(p)}
-          </button>
-        ))}
-      </div>
-      {isCustom && (
-        <>
-          <input
-            value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
-            placeholder={t('settings.ai.baseUrl.placeholder')}
-            aria-label={t('settings.ai.baseUrl.placeholder')}
-            className="w-full mb-1.5 px-2 py-1 text-[12px] rounded border border-black/15 dark:border-white/15
-                       bg-transparent outline-none focus:border-accent font-mono"
-          />
-          <div className="text-[11px] opacity-45 leading-snug mb-1.5">
-            {t('settings.ai.baseUrl.warning')}
-          </div>
-        </>
-      )}
-      <input
-        type="password"
-        value={key}
-        onChange={(e) => setKey(e.target.value)}
-        placeholder={
-          savedHere
-            ? t('settings.ai.key.placeholder.saved')
-            : t('settings.ai.key.placeholder.new', { provider: providerLabel(provider) })
-        }
-        aria-label={
-          savedHere
-            ? t('settings.ai.key.placeholder.saved')
-            : t('settings.ai.key.placeholder.new', { provider: providerLabel(provider) })
-        }
-        className="w-full mb-1.5 px-2 py-1 text-[12px] rounded border border-black/15 dark:border-white/15
-                   bg-transparent outline-none focus:border-accent"
-      />
-      <input
-        value={model}
-        onChange={(e) => setModel(e.target.value)}
-        placeholder={
-          isCustom
-            ? t('settings.ai.model.placeholder.custom')
-            : t('settings.ai.model.placeholder.default')
-        }
-        aria-label={
-          isCustom
-            ? t('settings.ai.model.placeholder.custom')
-            : t('settings.ai.model.placeholder.default')
-        }
-        className="w-full mb-1.5 px-2 py-1 text-[12px] rounded border border-black/15 dark:border-white/15
-                   bg-transparent outline-none focus:border-accent font-mono"
-      />
-      <div className="flex items-center gap-2">
-        <button
-          onClick={save}
-          disabled={busy || !canSave}
-          className="px-2.5 py-1 rounded-md text-[12px] bg-accent text-white hover:opacity-90 disabled:opacity-40"
-        >
-          {t('settings.ai.save')}
-        </button>
-        <button
-          onClick={test}
-          disabled={busy || !canTest}
-          className="px-2.5 py-1 rounded-md text-[12px] border border-black/15 dark:border-white/20
-                     hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-40"
-        >
-          {testing ? t('settings.ai.testing') : t('settings.ai.test')}
-        </button>
-        {msg && (
-          <span
-            className={`text-[11px] ${
-              msg.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
-            }`}
-          >
-            {msg.text}
-          </span>
-        )}
-      </div>
-      {result && (
-        <div
-          className={`mt-1.5 text-[11px] leading-snug ${
-            result.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
-          }`}
-        >
-          {result.ok ? '✓ ' : '✗ '}
-          {result.detail}
-        </div>
-      )}
     </div>
   );
 }

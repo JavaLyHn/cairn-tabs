@@ -128,7 +128,9 @@ export default function App() {
     applyAiPlan,
     unclearReasons,
     aiSuggestName,
-    saveAi,
+    saveProfile,
+    deleteProfile,
+    activateProfile,
     testAi,
   } = useAiActions({ showFlash, setUndo });
 
@@ -347,7 +349,7 @@ export default function App() {
     onActivateTab: (tabId: string) => activate(tabId),
     onCloseTab: (tabId: string) => closeTab(tabId),
     onToggleStar: toggleStar,
-    aiEnabled: ai.hasKey,
+    aiEnabled: ai.ready,
     aiBusy,
     onAiOrganize: aiOrganize,
     onAiPrune: () => aiOrganizeTask(ctx.id, ctx.name),
@@ -391,7 +393,7 @@ export default function App() {
         >
           {t('app.newContext')}
         </button>
-        {ai.hasKey && (
+        {ai.ready && (
           <button
             onClick={aiOrganizeAll}
             disabled={aiBusy}
@@ -630,7 +632,9 @@ export default function App() {
         <SettingsPanel
           flags={flags}
           ai={ai}
-          onSaveAi={saveAi}
+          onSaveProfile={saveProfile}
+          onDeleteProfile={deleteProfile}
+          onActivateProfile={activateProfile}
           onTestAi={testAi}
           onToggleAutoCluster={toggleAutoCluster}
           onSetSameDomainSize={setSameDomainSize}

@@ -15,7 +15,7 @@ afterEach(() => {
   document.documentElement.style.cssText = '';
 });
 
-const ai: AIStatus = { provider: 'anthropic', hasKey: true, model: 'x' };
+const ai: AIStatus = { profiles: [], activeId: null, ready: false };
 const noop = () => {};
 
 function props(over: Record<string, unknown> = {}) {
@@ -29,7 +29,9 @@ function props(over: Record<string, unknown> = {}) {
     onToggleAutoDiscard: noop,
     onSetDiscardAfterMinutes: noop,
     onToggleDiscardSkipsLocalhost: noop,
-    onSaveAi: async () => {},
+    onSaveProfile: async () => {},
+    onDeleteProfile: async () => {},
+    onActivateProfile: async () => {},
     onTestAi: async () => ({ ok: true, detail: 'ok' }),
     onExportAll: noop,
     onImport: noop,

@@ -21,7 +21,10 @@ describe('AISettingsStore(多份配置)', () => {
 
   it('新建即设为当前;status 不含 key', async () => {
     const s = await fresh();
-    const id = await s.upsert({ label: '主力', provider: 'anthropic', model: 'claude-x' }, 'sk-ant');
+    const id = await s.upsert(
+      { label: '主力', provider: 'anthropic', model: 'claude-x' },
+      'sk-ant',
+    );
     expect(s.activeId()).toBe(id);
     expect(s.configured()).toBe(true);
     expect(s.keyFor(id)).toBe('sk-ant');

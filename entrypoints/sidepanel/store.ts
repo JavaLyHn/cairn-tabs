@@ -47,7 +47,7 @@ export const usePanelStore = create<PanelState>((set) => ({
   portMappings: [],
   flags: DEFAULT_FLAGS,
   discardedBytes: 0,
-  ai: { provider: 'anthropic', hasKey: false, model: 'claude-haiku-4-5', baseUrl: undefined },
+  ai: { profiles: [], activeId: null, ready: false },
   undo: null,
   searchOpen: false,
 

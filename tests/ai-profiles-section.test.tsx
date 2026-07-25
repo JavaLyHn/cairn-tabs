@@ -111,7 +111,9 @@ describe('AiProfilesSection', () => {
   });
 
   it('新增 → 填 key + 模型 → 保存调 onSave(无 id)', async () => {
-    const onSave = vi.fn(() => Promise.resolve());
+    const onSave = vi.fn((_input: { id?: string; provider: string; model: string; key?: string }) =>
+      Promise.resolve(),
+    );
     renderZh(
       <AiProfilesSection
         ai={statusWith([], null)}
