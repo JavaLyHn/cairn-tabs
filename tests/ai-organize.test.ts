@@ -49,15 +49,21 @@ describe('buildOrganizePrompt', () => {
     expect(conservative.system).toContain('拿不准');
     expect(aggressive.system).toContain('拿不准');
   });
-  it('提示词强调:先并入已有任务、禁止重复建组、抬高「同一任务」门槛', () => {
+  it('提示词:先并入已有任务、禁止重复建组、明确「同产品/服务应归一起」、给正向示例', () => {
     const { system } = buildOrganizePrompt(
       [{ id: 't1', title: 'x', domain: 'a.com' }],
       [{ id: 'c1', name: '任务', domains: [], samples: [] }],
     );
     expect(system).toContain('已有任务'); // 三步优先级里最优先并入
     expect(system).toContain('禁止新建与某个已有任务主题重叠'); // 治重复建组
-    expect(system).toContain('同一任务'); // 抬高门槛
+    expect(system).toContain('同一任务'); // 「别硬凑」仍以任务/主题为界
+    expect(system).toContain('产品'); // 治「该分却不分」:同产品/服务的标签应归到一起
     expect(system).toContain('示例'); // few-shot 示例
+  });
+  it('提示词要求:拿不准一律进 unclear,不得三个数组全空交白卷', () => {
+    const { system } = buildOrganizePrompt([{ id: 't1', title: 'x', domain: 'a.com' }], []);
+    expect(system).toContain('交白卷'); // 直接治本次 bug:模型交白卷 → null → 硬报错
+    expect(system).toContain('unclear');
   });
 });
 
