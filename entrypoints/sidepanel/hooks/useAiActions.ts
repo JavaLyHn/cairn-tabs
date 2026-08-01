@@ -66,7 +66,7 @@ export function useAiActions(deps: {
         empty: t('ai.error.empty.inbox'),
         cancelled: t('ai.error.cancelled'),
       };
-      deps.showFlash(msg[ev.reason] ?? t('ai.error.default'));
+      deps.showFlash(ev.detail ?? msg[ev.reason] ?? t('ai.error.default'));
     }
   };
 
@@ -86,7 +86,7 @@ export function useAiActions(deps: {
         empty: t('ai.error.empty.all'),
         cancelled: t('ai.error.cancelled'),
       };
-      deps.showFlash(msg[ev.reason] ?? t('ai.error.default'));
+      deps.showFlash(ev.detail ?? msg[ev.reason] ?? t('ai.error.default'));
     }
   };
 
@@ -107,7 +107,7 @@ export function useAiActions(deps: {
         empty: t('ai.error.empty.task'),
         cancelled: t('ai.error.cancelled'),
       };
-      deps.showFlash(msg[ev.reason] ?? t('ai.error.default'));
+      deps.showFlash(ev.detail ?? msg[ev.reason] ?? t('ai.error.default'));
     }
   };
 
@@ -156,7 +156,7 @@ export function useAiActions(deps: {
           permission: t('ai.error.permission'),
           cancelled: t('ai.error.name.cancelled'),
         };
-        deps.showFlash(msg[ev.reason] ?? t('ai.error.default'));
+        deps.showFlash(ev.detail ?? msg[ev.reason] ?? t('ai.error.default'));
       }
     } catch (e) {
       logError('aiSuggestName', e); // 如 SW 未就绪导致 sendMessage 失败

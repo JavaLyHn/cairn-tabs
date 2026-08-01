@@ -8,8 +8,14 @@ import {
   extractJsonObject,
 } from '@/core/ai/organize';
 
-const TABS = new Set(['t1', 't2', 't3']);
-const TASKS = new Set(['c1']);
+// token → 真实 id 映射(实际使用中 token 是 t0/t1…,真实 id 是 nanoid)。
+// 这里 token 与 id 取同值,便于沿用既有断言。
+const TABS = new Map([
+  ['t1', 't1'],
+  ['t2', 't2'],
+  ['t3', 't3'],
+]);
+const TASKS = new Map([['c1', 'c1']]);
 
 describe('buildOrganizePrompt', () => {
   it('系统提示含 JSON 约束,user 含标签与任务', () => {
@@ -18,9 +24,20 @@ describe('buildOrganizePrompt', () => {
       [{ id: 'c1', name: 'auth-service', domains: [], samples: [] }],
     );
     expect(system).toContain('JSON');
-    expect(user).toContain('t1');
+    expect(user).toContain('React hooks'); // 标题照常发给模型(id 换成短 token)
     expect(user).toContain('react.dev');
     expect(user).toContain('auth-service');
+  });
+  it('用短 token(t0/c0)代替 nanoid,并回传 token→id 映射', () => {
+    const r = buildOrganizePrompt(
+      [{ id: 'nano_tab_xyz', title: 'X', domain: 'a.com' }],
+      [{ id: 'nano_task_abc', name: 'T', domains: [], samples: [] }],
+    );
+    expect(r.user).toContain('"id":"t0"');
+    expect(r.user).toContain('"id":"c0"');
+    expect(r.user).not.toContain('nano_tab_xyz'); // 不把 nanoid 塞给模型(省 token、少抄错)
+    expect(r.tabTokenToId.get('t0')).toBe('nano_tab_xyz');
+    expect(r.taskTokenToId.get('c0')).toBe('nano_task_abc');
   });
   it('已有任务带上 domains 与 samples 供 AI 判断归属', () => {
     const { user } = buildOrganizePrompt(
@@ -175,6 +192,19 @@ describe('extractJsonObject(健壮提取,治「模型夹带推理/多段」)', (
 });
 
 describe('parseOrganizeResponse', () => {
+  it('token 映射回真实 id', () => {
+    const tabMap = new Map([
+      ['t0', 'nano1'],
+      ['t1', 'nano2'],
+    ]);
+    const taskMap = new Map([['c0', 'ctx1']]);
+    const raw =
+      '{"newGroups":[{"name":"g","tabIds":["t0"]}],"assign":[{"taskId":"c0","tabIds":["t1"]}]}';
+    expect(parseOrganizeResponse(raw, tabMap, taskMap)).toEqual({
+      newGroups: [{ name: 'g', tabIds: ['nano1'] }],
+      assign: [{ taskId: 'ctx1', tabIds: ['nano2'] }],
+    });
+  });
   it('解析正常 JSON', () => {
     const raw =
       '{"newGroups":[{"name":"前端","tabIds":["t1","t2"]}],"assign":[{"taskId":"c1","tabIds":["t3"]}]}';

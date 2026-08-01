@@ -60,8 +60,12 @@ describe('AI_ORGANIZE_INBOX (F-13)', () => {
     await fake.userOpenTab('https://react.dev/x', { title: 'React' });
     await fake.userOpenTab('https://vitejs.dev/y', { title: 'Vite' });
     const ids = await looseTabIds();
+    // 模型看到的是短 token(t0/t1…),按 loose 顺序;解析会映射回真实 id
     aiCtx.ai!.complete = async () =>
-      JSON.stringify({ newGroups: [{ name: '前端', tabIds: ids }], assign: [] });
+      JSON.stringify({
+        newGroups: [{ name: '前端', tabIds: ids.map((_, i) => `t${i}`) }],
+        assign: [],
+      });
 
     const ev = await handleCommand({ type: 'AI_ORGANIZE_INBOX' }, aiCtx);
     expect(ev?.type).toBe('AI_PLAN');
@@ -87,7 +91,7 @@ describe('AI_ORGANIZE_INBOX (F-13)', () => {
     };
     await fake.userOpenTab('https://a.com', { title: 'A' });
     const ev = await handleCommand({ type: 'AI_ORGANIZE_INBOX' }, aiCtx);
-    expect(ev).toEqual({ type: 'AI_ERROR', reason: 'network' });
+    expect(ev).toMatchObject({ type: 'AI_ERROR', reason: 'network' });
   });
 
   it('未分类为空 → empty', async () => {
@@ -420,7 +424,7 @@ describe('AI 取消', () => {
     };
     await fake.userOpenTab('https://a.com', { title: 'A' });
     const ev = await handleCommand({ type: 'AI_ORGANIZE_INBOX' }, aiCtx);
-    expect(ev).toEqual({ type: 'AI_ERROR', reason: 'network' });
+    expect(ev).toMatchObject({ type: 'AI_ERROR', reason: 'network' });
   });
 
   it('CANCEL_AI 调用 ctx.ai.cancel()', async () => {

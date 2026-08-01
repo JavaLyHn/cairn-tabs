@@ -68,7 +68,7 @@ export type Event =
   | { type: 'OPEN_SEARCH' }
   | { type: 'CLOSE_PANEL'; windowId?: number } // 切换关闭:面板收到后 window.close() 自关
   | { type: 'AI_PLAN'; plan: AIPlan; tabs: TabRecord[] }
-  | { type: 'AI_ERROR'; reason: AIErrorReason }
+  | { type: 'AI_ERROR'; reason: AIErrorReason; detail?: string }
   | { type: 'AI_TEST_RESULT'; ok: boolean; detail: string }
   | { type: 'AI_NAME'; name: string }
   | { type: 'IMPORTED'; contexts: number; tabs: number };

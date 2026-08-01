@@ -41,7 +41,13 @@ export function buildOrganizePrompt(
   tabs: OrganizeTab[],
   tasks: OrganizeTask[],
   opts?: { aggressive?: boolean },
-): { system: string; user: string } {
+): {
+  system: string;
+  user: string;
+  /** 模型只看到短 token(t0/t1…、c0/c1…);这两张表把 token 映射回真实 nanoid,供解析回写。 */
+  tabTokenToId: Map<string, string>;
+  taskTokenToId: Map<string, string>;
+} {
   const classifyRule = opts?.aggressive
     ? [
         '- 这些标签可能来自不同的已有分组;可以把明显更适合别处的标签跨组移动、也可以重新平衡已有分组。',
@@ -65,23 +71,28 @@ export function buildOrganizePrompt(
     '- 每个标签都要有归宿:恰好出现在 newGroups / assign / unclear 之一;拿不准的一律放 unclear,绝不要让三个数组全空、整个交白卷。',
     '- 新建分组名简短(不超过 16 字),概括该组共同点,语言与标签标题一致。',
     '- 只输出严格 JSON,不要任何解释、不要 Markdown 代码块。',
-    '示例(仅示意判断方式,勿照抄内容):',
-    'existingTasks=[{"id":"t1","name":"支付重构","domains":["github.com","stripe.com"],"samples":["Refactor checkout #42","Stripe API"]}]',
-    'looseTabs=[{"id":"a","title":"checkout webhook #47","domain":"github.com"},{"id":"b","title":"睿库 API 文档","domain":"ruiku.ai"},{"id":"c","title":"睿库 生图工作台","domain":"ruiku.ai"},{"id":"d","title":"抖音-记录美好生活","domain":"douyin.com"}]',
-    '输出:{"newGroups":[{"name":"睿库","tabIds":["b","c"]}],"assign":[{"taskId":"t1","tabIds":["a"]}],"unclear":[{"tabId":"d","reason":"与其它标签无共同点"}]}',
-    'JSON 结构:',
+    '示例(id 就照抄给你的 t0/t1… 与 c0/c1…,勿改写、勿照抄内容):',
+    'existingTasks=[{"id":"c0","name":"支付重构","domains":["github.com","stripe.com"],"samples":["Refactor checkout #42","Stripe API"]}]',
+    'looseTabs=[{"id":"t0","title":"checkout webhook #47","domain":"github.com"},{"id":"t1","title":"睿库 API 文档","domain":"ruiku.ai"},{"id":"t2","title":"睿库 生图工作台","domain":"ruiku.ai"},{"id":"t3","title":"抖音-记录美好生活","domain":"douyin.com"}]',
+    '输出:{"newGroups":[{"name":"睿库","tabIds":["t1","t2"]}],"assign":[{"taskId":"c0","tabIds":["t0"]}],"unclear":[{"tabId":"t3","reason":"与其它标签无共同点"}]}',
+    'JSON 结构(tabId/taskId 一律用给定的 t… / c… 短 id):',
     '{"newGroups":[{"name":"组名","tabIds":["标签id"]}],"assign":[{"taskId":"任务id","tabIds":["标签id"]}],"unclear":[{"tabId":"标签id","reason":"简短理由"}]}',
   ].join('\n');
-  const user = JSON.stringify({
-    looseTabs: tabs.map((t) => ({ id: t.id, title: t.title, domain: t.domain })),
-    existingTasks: tasks.map((t) => ({
-      id: t.id,
-      name: t.name,
-      domains: t.domains,
-      samples: t.samples,
-    })),
+  // 用短 token(t0/t1…、c0/c1…)代替 21 位 nanoid:输出体积骤降 → 不截断、不易抄错、更快。
+  const tabTokenToId = new Map<string, string>();
+  const looseTabs = tabs.map((t, i) => {
+    const token = `t${i}`;
+    tabTokenToId.set(token, t.id);
+    return { id: token, title: t.title, domain: t.domain };
   });
-  return { system, user };
+  const taskTokenToId = new Map<string, string>();
+  const existingTasks = tasks.map((t, i) => {
+    const token = `c${i}`;
+    taskTokenToId.set(token, t.id);
+    return { id: token, name: t.name, domains: t.domains, samples: t.samples };
+  });
+  const user = JSON.stringify({ looseTabs, existingTasks });
+  return { system, user, tabTokenToId, taskTokenToId };
 }
 
 /**
@@ -232,20 +243,20 @@ export function parseNameResponse(raw: string): string | null {
 
 export function parseOrganizeResponse(
   raw: string,
-  validTabIds: Set<string>,
-  validTaskIds: Set<string>,
+  tabTokenToId: Map<string, string>,
+  taskTokenToId: Map<string, string>,
 ): AIPlan | null {
   const data = extractJsonObject(raw);
   if (!data || typeof data !== 'object') return null;
 
-  const seen = new Set<string>(); // 一个标签至多归一处
+  const seen = new Set<string>(); // 一个 token 至多归一处
   const takeTabs = (arr: unknown): string[] => {
     if (!Array.isArray(arr)) return [];
     const out: string[] = [];
     for (const x of arr) {
-      if (typeof x === 'string' && validTabIds.has(x) && !seen.has(x)) {
+      if (typeof x === 'string' && tabTokenToId.has(x) && !seen.has(x)) {
         seen.add(x);
-        out.push(x);
+        out.push(tabTokenToId.get(x)!); // token → 真实 id
       }
     }
     return out;
@@ -259,10 +270,10 @@ export function parseOrganizeResponse(
     for (const a of d.assign) {
       if (!a || typeof a !== 'object') continue;
       const rawTaskId = (a as { taskId?: unknown }).taskId;
-      const taskId = typeof rawTaskId === 'string' ? rawTaskId : '';
-      if (!validTaskIds.has(taskId)) continue;
+      const token = typeof rawTaskId === 'string' ? rawTaskId : '';
+      if (!taskTokenToId.has(token)) continue;
       const tabIds = takeTabs((a as { tabIds?: unknown }).tabIds);
-      if (tabIds.length) assign.push({ taskId, tabIds });
+      if (tabIds.length) assign.push({ taskId: taskTokenToId.get(token)!, tabIds });
     }
   }
 
@@ -284,12 +295,12 @@ export function parseOrganizeResponse(
     for (const u of d.unclear) {
       if (!u || typeof u !== 'object') continue;
       const rawId = (u as { tabId?: unknown }).tabId;
-      const tabId = typeof rawId === 'string' ? rawId : '';
-      if (!validTabIds.has(tabId) || seen.has(tabId)) continue;
-      seen.add(tabId);
+      const token = typeof rawId === 'string' ? rawId : '';
+      if (!tabTokenToId.has(token) || seen.has(token)) continue;
+      seen.add(token);
       const rawReason = (u as { reason?: unknown }).reason;
       const reason = (typeof rawReason === 'string' ? rawReason : '').trim().slice(0, 40);
-      unclear.push({ tabId, reason });
+      unclear.push({ tabId: tabTokenToId.get(token)!, reason });
     }
   }
 

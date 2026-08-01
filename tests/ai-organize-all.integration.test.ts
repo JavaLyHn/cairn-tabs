@@ -127,7 +127,8 @@ describe('AI_ORGANIZE_ALL 采集', () => {
     const ev = await handleCommand(
       { type: 'AI_ORGANIZE_ALL' },
       aiCtx(async () =>
-        JSON.stringify({ newGroups: [{ name: '前端', tabIds: [id] }], assign: [] }),
+        // 模型用短 token;唯一一个可动标签 → t0
+        JSON.stringify({ newGroups: [{ name: '前端', tabIds: ['t0'] }], assign: [] }),
       ),
     );
     expect(ev?.type).toBe('AI_PLAN');

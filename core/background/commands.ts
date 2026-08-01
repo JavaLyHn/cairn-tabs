@@ -21,12 +21,20 @@ import {
   summarizeTaskTabs,
 } from '../ai/organize';
 import type { AIProviderId, AIStatus, AIPlan } from '@/shared/ai';
-import { isAICancelled } from '@/shared/ai';
+import { isAICancelled, friendlyAIError } from '@/shared/ai';
 import { logError } from '@/shared/log';
 
 /** 解析失败时把原始响应打到控制台,便于用户经 SW 控制台报出真实输出(截断/非 JSON/空等)。 */
 function logAIParseFailure(scope: string, raw: string): void {
   logError(`ai.parseFailure:${scope}`, { len: raw.length, raw: raw.slice(0, 4000) });
+}
+
+/** AI 调用抛错 → 统一成 AI_ERROR:用户取消归 cancelled;其余记日志并把「人话」错误(状态码/超时…)带回 UI。 */
+function aiCallError(e: unknown): Extract<Event, { type: 'AI_ERROR' }> {
+  if (isAICancelled(e)) return { type: 'AI_ERROR', reason: 'cancelled' };
+  const message = e instanceof Error ? e.message : String(e);
+  logError('ai.callFailed', message);
+  return { type: 'AI_ERROR', reason: 'network', detail: friendlyAIError(message) };
 }
 
 export interface CommandContext {
@@ -516,8 +524,7 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       try {
         raw = await ctx.ai.complete(system, user);
       } catch (e) {
-        if (isAICancelled(e)) return { type: 'AI_ERROR', reason: 'cancelled' };
-        return { type: 'AI_ERROR', reason: 'network' };
+        return aiCallError(e);
       }
       const name = parseNameResponse(raw);
       if (!name) {
@@ -569,7 +576,7 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       const loose = tabs.filter((t) => t.contextId === INBOX_ID && t.chromeTabId != null);
       if (loose.length === 0) return { type: 'AI_ERROR', reason: 'empty' };
       const tasks = contexts.filter((c) => c.id !== INBOX_ID && c.status === 'active');
-      const { system, user } = buildOrganizePrompt(
+      const { system, user, tabTokenToId, taskTokenToId } = buildOrganizePrompt(
         loose.map((t) => ({
           id: t.id,
           title: t.title,
@@ -587,14 +594,9 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       try {
         raw = await ctx.ai.complete(system, user);
       } catch (e) {
-        if (isAICancelled(e)) return { type: 'AI_ERROR', reason: 'cancelled' };
-        return { type: 'AI_ERROR', reason: 'network' };
+        return aiCallError(e);
       }
-      const plan = parseOrganizeResponse(
-        raw,
-        new Set(loose.map((t) => t.id)),
-        new Set(tasks.map((c) => c.id)),
-      );
+      const plan = parseOrganizeResponse(raw, tabTokenToId, taskTokenToId);
       if (!plan) {
         logAIParseFailure('organize', raw);
         return { type: 'AI_ERROR', reason: 'parse' };
@@ -609,7 +611,7 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       const movable = tabs.filter((t) => t.chromeTabId != null && !t.starred && !t.pinned);
       if (movable.length === 0) return { type: 'AI_ERROR', reason: 'empty' };
       const tasks = contexts.filter((c) => c.id !== INBOX_ID && c.status === 'active');
-      const { system, user } = buildOrganizePrompt(
+      const { system, user, tabTokenToId, taskTokenToId } = buildOrganizePrompt(
         movable.map((t) => ({
           id: t.id,
           title: t.title,
@@ -628,14 +630,9 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       try {
         raw = await ctx.ai.complete(system, user);
       } catch (e) {
-        if (isAICancelled(e)) return { type: 'AI_ERROR', reason: 'cancelled' };
-        return { type: 'AI_ERROR', reason: 'network' };
+        return aiCallError(e);
       }
-      const plan = parseOrganizeResponse(
-        raw,
-        new Set(movable.map((t) => t.id)),
-        new Set(tasks.map((c) => c.id)),
-      );
+      const plan = parseOrganizeResponse(raw, tabTokenToId, taskTokenToId);
       if (!plan) {
         logAIParseFailure('organize', raw);
         return { type: 'AI_ERROR', reason: 'parse' };
@@ -666,8 +663,7 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       try {
         raw = await ctx.ai.complete(system, user);
       } catch (e) {
-        if (isAICancelled(e)) return { type: 'AI_ERROR', reason: 'cancelled' };
-        return { type: 'AI_ERROR', reason: 'network' };
+        return aiCallError(e);
       }
       const pruned = parsePruneResponse(raw, new Set(movable.map((t) => t.id)));
       if (!pruned) {

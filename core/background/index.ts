@@ -149,8 +149,8 @@ const cmdCtx: CommandContext = {
               system,
               user,
               model: aiSettings.effectiveModel(prof),
-              // 整理大批标签时输出需列出每个标签,1024 会截断成半截 JSON → 解析失败。给足余量。
-              maxTokens: 4096,
+              // 标签用短 token(t0/c0)后输出很小,1024 足够(此值为中转站已验证可接受)。
+              maxTokens: 1024,
               temperature: 0, // 整理/命名求稳定可复现:同一批标签每次给同样的建议(否则时有时无)
               baseUrl: prof.baseUrl,
               signal,
