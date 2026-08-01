@@ -113,6 +113,32 @@ export const customProvider: AIProvider = {
   },
 };
 
+/** 400 = 请求被拒(常见于模型不接受某个参数)。按状态码文本判定,跨 provider 通用。 */
+export function isBadRequest(e: unknown): boolean {
+  return e instanceof Error && /\b400\b/.test(e.message);
+}
+
+/**
+ * 调用 provider;若因 **400** 被拒且请求带了 `temperature`,去掉它重试一次。
+ * 缘由:思考型模型(如开启 extended thinking 的 Claude Opus、o 系列)只接受默认温度,
+ * 传 `temperature: 0` 会被中转站直接回 400 —— 而同一配置的「测试连接」(不带 temperature)却是通的。
+ * 只重试一次,且仅针对 400,避免把 401/404/限流也反复打。
+ */
+export async function completeWithParamFallback(
+  provider: AIProvider,
+  req: ChatRequest,
+  key: string,
+  fetchImpl?: typeof fetch,
+): Promise<string> {
+  try {
+    return await provider.complete(req, key, fetchImpl);
+  } catch (e) {
+    if (req.temperature === undefined || !isBadRequest(e)) throw e;
+    const { temperature: _dropped, ...withoutTemperature } = req;
+    return provider.complete(withoutTemperature, key, fetchImpl);
+  }
+}
+
 export const PROVIDERS: Record<AIProviderId, AIProvider> = {
   anthropic: anthropicProvider,
   openai: openaiProvider,

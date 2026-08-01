@@ -6,6 +6,10 @@ describe('friendlyAIError', () => {
     expect(friendlyAIError('openai 401')).toContain('认证失败');
     expect(friendlyAIError('custom 403')).toContain('认证失败');
   });
+  it('400 → 请求被拒(参数不被接受)', () => {
+    expect(friendlyAIError('custom 400')).toContain('请求被拒');
+    expect(friendlyAIError('custom 400')).toContain('400');
+  });
   it('404 → 地址或模型不存在', () => {
     expect(friendlyAIError('custom 404')).toContain('地址或模型不存在');
   });

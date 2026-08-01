@@ -8,7 +8,7 @@ import { registerGroupListeners, reconcileGroups } from './group-sync';
 import { handleCommand, type CommandContext } from './commands';
 import { PenaltyStore } from './penalties';
 import { PortMappingStore, FlagsStore, MemoryStore, AISettingsStore } from './settings';
-import { PROVIDERS } from '../ai/provider';
+import { PROVIDERS, completeWithParamFallback } from '../ai/provider';
 import { runDiscardScan } from './discard-scan';
 import { discardScanPeriodMinutes } from '@/shared/discard';
 import { runRecoverySequence, shouldPurgeNow } from './session-recovery';
@@ -144,14 +144,17 @@ const cmdCtx: CommandContext = {
       if (!prof || !key) return Promise.reject(new Error('no key'));
       return aiRunner.run(
         (signal) =>
-          PROVIDERS[prof.provider].complete(
+          // 带 temperature:0 求稳定可复现;若服务端回 400(思考型模型只收默认温度),
+          // completeWithParamFallback 会自动去掉该参数重试一次。
+          completeWithParamFallback(
+            PROVIDERS[prof.provider],
             {
               system,
               user,
               model: aiSettings.effectiveModel(prof),
               // 标签用短 token(t0/c0)后输出很小,1024 足够(此值为中转站已验证可接受)。
               maxTokens: 1024,
-              temperature: 0, // 整理/命名求稳定可复现:同一批标签每次给同样的建议(否则时有时无)
+              temperature: 0,
               baseUrl: prof.baseUrl,
               signal,
             },

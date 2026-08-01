@@ -52,6 +52,7 @@ export function isAICancelled(e: unknown): boolean {
 export function friendlyAIError(message: string): string {
   const m = message.match(/\b(\d{3})\b/);
   const code = m ? Number(m[1]) : 0;
+  if (code === 400) return '请求被拒(400)—— 服务端不接受某个参数,或模型名不对';
   if (code === 401 || code === 403) return `认证失败(${code})—— 检查 API key`;
   if (code === 404) return '地址或模型不存在(404)—— 检查接口地址与模型名';
   if (code === 429) return '被限流(429)—— 稍后再试';

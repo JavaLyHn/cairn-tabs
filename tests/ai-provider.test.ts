@@ -6,6 +6,7 @@ import {
   normalizeBaseUrl,
   permissionOriginFor,
   PROVIDERS,
+  completeWithParamFallback,
 } from '@/core/ai/provider';
 import type { ChatRequest } from '@/core/ai/provider';
 
@@ -141,6 +142,69 @@ describe('permissionOriginFor', () => {
   });
   it('custom:非 https 抛错', () => {
     expect(() => permissionOriginFor('custom', 'http://relay.example.com/v1')).toThrow(/https/);
+  });
+});
+
+describe('completeWithParamFallback(400 参数被拒 → 去掉 temperature 重试)', () => {
+  const REQ = {
+    system: 's',
+    user: 'u',
+    model: 'claude-opus-4-8',
+    maxTokens: 1024,
+    temperature: 0,
+  };
+
+  it('首次成功 → 不重试,原样带 temperature', async () => {
+    const seen: (number | undefined)[] = [];
+    const p = {
+      ...customProvider,
+      complete: async (req: typeof REQ) => {
+        seen.push(req.temperature);
+        return 'OK';
+      },
+    };
+    expect(await completeWithParamFallback(p as never, REQ, 'k')).toBe('OK');
+    expect(seen).toEqual([0]);
+  });
+
+  it('400 且带 temperature → 去掉 temperature 重试一次并成功', async () => {
+    const seen: (number | undefined)[] = [];
+    const p = {
+      ...customProvider,
+      complete: async (req: { temperature?: number }) => {
+        seen.push(req.temperature);
+        if (req.temperature !== undefined) throw new Error('custom 400');
+        return 'OK';
+      },
+    };
+    expect(await completeWithParamFallback(p as never, REQ, 'k')).toBe('OK');
+    expect(seen).toEqual([0, undefined]); // 第二次不带 temperature
+  });
+
+  it('去掉 temperature 后仍 400 → 上抛(不无限重试)', async () => {
+    let calls = 0;
+    const p = {
+      ...customProvider,
+      complete: async () => {
+        calls++;
+        throw new Error('custom 400');
+      },
+    };
+    await expect(completeWithParamFallback(p as never, REQ, 'k')).rejects.toThrow('400');
+    expect(calls).toBe(2);
+  });
+
+  it('非 400(如 401)→ 不重试,直接上抛', async () => {
+    let calls = 0;
+    const p = {
+      ...customProvider,
+      complete: async () => {
+        calls++;
+        throw new Error('custom 401');
+      },
+    };
+    await expect(completeWithParamFallback(p as never, REQ, 'k')).rejects.toThrow('401');
+    expect(calls).toBe(1);
   });
 });
 
