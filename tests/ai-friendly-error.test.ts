@@ -16,9 +16,10 @@ describe('friendlyAIError', () => {
     expect(friendlyAIError('custom 502')).toContain('服务端错误');
     expect(friendlyAIError('custom 500')).toContain('服务端错误');
   });
-  it('abort → 连接超时', () => {
-    expect(friendlyAIError('The operation was aborted')).toBe('连接超时');
-    expect(friendlyAIError('signal is aborted without reason')).toBe('连接超时');
+  it('abort → 超时,且提示可操作(模型慢/标签多)', () => {
+    expect(friendlyAIError('The operation was aborted')).toContain('超时');
+    expect(friendlyAIError('The operation was aborted')).toContain('模型');
+    expect(friendlyAIError('signal is aborted without reason')).toContain('超时');
   });
   it('no text → 响应格式异常', () => {
     expect(friendlyAIError('custom: no text')).toContain('响应格式异常');

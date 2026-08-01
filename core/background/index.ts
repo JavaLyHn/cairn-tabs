@@ -157,7 +157,9 @@ const cmdCtx: CommandContext = {
             },
             key,
           ),
-        30_000,
+        // 推理型模型(如 GLM/DeepSeek)批量分类几十个标签,先思考再输出,30s 远远不够 →
+        // 表现为「连接超时」。面板开着时有常连 port 保活 SW,长请求安全;用户可随时点「取消」。
+        120_000,
       );
     },
     saveProfile: (input, key) => aiSettings.upsert(input, key),

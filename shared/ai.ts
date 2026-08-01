@@ -56,7 +56,7 @@ export function friendlyAIError(message: string): string {
   if (code === 404) return '地址或模型不存在(404)—— 检查接口地址与模型名';
   if (code === 429) return '被限流(429)—— 稍后再试';
   if (code >= 500 && code < 600) return `服务端错误(${code})`;
-  if (/abort/i.test(message)) return '连接超时';
+  if (/abort/i.test(message)) return '响应超时 —— 模型太慢或标签太多,可换更快的模型再试';
   if (/no text|parse/i.test(message)) return '响应格式异常(可能不是兼容接口)';
   if (/failed to fetch|network/i.test(message)) return '网络错误 —— 检查地址是否可达';
   return message;
