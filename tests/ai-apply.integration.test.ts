@@ -129,9 +129,37 @@ describe('AI_ORGANIZE_INBOX (F-13)', () => {
     };
     await fake.userOpenTab('https://a.com', { title: 'A' });
     const ev = await handleCommand({ type: 'AI_ORGANIZE_INBOX' }, aiCtx);
-    expect(ev).toEqual({ type: 'AI_ERROR', reason: 'parse' });
+    // 单个标签、无同域名可分 → 本地兜底也无组 → 仍报 parse,但带上可诊断的 detail
+    expect(ev).toMatchObject({ type: 'AI_ERROR', reason: 'parse' });
+    expect((ev as { detail?: string }).detail).toContain('格式异常');
     // 数据未变:标签仍在未分类
     expect((await looseTabIds()).length).toBe(1);
+  });
+
+  it('AI 返回不可用但有同网站标签 → 本地兜底给出分组(不再死路一条)', async () => {
+    const aiCtx: CommandContext = {
+      ...ctx,
+      ai: {
+        status: () => ({ profiles: [], activeId: null, ready: true }),
+        configured: () => true,
+        complete: async () => '我想不出来', // AI 交白卷
+        saveProfile: async () => 'id',
+        deleteProfile: async () => {},
+        activateProfile: async () => {},
+        test: async () => ({ ok: true, detail: 'ok' }),
+        cancel: () => {},
+      },
+    };
+    await fake.userOpenTab('https://ruiku.ai/api', { title: '睿库 API' });
+    await fake.userOpenTab('https://ruiku.ai/studio', { title: '睿库 工作台' });
+    await fake.userOpenTab('https://solo.com/x', { title: '孤例' });
+
+    const ev = await handleCommand({ type: 'AI_ORGANIZE_INBOX' }, aiCtx);
+    expect(ev?.type).toBe('AI_PLAN');
+    const e = ev as { plan: { newGroups: { tabIds: string[] }[] }; fallback?: boolean };
+    expect(e.fallback).toBe(true); // 如实标记:这是本地兜底
+    expect(e.plan.newGroups).toHaveLength(1); // ruiku.ai 两个成组;solo.com 孤例不成组
+    expect(e.plan.newGroups[0]!.tabIds).toHaveLength(2);
   });
 });
 

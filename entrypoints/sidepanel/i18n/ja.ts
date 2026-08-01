@@ -51,6 +51,7 @@ export const ja: Messages = {
   'ai.error.permission': 'API ドメインへのアクセスが許可されていません',
   'ai.error.network': 'AI の呼び出しに失敗しました。再試行してください',
   'ai.error.parse': 'AI が有効なグループ提案を返せませんでした — 変更なし',
+  'ai.flash.localFallback': 'AI から有効な提案がないため、同じサイトでローカル分類しました',
   'ai.error.empty.inbox': '未分類に整理できるタブがありません',
   'ai.error.empty.all': '整理できるタブがありません(★スター付き・手動整理済みはそのまま)',
   'ai.error.empty.task':

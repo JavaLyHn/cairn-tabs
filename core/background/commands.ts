@@ -19,6 +19,7 @@ import {
   buildNamePrompt,
   parseNameResponse,
   summarizeTaskTabs,
+  localGroupSuggestion,
 } from '../ai/organize';
 import type { AIProviderId, AIStatus, AIPlan } from '@/shared/ai';
 import { isAICancelled, friendlyAIError } from '@/shared/ai';
@@ -27,6 +28,45 @@ import { logError } from '@/shared/log';
 /** 解析失败时把原始响应打到控制台,便于用户经 SW 控制台报出真实输出(截断/非 JSON/空等)。 */
 function logAIParseFailure(scope: string, raw: string): void {
   logError(`ai.parseFailure:${scope}`, { len: raw.length, raw: raw.slice(0, 4000) });
+}
+
+/** 解析失败时给用户一句「能看懂且能转述」的原因(含响应片段),省得进控制台翻。 */
+function aiRawHint(raw: string): string {
+  const s = raw.trim();
+  if (!s) return 'AI 返回了空响应';
+  const opens = (s.match(/\{/g) ?? []).length;
+  const closes = (s.match(/\}/g) ?? []).length;
+  if (opens > closes) return `AI 返回被截断(建议换更强的模型)· ${s.slice(0, 60)}…`;
+  return `AI 返回格式异常 · ${s.slice(0, 80)}`;
+}
+
+/**
+ * 整理结果收敛:AI 方案可用就用;不可用则退回**本地同域名分组**(至少给出明显该在一起的),
+ * 本地也无可分才报错(并带上原始响应片段便于定位)。绝不给用户「死路一条」的提示。
+ */
+function organizeOutcome(
+  plan: AIPlan | null,
+  candidates: TabRecord[],
+  raw: string,
+): Extract<Event, { type: 'AI_PLAN' }> | Extract<Event, { type: 'AI_ERROR' }> {
+  if (plan) return { type: 'AI_PLAN', plan, tabs: candidates };
+  logAIParseFailure('organize', raw);
+  const local = localGroupSuggestion(
+    candidates.map((t) => ({
+      id: t.id,
+      title: t.title,
+      domain: registrableDomain(hostnameOf(t.url)),
+    })),
+  );
+  if (local.length) {
+    return {
+      type: 'AI_PLAN',
+      plan: { newGroups: local, assign: [] },
+      tabs: candidates,
+      fallback: true,
+    };
+  }
+  return { type: 'AI_ERROR', reason: 'parse', detail: aiRawHint(raw) };
 }
 
 /** AI 调用抛错 → 统一成 AI_ERROR:用户取消归 cancelled;其余记日志并把「人话」错误(状态码/超时…)带回 UI。 */
@@ -596,12 +636,7 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       } catch (e) {
         return aiCallError(e);
       }
-      const plan = parseOrganizeResponse(raw, tabTokenToId, taskTokenToId);
-      if (!plan) {
-        logAIParseFailure('organize', raw);
-        return { type: 'AI_ERROR', reason: 'parse' };
-      }
-      return { type: 'AI_PLAN', plan, tabs: loose };
+      return organizeOutcome(parseOrganizeResponse(raw, tabTokenToId, taskTokenToId), loose, raw);
     }
 
     case 'AI_ORGANIZE_ALL': {
@@ -632,12 +667,7 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       } catch (e) {
         return aiCallError(e);
       }
-      const plan = parseOrganizeResponse(raw, tabTokenToId, taskTokenToId);
-      if (!plan) {
-        logAIParseFailure('organize', raw);
-        return { type: 'AI_ERROR', reason: 'parse' };
-      }
-      return { type: 'AI_PLAN', plan, tabs: movable };
+      return organizeOutcome(parseOrganizeResponse(raw, tabTokenToId, taskTokenToId), movable, raw);
     }
 
     case 'AI_ORGANIZE_TASK': {

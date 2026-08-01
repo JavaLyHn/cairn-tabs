@@ -6,6 +6,7 @@ import {
   parsePruneResponse,
   summarizeTaskTabs,
   extractJsonObject,
+  localGroupSuggestion,
 } from '@/core/ai/organize';
 
 // token → 真实 id 映射(实际使用中 token 是 t0/t1…,真实 id 是 nanoid)。
@@ -188,6 +189,77 @@ describe('extractJsonObject(健壮提取,治「模型夹带推理/多段」)', (
   it('无 JSON / 截断(无闭合)→ null', () => {
     expect(extractJsonObject('毫无 JSON')).toBeNull();
     expect(extractJsonObject('{"newGroups":[{"name":"g","tabIds":["t1"')).toBeNull(); // 截断
+  });
+  it('两个代码块(先思考后答案)→ 取到答案,不被第一个围栏吞掉', () => {
+    const raw =
+      '```thinking\n{我先分析一下 t0 和 t1}\n```\n\n```json\n{"newGroups":[{"name":"g","tabIds":["t0"]}],"assign":[]}\n```';
+    expect(extractJsonObject(raw)).toEqual({
+      newGroups: [{ name: 'g', tabIds: ['t0'] }],
+      assign: [],
+    });
+  });
+  it('优先取「含预期键」的那段,而非单纯最后一段', () => {
+    const raw =
+      '{"newGroups":[{"name":"g","tabIds":["t0"]}],"assign":[]}\n\n备注:{"note":"仅供参考"}';
+    expect(extractJsonObject(raw)).toEqual({
+      newGroups: [{ name: 'g', tabIds: ['t0'] }],
+      assign: [],
+    });
+  });
+});
+
+describe('parseOrganizeResponse 容错(模型 schema 走样也要能用)', () => {
+  const MAP = new Map([
+    ['t0', 'nano0'],
+    ['t1', 'nano1'],
+  ]);
+  const TMAP = new Map([['c0', 'ctx0']]);
+
+  it('数字 id [0,1] → 映射为 t0/t1', () => {
+    const raw = '{"newGroups":[{"name":"g","tabIds":[0,1]}],"assign":[]}';
+    expect(parseOrganizeResponse(raw, MAP, TMAP)?.newGroups[0]?.tabIds).toEqual(['nano0', 'nano1']);
+  });
+  it('裸序号字符串 ["0"] 与大写 ["T1"] 都认', () => {
+    const raw = '{"newGroups":[{"name":"g","tabIds":["0","T1"]}],"assign":[]}';
+    expect(parseOrganizeResponse(raw, MAP, TMAP)?.newGroups[0]?.tabIds).toEqual(['nano0', 'nano1']);
+  });
+  it('键别名:groups / tab_ids / title;taskId 用 task', () => {
+    const raw =
+      '{"groups":[{"title":"g","tab_ids":["t0"]}],"assignments":[{"task":"c0","tab_ids":["t1"]}]}';
+    const plan = parseOrganizeResponse(raw, MAP, TMAP);
+    expect(plan?.newGroups[0]).toEqual({ name: 'g', tabIds: ['nano0'] });
+    expect(plan?.assign[0]).toEqual({ taskId: 'ctx0', tabIds: ['nano1'] });
+  });
+  it('tabIds 写成对象数组 [{id:"t0"}] 也认', () => {
+    const raw = '{"newGroups":[{"name":"g","tabIds":[{"id":"t0"}]}],"assign":[]}';
+    expect(parseOrganizeResponse(raw, MAP, TMAP)?.newGroups[0]?.tabIds).toEqual(['nano0']);
+  });
+  it('unclear 写成裸 id 数组 ["t1"](无 reason)也认', () => {
+    const raw = '{"newGroups":[],"assign":[],"unclear":["t1"]}';
+    expect(parseOrganizeResponse(raw, MAP, TMAP)?.unclear).toEqual([
+      { tabId: 'nano1', reason: '' },
+    ]);
+  });
+});
+
+describe('localGroupSuggestion(AI 失灵时的本地兜底)', () => {
+  it('同域名 ≥2 个 → 成组;孤立域名不成组', () => {
+    const groups = localGroupSuggestion([
+      { id: 'a', title: '睿库 API', domain: 'ruiku.ai' },
+      { id: 'b', title: '睿库 工作台', domain: 'ruiku.ai' },
+      { id: 'c', title: '孤例', domain: 'solo.com' },
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.tabIds).toEqual(['a', 'b']);
+    expect(groups[0]!.name).toContain('ruiku');
+  });
+  it('全是孤立域名 → 空', () => {
+    expect(
+      localGroupSuggestion([
+        { id: 'a', title: 'A', domain: 'a.com' },
+        { id: 'b', title: 'B', domain: 'b.com' },
+      ]),
+    ).toEqual([]);
   });
 });
 

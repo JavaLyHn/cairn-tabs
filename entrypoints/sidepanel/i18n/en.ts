@@ -51,6 +51,7 @@ export const en = {
   'ai.error.permission': 'Not authorized to access API domain',
   'ai.error.network': 'AI call failed, please try again',
   'ai.error.parse': 'AI could not produce usable grouping suggestions — no changes made',
+  'ai.flash.localFallback': 'AI gave nothing usable — grouped locally by site instead',
   'ai.error.empty.inbox': 'No tabs in Unclassified to organize',
   'ai.error.empty.all': 'No tabs to organize (★ starred and manually sorted stay put)',
   'ai.error.empty.task': 'No movable tabs in this task (★ starred and manually sorted stay put)',

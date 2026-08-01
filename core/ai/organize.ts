@@ -58,7 +58,7 @@ export function buildOrganizePrompt(
     '对每个标签,依次这样判断:',
     '1) 能并入某个「已有任务」吗?逐个对照 existingTasks 的 name / domains / samples,只要明显属于其中某个任务,就 assign 到该任务(最优先)。',
     '2) 否则,它和其它零散标签明显该放一起吗?能就凑成一个新组放进 newGroups —— 哪怕只有 2 个标签,也建组。',
-    '3) 实在看不出该和谁一起、也不属于任何已有任务 → 列入 unclear,附一句简短理由(不超过 20 字)。',
+    '3) 实在看不出该和谁一起、也不属于任何已有任务 → 直接省略它(自动留在未分类);想说明原因才放进 unclear(reason 可省)。',
     '什么叫「明显该放在一起」(满足任一即可,不必纠结是不是严格的「同一个任务」):',
     '- 同一个产品/服务/站点 —— 例如某工具的 API 文档 + 控制台 + 生图工作台,理应归到一起;',
     '- 同一个代码仓库 / 同一个工单 / 同一个功能模块;',
@@ -68,7 +68,8 @@ export function buildOrganizePrompt(
     ...classifyRule,
     '- 别硬凑:不属于同一任务/主题、纯粹八竿子打不着的标签(如「短视频娱乐」与「支付退款文档」)不要塞进一组;真看不出关系的列 unclear。',
     '- 禁止新建与某个已有任务主题重叠的分组 —— 那必须用 assign 并入,不要造重复的组;newGroups 只用于确实没有对应已有任务的新主题。',
-    '- 每个标签都要有归宿:恰好出现在 newGroups / assign / unclear 之一;拿不准的一律放 unclear,绝不要让三个数组全空、整个交白卷。',
+    '- 输出越短越好:不必逐个交代每个标签 —— 没提到的自动留在未分类。拿不准的直接省略即可,unclear 只在你想说明原因时用。',
+    '- 但也别整个交白卷:只要存在明显该放一起的标签,就至少把这些组给出来。',
     '- 新建分组名简短(不超过 16 字),概括该组共同点,语言与标签标题一致。',
     '- 只输出严格 JSON,不要任何解释、不要 Markdown 代码块。',
     '示例(id 就照抄给你的 t0/t1… 与 c0/c1…,勿改写、勿照抄内容):',
@@ -164,25 +165,72 @@ export function stripFences(s: string): string {
 }
 
 /**
- * 从可能夹带推理文字 / 多段输出的响应里,健壮地提取一个可解析的顶层 JSON 对象。
- * 策略:先整体 parse;失败则扫描「平衡花括号」(跳过字符串内部的括号)收集每个顶层 {...} 段,
- * 从后往前逐个 parse(答案通常在推理之后),返回首个成功的。都不行 → null。
- * 注:响应被 max_tokens 截断(末段无闭合)时该段不会入选,返回 null(此时应提高 max_tokens,而非在此硬救)。
+ * AI 失灵(不可解析 / 全空)时的**本地兜底**分组:同一个可注册域名 ≥2 个标签即成一组。
+ * 纯本地规则、不联网,保证用户至少拿到「明显该在一起」的那部分,而不是一句「没有可用建议」。
+ * 组名取域名主体(如 ruiku.ai → ruiku)。返回空数组表示确实无可分的。
+ */
+export function localGroupSuggestion(tabs: OrganizeTab[]): { name: string; tabIds: string[] }[] {
+  const byDomain = new Map<string, string[]>();
+  for (const t of tabs) {
+    const d = t.domain.trim().toLowerCase();
+    if (!d) continue;
+    const list = byDomain.get(d);
+    if (list) list.push(t.id);
+    else byDomain.set(d, [t.id]);
+  }
+  const out: { name: string; tabIds: string[] }[] = [];
+  for (const [domain, tabIds] of byDomain) {
+    if (tabIds.length < 2) continue; // 孤例不成组
+    const name = (domain.split('.')[0] || domain).slice(0, 16);
+    out.push({ name, tabIds });
+  }
+  // 组大的排前面,便于用户先看重点
+  return out.toSorted((a, b) => b.tabIds.length - a.tabIds.length);
+}
+
+/** 我们期待的顶层键(含常见别名);用于在多个 JSON 候选里挑出「真正的答案」。 */
+const PLAN_KEYS = [
+  'newGroups',
+  'new_groups',
+  'newgroups',
+  'groups',
+  'assign',
+  'assignments',
+  'assigns',
+  'unclear',
+  'unsure',
+  'unknown',
+  'evict',
+];
+
+/**
+ * 从可能夹带推理文字 / 多个代码块 / 多段 JSON 的响应里,健壮地提取「答案」对象。
+ * 关键:**直接扫描原始文本**(不先 stripFences —— 那会在有多个代码块时丢掉答案),
+ * 用平衡花括号(跳过字符串内部括号)收集所有顶层 {...} 段,逐个 parse,
+ * 优先返回**含预期键**的那段;都不含则返回最后一个可解析的。全失败 → null。
+ * 注:被 max_tokens 截断(末段无闭合)的片段不会入选。
  */
 export function extractJsonObject(raw: string): unknown | null {
-  const text = stripFences(raw);
-  try {
-    return JSON.parse(text);
-  } catch {
-    // 继续走平衡扫描
+  const hasPlanKey = (v: unknown): boolean =>
+    !!v && typeof v === 'object' && PLAN_KEYS.some((k) => k in (v as Record<string, unknown>));
+
+  // 整体就是 JSON 的快路径(去围栏后再试一次)
+  for (const t of [raw.trim(), stripFences(raw)]) {
+    try {
+      const v = JSON.parse(t);
+      if (v && typeof v === 'object') return v;
+    } catch {
+      // 走扫描
+    }
   }
+
   const candidates: string[] = [];
   let depth = 0;
   let start = -1;
   let inStr = false;
   let esc = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i];
     if (inStr) {
       if (esc) esc = false;
       else if (c === '\\') esc = true;
@@ -198,18 +246,58 @@ export function extractJsonObject(raw: string): unknown | null {
       if (depth > 0) {
         depth--;
         if (depth === 0 && start >= 0) {
-          candidates.push(text.slice(start, i + 1));
+          candidates.push(raw.slice(start, i + 1));
           start = -1;
         }
       }
     }
   }
+
+  let fallback: unknown | null = null;
   for (let i = candidates.length - 1; i >= 0; i--) {
     try {
-      return JSON.parse(candidates[i]!);
+      const v = JSON.parse(candidates[i]!);
+      if (hasPlanKey(v)) return v; // 含预期键 → 就是答案
+      if (fallback === null && v && typeof v === 'object') fallback = v;
     } catch {
       // 试下一个候选
     }
+  }
+  return fallback;
+}
+
+/** 取对象里首个存在的键(容忍模型用别名 / 下划线 / 大小写变体)。 */
+function pick(obj: Record<string, unknown>, ...keys: string[]): unknown {
+  for (const k of keys) if (k in obj) return obj[k];
+  const lower = new Map(Object.keys(obj).map((k) => [k.toLowerCase().replace(/_/g, ''), k]));
+  for (const k of keys) {
+    const hit = lower.get(k.toLowerCase().replace(/_/g, ''));
+    if (hit !== undefined) return obj[hit];
+  }
+  return undefined;
+}
+
+/**
+ * 把模型给出的各种 id 写法归一成我们的 token(t3 / c1)。
+ * 容忍:数字 3、裸序号 "3"、大小写 "T3"、带空格/井号 " #t3 "、对象 {id:"t3"}。
+ * 归一后必须在映射表里,否则 null(丢弃)。
+ */
+function normalizeToken(v: unknown, prefix: 't' | 'c', valid: Map<string, string>): string | null {
+  if (typeof v === 'number' && Number.isInteger(v)) {
+    const tok = `${prefix}${v}`;
+    return valid.has(tok) ? tok : null;
+  }
+  if (v && typeof v === 'object') {
+    const inner = pick(v as Record<string, unknown>, 'id', 'tabId', 'taskId', 'token');
+    return inner === undefined ? null : normalizeToken(inner, prefix, valid);
+  }
+  if (typeof v !== 'string') return null;
+  const s = v.trim().toLowerCase().replace(/^#/, '');
+  if (valid.has(s)) return s;
+  const m = s.match(/^[tc]?(\d+)$/); // "3" / "t3" / "c3"
+  if (m) {
+    const tok = `${prefix}${m[1]}`;
+    return valid.has(tok) ? tok : null;
   }
   return null;
 }
@@ -251,54 +339,67 @@ export function parseOrganizeResponse(
 
   const seen = new Set<string>(); // 一个 token 至多归一处
   const takeTabs = (arr: unknown): string[] => {
-    if (!Array.isArray(arr)) return [];
+    const list = Array.isArray(arr) ? arr : arr === undefined || arr === null ? [] : [arr];
     const out: string[] = [];
-    for (const x of arr) {
-      if (typeof x === 'string' && tabTokenToId.has(x) && !seen.has(x)) {
-        seen.add(x);
-        out.push(tabTokenToId.get(x)!); // token → 真实 id
-      }
+    for (const x of list) {
+      const token = normalizeToken(x, 't', tabTokenToId);
+      if (!token || seen.has(token)) continue;
+      seen.add(token);
+      out.push(tabTokenToId.get(token)!); // token → 真实 id
     }
     return out;
   };
 
-  const d = data as { newGroups?: unknown; assign?: unknown; unclear?: unknown };
+  const d = data as Record<string, unknown>;
 
   // Process assign first so existing tasks win in dedup
   const assign: AIPlan['assign'] = [];
-  if (Array.isArray(d.assign)) {
-    for (const a of d.assign) {
+  const rawAssign = pick(d, 'assign', 'assignments', 'assigns', 'assignTo');
+  if (Array.isArray(rawAssign)) {
+    for (const a of rawAssign) {
       if (!a || typeof a !== 'object') continue;
-      const rawTaskId = (a as { taskId?: unknown }).taskId;
-      const token = typeof rawTaskId === 'string' ? rawTaskId : '';
-      if (!taskTokenToId.has(token)) continue;
-      const tabIds = takeTabs((a as { tabIds?: unknown }).tabIds);
+      const ao = a as Record<string, unknown>;
+      const token = normalizeToken(
+        pick(ao, 'taskId', 'task_id', 'task', 'contextId', 'id'),
+        'c',
+        taskTokenToId,
+      );
+      if (!token) continue;
+      const tabIds = takeTabs(pick(ao, 'tabIds', 'tab_ids', 'tabs', 'ids', 'members'));
       if (tabIds.length) assign.push({ taskId: taskTokenToId.get(token)!, tabIds });
     }
   }
 
   // Then process newGroups
   const newGroups: AIPlan['newGroups'] = [];
-  if (Array.isArray(d.newGroups)) {
-    for (const g of d.newGroups) {
+  const rawGroups = pick(d, 'newGroups', 'new_groups', 'groups');
+  if (Array.isArray(rawGroups)) {
+    for (const g of rawGroups) {
       if (!g || typeof g !== 'object') continue;
-      const rawName = (g as { name?: unknown }).name;
+      const go = g as Record<string, unknown>;
+      const rawName = pick(go, 'name', 'title', 'groupName', 'group');
       const name = typeof rawName === 'string' ? rawName.trim() : '';
-      const tabIds = takeTabs((g as { tabIds?: unknown }).tabIds);
+      const tabIds = takeTabs(pick(go, 'tabIds', 'tab_ids', 'tabs', 'ids', 'members'));
       if (name && tabIds.length) newGroups.push({ name: name.slice(0, 40), tabIds });
     }
   }
 
-  // unclear:AI 拿不准、刻意留原位的标签 + 理由。放最后解析,seen 已含所有已归类标签 → 去重。
+  // unclear:AI 拿不准、刻意留原位的标签(+ 可选理由)。放最后解析,seen 已含所有已归类标签 → 去重。
+  // 容忍两种写法:[{tabId,reason}] 与裸 id 数组 ["t1", 2]。
   const unclear: NonNullable<AIPlan['unclear']> = [];
-  if (Array.isArray(d.unclear)) {
-    for (const u of d.unclear) {
-      if (!u || typeof u !== 'object') continue;
-      const rawId = (u as { tabId?: unknown }).tabId;
-      const token = typeof rawId === 'string' ? rawId : '';
-      if (!tabTokenToId.has(token) || seen.has(token)) continue;
+  const rawUnclear = pick(d, 'unclear', 'unsure', 'unknown');
+  if (Array.isArray(rawUnclear)) {
+    for (const u of rawUnclear) {
+      const isObj = !!u && typeof u === 'object';
+      const uo = isObj ? (u as Record<string, unknown>) : null;
+      const token = normalizeToken(
+        uo ? pick(uo, 'tabId', 'tab_id', 'id', 'tab') : u,
+        't',
+        tabTokenToId,
+      );
+      if (!token || seen.has(token)) continue;
       seen.add(token);
-      const rawReason = (u as { reason?: unknown }).reason;
+      const rawReason = uo ? pick(uo, 'reason', 'why', 'note') : '';
       const reason = (typeof rawReason === 'string' ? rawReason : '').trim().slice(0, 40);
       unclear.push({ tabId: tabTokenToId.get(token)!, reason });
     }

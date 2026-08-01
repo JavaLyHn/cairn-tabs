@@ -52,6 +52,7 @@ export const ko: Messages = {
   'ai.error.permission': 'API 도메인 접근 권한이 없습니다',
   'ai.error.network': 'AI 호출에 실패했습니다. 다시 시도해 주세요',
   'ai.error.parse': 'AI가 유효한 그룹 제안을 생성하지 못했습니다 — 변경 사항 없음',
+  'ai.flash.localFallback': 'AI 제안이 없어 같은 사이트 기준으로 로컬 분류했습니다',
   'ai.error.empty.inbox': '미분류에 정리할 탭이 없습니다',
   'ai.error.empty.all': '정리할 탭이 없습니다 (★ 즐겨찾기 및 수동 정렬 탭은 유지)',
   'ai.error.empty.task': '이 작업에 이동 가능한 탭이 없습니다 (★ 즐겨찾기 및 수동 정렬 탭은 유지)',

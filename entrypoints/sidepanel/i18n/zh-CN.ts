@@ -51,6 +51,7 @@ export const zhCN: Messages = {
   'ai.error.permission': '未授权访问 API 域名',
   'ai.error.network': 'AI 调用失败,请稍后重试',
   'ai.error.parse': 'AI 没能给出可用的分组建议,已保持原样',
+  'ai.flash.localFallback': 'AI 未给出可用建议,已按同网站本地分组',
   'ai.error.empty.inbox': '未分类里没有可整理的标签',
   'ai.error.empty.all': '没有可整理的标签(★重点和手动分好的不动)',
   'ai.error.empty.task': '这个任务里没有可动标签(★重点和手动分好的不动)',

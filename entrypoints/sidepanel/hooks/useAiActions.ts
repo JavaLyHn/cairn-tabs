@@ -56,8 +56,10 @@ export function useAiActions(deps: {
     setAiBusy(true); // 持久「分析中」指示见下方 pill(AI 调用可能超过 flash 的 1.8s)
     const ev = await dispatch({ type: 'AI_ORGANIZE_INBOX' });
     setAiBusy(false);
-    if (ev?.type === 'AI_PLAN') setAiPlan({ plan: ev.plan, tabs: ev.tabs, scope: 'inbox' });
-    else if (ev?.type === 'AI_ERROR') {
+    if (ev?.type === 'AI_PLAN') {
+      if (ev.fallback) deps.showFlash(t('ai.flash.localFallback')); // 如实告知:这是本地分组,不是 AI 的
+      setAiPlan({ plan: ev.plan, tabs: ev.tabs, scope: 'inbox' });
+    } else if (ev?.type === 'AI_ERROR') {
       const msg: Record<string, string> = {
         no_key: t('ai.error.no_key'),
         permission: t('ai.error.permission'),
@@ -76,8 +78,10 @@ export function useAiActions(deps: {
     setAiBusy(true);
     const ev = await dispatch({ type: 'AI_ORGANIZE_ALL' });
     setAiBusy(false);
-    if (ev?.type === 'AI_PLAN') setAiPlan({ plan: ev.plan, tabs: ev.tabs, scope: 'all' });
-    else if (ev?.type === 'AI_ERROR') {
+    if (ev?.type === 'AI_PLAN') {
+      if (ev.fallback) deps.showFlash(t('ai.flash.localFallback')); // 如实告知:这是本地分组,不是 AI 的
+      setAiPlan({ plan: ev.plan, tabs: ev.tabs, scope: 'all' });
+    } else if (ev?.type === 'AI_ERROR') {
       const msg: Record<string, string> = {
         no_key: t('ai.error.no_key'),
         permission: t('ai.error.permission'),

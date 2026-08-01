@@ -67,7 +67,8 @@ export type Event =
   | { type: 'CONTEXT_CREATED'; contextId: string }
   | { type: 'OPEN_SEARCH' }
   | { type: 'CLOSE_PANEL'; windowId?: number } // 切换关闭:面板收到后 window.close() 自关
-  | { type: 'AI_PLAN'; plan: AIPlan; tabs: TabRecord[] }
+  /** fallback:AI 未给出可用方案,plan 来自本地同域名分组(UI 需如实告知用户)。 */
+  | { type: 'AI_PLAN'; plan: AIPlan; tabs: TabRecord[]; fallback?: boolean }
   | { type: 'AI_ERROR'; reason: AIErrorReason; detail?: string }
   | { type: 'AI_TEST_RESULT'; ok: boolean; detail: string }
   | { type: 'AI_NAME'; name: string }
