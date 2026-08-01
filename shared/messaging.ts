@@ -69,6 +69,8 @@ export type Event =
   | { type: 'CLOSE_PANEL'; windowId?: number } // 切换关闭:面板收到后 window.close() 自关
   /** fallback:AI 未给出可用方案,plan 来自本地同域名分组(UI 需如实告知用户)。 */
   | { type: 'AI_PLAN'; plan: AIPlan; tabs: TabRecord[]; fallback?: boolean }
+  /** 保存配置后回传其 id —— 编辑器据此把后续保存变成「改同一份」,避免重复创建。 */
+  | { type: 'AI_PROFILE_SAVED'; id: string }
   | { type: 'AI_ERROR'; reason: AIErrorReason; detail?: string }
   | { type: 'AI_TEST_RESULT'; ok: boolean; detail: string }
   | { type: 'AI_NAME'; name: string }

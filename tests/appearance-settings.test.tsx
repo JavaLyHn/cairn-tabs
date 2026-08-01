@@ -29,7 +29,7 @@ function props(over: Record<string, unknown> = {}) {
     onToggleAutoDiscard: noop,
     onSetDiscardAfterMinutes: noop,
     onToggleDiscardSkipsLocalhost: noop,
-    onSaveProfile: async () => {},
+    onSaveProfile: async () => undefined,
     onDeleteProfile: async () => {},
     onActivateProfile: async () => {},
     onTestAi: async () => ({ ok: true, detail: 'ok' }),

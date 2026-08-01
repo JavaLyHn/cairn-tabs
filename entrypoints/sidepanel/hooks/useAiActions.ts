@@ -38,7 +38,8 @@ export function useAiActions(deps: {
     model: string;
     baseUrl?: string;
     key?: string;
-  }) => Promise<void>;
+    /** 返回该配置的 id(新建时是新 id)—— 编辑器据此避免重复创建。 */
+  }) => Promise<string | undefined>;
   deleteProfile: (id: string) => Promise<void>;
   activateProfile: (id: string) => Promise<void>;
   testAi: () => Promise<{ ok: boolean; detail: string }>;
@@ -181,7 +182,8 @@ export function useAiActions(deps: {
     const origin = permissionOriginFor(input.provider, input.baseUrl);
     const granted = await chrome.permissions.request({ origins: [origin] });
     if (!granted) throw new Error(t('settings.ai.permissionRequired'));
-    await dispatch({ type: 'SAVE_AI_PROFILE', ...input });
+    const ev = await dispatch({ type: 'SAVE_AI_PROFILE', ...input });
+    return ev?.type === 'AI_PROFILE_SAVED' ? ev.id : undefined;
   };
   const deleteProfile = async (id: string) => {
     await dispatch({ type: 'DELETE_AI_PROFILE', id });

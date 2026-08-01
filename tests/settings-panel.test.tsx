@@ -25,7 +25,7 @@ function props(over: Record<string, unknown> = {}) {
     onToggleAutoDiscard: noop,
     onSetDiscardAfterMinutes: noop,
     onToggleDiscardSkipsLocalhost: noop,
-    onSaveProfile: async () => {},
+    onSaveProfile: async () => undefined,
     onDeleteProfile: async () => {},
     onActivateProfile: async () => {},
     onTestAi: async () => ({ ok: true, detail: 'ok' }),
@@ -51,7 +51,7 @@ describe('SettingsPanel 接入多份 AI 配置', () => {
   });
 
   it('新增编辑器保存成功 → 关闭编辑器、回到列表', async () => {
-    renderPanel({ onSaveProfile: async () => {} });
+    renderPanel({ onSaveProfile: async () => undefined });
     fireEvent.click(screen.getByText('+ 新增配置'));
     fireEvent.change(screen.getByLabelText(/API key/i), { target: { value: 'sk-x' } });
     fireEvent.click(screen.getByRole('button', { name: '保存并启用' }));

@@ -32,7 +32,7 @@ interface Props {
     model: string;
     baseUrl?: string;
     key?: string;
-  }) => Promise<void>;
+  }) => Promise<string | undefined>;
   onDeleteProfile: (id: string) => Promise<void>;
   onActivateProfile: (id: string) => Promise<void>;
   onTestAi: () => Promise<{ ok: boolean; detail: string }>;

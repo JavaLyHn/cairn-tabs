@@ -19,7 +19,7 @@ type SaveInput = {
 
 interface Props {
   ai: AIStatus;
-  onSave: (input: SaveInput) => Promise<void>;
+  onSave: (input: SaveInput) => Promise<string | undefined>;
   onDelete: (id: string) => Promise<void>;
   onActivate: (id: string) => Promise<void>;
   onTest: () => Promise<{ ok: boolean; detail: string }>;
@@ -155,10 +155,13 @@ function ProfileEditor({
   editing: NonNullable<Editing>;
   setEditing: (e: Editing) => void;
   isNew: boolean;
-  onSave: (input: SaveInput) => Promise<void>;
+  onSave: (input: SaveInput) => Promise<string | undefined>;
   onTest: () => Promise<{ ok: boolean; detail: string }>;
 }) {
   const { t } = useT();
+  // 首次保存(可能由「测试连接」触发)后记住返回的 id,后续保存即「改这一份」——
+  // 否则 测试→保存 会创建两条一样的配置。
+  const [profileId, setProfileId] = useState(editing.id);
   const [provider, setProvider] = useState<AIProviderId>(editing.provider);
   const [label, setLabel] = useState(editing.label);
   const [key, setKey] = useState('');
@@ -176,7 +179,7 @@ function ProfileEditor({
     p === 'custom' ? t('settings.ai.provider.custom') : PROVIDER_LABELS[p];
 
   const input = (): SaveInput => ({
-    id: editing.id,
+    id: profileId,
     label,
     provider,
     model,
@@ -188,7 +191,8 @@ function ProfileEditor({
     setBusy(true);
     setMsg(null);
     try {
-      await onSave(input());
+      const id = await onSave(input());
+      if (id) setProfileId(id);
       setEditing(null);
     } catch (e) {
       setMsg({ text: e instanceof Error ? e.message : t('settings.ai.saveFailed'), ok: false });
@@ -200,7 +204,10 @@ function ProfileEditor({
     setBusy(true);
     setMsg(null);
     try {
-      if (canSave) await onSave(input()); // 先存(含权限申请)再测当前份
+      if (canSave) {
+        const id = await onSave(input()); // 先存(含权限申请)再测当前份
+        if (id) setProfileId(id); // 记住 id:随后点「保存」是改这一份,不再新建
+      }
       const r = await onTest();
       setMsg({ text: r.detail, ok: r.ok });
     } catch (e) {

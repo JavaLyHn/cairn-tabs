@@ -574,8 +574,8 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       return { type: 'AI_NAME', name };
     }
 
-    case 'SAVE_AI_PROFILE':
-      await ctx.ai?.saveProfile(
+    case 'SAVE_AI_PROFILE': {
+      const savedId = await ctx.ai?.saveProfile(
         {
           id: cmd.id,
           label: cmd.label,
@@ -586,7 +586,9 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
         cmd.key,
       );
       onChange();
-      return;
+      // 回传 id:编辑器记住它,后续「保存」才是改这一份而非再建一份
+      return savedId ? { type: 'AI_PROFILE_SAVED', id: savedId } : undefined;
+    }
 
     case 'DELETE_AI_PROFILE':
       await ctx.ai?.deleteProfile(cmd.id);
