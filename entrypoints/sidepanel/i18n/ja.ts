@@ -138,6 +138,10 @@ export const ja: Messages = {
   'settings.ai.newTitle': '新しい設定',
   'settings.ai.editTitle': '設定を編集',
   'settings.ai.backToList': '← 戻る',
+  'settings.ai.field.label': 'ラベル',
+  'settings.ai.field.baseUrl': 'エンドポイント',
+  'settings.ai.field.key': 'API キー',
+  'settings.ai.field.model': 'モデル',
   'settings.ai.provider.custom': 'カスタムリレー',
   'settings.ai.baseUrl.placeholder': 'エンドポイント URL(例: https://newapi.elevatesphere.com/v1)',
   'settings.ai.baseUrl.warning':

@@ -139,6 +139,10 @@ export const ko: Messages = {
   'settings.ai.newTitle': '새 설정',
   'settings.ai.editTitle': '설정 편집',
   'settings.ai.backToList': '← 뒤로',
+  'settings.ai.field.label': '이름표',
+  'settings.ai.field.baseUrl': '엔드포인트',
+  'settings.ai.field.key': 'API 키',
+  'settings.ai.field.model': '모델',
   'settings.ai.provider.custom': '커스텀 릴레이',
   'settings.ai.baseUrl.placeholder': '엔드포인트 URL, 예: https://newapi.elevatesphere.com/v1',
   'settings.ai.baseUrl.warning':

@@ -138,6 +138,10 @@ export const en = {
   'settings.ai.newTitle': 'New config',
   'settings.ai.editTitle': 'Edit config',
   'settings.ai.backToList': '← Back',
+  'settings.ai.field.label': 'Label',
+  'settings.ai.field.baseUrl': 'Endpoint',
+  'settings.ai.field.key': 'API key',
+  'settings.ai.field.model': 'Model',
   'settings.ai.provider.custom': 'Custom relay',
   'settings.ai.baseUrl.placeholder': 'Endpoint URL, e.g. https://newapi.elevatesphere.com/v1',
   'settings.ai.baseUrl.warning':
