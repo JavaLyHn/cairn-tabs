@@ -210,12 +210,14 @@ function ProfileEditor({
   };
 
   const field =
-    'w-full mb-1.5 px-2 py-1 text-[12px] rounded border border-black/15 dark:border-white/15 bg-transparent outline-none focus:border-accent';
+    'w-full px-2.5 py-1.5 text-[12px] rounded-md border border-black/15 dark:border-white/15 bg-transparent outline-none focus:border-accent focus:ring-1 focus:ring-accent/30';
+  const fieldLabel = 'block text-[10px] uppercase tracking-wide opacity-45 mb-1';
+  const btn = 'px-3 py-1.5 rounded-md text-[12px] whitespace-nowrap shrink-0 disabled:opacity-40';
 
   return (
     <div className="px-3 py-2.5">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[12px] font-medium">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[12.5px] font-medium">
           {isNew ? t('settings.ai.newTitle') : t('settings.ai.editTitle')}
         </span>
         <button
@@ -226,13 +228,16 @@ function ProfileEditor({
         </button>
       </div>
 
-      <div className="flex gap-1 mb-1.5">
+      {/* 服务商分段控件 */}
+      <div className="inline-flex gap-0.5 mb-3 p-0.5 rounded-lg bg-black/[0.06] dark:bg-white/[0.06]">
         {(['anthropic', 'openai', 'custom'] as AIProviderId[]).map((p) => (
           <button
             key={p}
             onClick={() => setProvider(p)}
-            className={`px-2 py-0.5 rounded text-[12px] ${
-              provider === p ? 'bg-accent/15 text-accent' : 'opacity-60 hover:opacity-100'
+            className={`px-2.5 py-1 rounded-md text-[12px] whitespace-nowrap transition-colors ${
+              provider === p
+                ? 'bg-white dark:bg-neutral-700 text-accent font-medium shadow-sm'
+                : 'opacity-55 hover:opacity-90'
             }`}
           >
             {providerLabel(p)}
@@ -240,83 +245,101 @@ function ProfileEditor({
         ))}
       </div>
 
-      <input
-        value={label}
-        onChange={(e) => setLabel(e.target.value)}
-        placeholder={t('settings.ai.label.placeholder')}
-        aria-label={t('settings.ai.label.placeholder')}
-        className={field}
-      />
-
-      {isCustom && (
-        <>
+      <div className="space-y-2.5">
+        <div>
+          <span className={fieldLabel}>{t('settings.ai.field.label')}</span>
           <input
-            value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
-            placeholder={t('settings.ai.baseUrl.placeholder')}
-            aria-label={t('settings.ai.baseUrl.placeholder')}
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder={t('settings.ai.label.placeholder')}
+            aria-label={t('settings.ai.label.placeholder')}
+            autoComplete="off"
+            className={field}
+          />
+        </div>
+
+        {isCustom && (
+          <div>
+            <span className={fieldLabel}>{t('settings.ai.field.baseUrl')}</span>
+            <input
+              value={baseUrl}
+              onChange={(e) => setBaseUrl(e.target.value)}
+              placeholder={t('settings.ai.baseUrl.placeholder')}
+              aria-label={t('settings.ai.baseUrl.placeholder')}
+              autoComplete="off"
+              spellCheck={false}
+              className={`${field} font-mono`}
+            />
+            <p className="text-[10.5px] opacity-45 leading-snug mt-1">
+              {t('settings.ai.baseUrl.warning')}
+            </p>
+          </div>
+        )}
+
+        <div>
+          <span className={fieldLabel}>{t('settings.ai.field.key')}</span>
+          <input
+            type="password"
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            placeholder={
+              isNew
+                ? t('settings.ai.key.placeholder.new', { provider: providerLabel(provider) })
+                : t('settings.ai.key.placeholder.saved')
+            }
+            aria-label="API key"
+            autoComplete="new-password"
+            className={field}
+          />
+        </div>
+
+        <div>
+          <span className={fieldLabel}>{t('settings.ai.field.model')}</span>
+          <input
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            placeholder={
+              isCustom
+                ? t('settings.ai.model.placeholder.custom')
+                : t('settings.ai.model.placeholder.default')
+            }
+            aria-label={
+              isCustom
+                ? t('settings.ai.model.placeholder.custom')
+                : t('settings.ai.model.placeholder.default')
+            }
+            autoComplete="off"
+            spellCheck={false}
             className={`${field} font-mono`}
           />
-          <div className="text-[11px] opacity-45 leading-snug mb-1.5">
-            {t('settings.ai.baseUrl.warning')}
-          </div>
-        </>
-      )}
+        </div>
+      </div>
 
-      <input
-        type="password"
-        value={key}
-        onChange={(e) => setKey(e.target.value)}
-        placeholder={
-          isNew
-            ? t('settings.ai.key.placeholder.new', { provider: providerLabel(provider) })
-            : t('settings.ai.key.placeholder.saved')
-        }
-        aria-label="API key"
-        className={field}
-      />
-
-      <input
-        value={model}
-        onChange={(e) => setModel(e.target.value)}
-        placeholder={
-          isCustom
-            ? t('settings.ai.model.placeholder.custom')
-            : t('settings.ai.model.placeholder.default')
-        }
-        aria-label={
-          isCustom
-            ? t('settings.ai.model.placeholder.custom')
-            : t('settings.ai.model.placeholder.default')
-        }
-        className={`${field} font-mono`}
-      />
-
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 mt-3.5">
         <button
           onClick={save}
           disabled={busy || !canSave}
-          className="px-2.5 py-1 rounded-md text-[12px] bg-accent text-white hover:opacity-90 disabled:opacity-40"
+          className={`${btn} bg-accent text-white hover:opacity-90`}
         >
           {t('settings.ai.save')}
         </button>
         <button
           onClick={test}
           disabled={busy || !canSave}
-          className="px-2.5 py-1 rounded-md text-[12px] border border-black/15 dark:border-white/20 hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-40"
+          className={`${btn} border border-black/15 dark:border-white/20 hover:bg-black/5 dark:hover:bg-white/10`}
         >
           {t('settings.ai.test')}
         </button>
-        {msg && (
-          <span
-            className={`text-[11px] ${
-              msg.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
-            }`}
-          >
-            {msg.text}
-          </span>
-        )}
       </div>
+      {msg && (
+        <p
+          className={`mt-2 text-[11px] leading-snug ${
+            msg.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+          }`}
+        >
+          {msg.text}
+        </p>
+      )}
     </div>
   );
 }
