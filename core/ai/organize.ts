@@ -121,20 +121,7 @@ export function parsePruneResponse(
   evict: { tabId: string; reason: string }[];
   unclear: { tabId: string; reason: string }[];
 } | null {
-  let data: unknown;
-  const text = stripFences(raw);
-  try {
-    data = JSON.parse(text);
-  } catch {
-    const s = text.indexOf('{');
-    const e = text.lastIndexOf('}');
-    if (s < 0 || e <= s) return null;
-    try {
-      data = JSON.parse(text.slice(s, e + 1));
-    } catch {
-      return null;
-    }
-  }
+  const data = extractJsonObject(raw);
   if (!data || typeof data !== 'object') return null;
 
   const seen = new Set<string>();
@@ -163,6 +150,57 @@ export function parsePruneResponse(
 export function stripFences(s: string): string {
   const m = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
   return (m ? m[1]! : s).trim();
+}
+
+/**
+ * 从可能夹带推理文字 / 多段输出的响应里,健壮地提取一个可解析的顶层 JSON 对象。
+ * 策略:先整体 parse;失败则扫描「平衡花括号」(跳过字符串内部的括号)收集每个顶层 {...} 段,
+ * 从后往前逐个 parse(答案通常在推理之后),返回首个成功的。都不行 → null。
+ * 注:响应被 max_tokens 截断(末段无闭合)时该段不会入选,返回 null(此时应提高 max_tokens,而非在此硬救)。
+ */
+export function extractJsonObject(raw: string): unknown | null {
+  const text = stripFences(raw);
+  try {
+    return JSON.parse(text);
+  } catch {
+    // 继续走平衡扫描
+  }
+  const candidates: string[] = [];
+  let depth = 0;
+  let start = -1;
+  let inStr = false;
+  let esc = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === '\\') esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') {
+      inStr = true;
+    } else if (c === '{') {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (c === '}') {
+      if (depth > 0) {
+        depth--;
+        if (depth === 0 && start >= 0) {
+          candidates.push(text.slice(start, i + 1));
+          start = -1;
+        }
+      }
+    }
+  }
+  for (let i = candidates.length - 1; i >= 0; i--) {
+    try {
+      return JSON.parse(candidates[i]!);
+    } catch {
+      // 试下一个候选
+    }
+  }
+  return null;
 }
 
 /** AI 改名:据一组标签的标题+域名建议一个简短任务名。 */
@@ -197,21 +235,7 @@ export function parseOrganizeResponse(
   validTabIds: Set<string>,
   validTaskIds: Set<string>,
 ): AIPlan | null {
-  let data: unknown;
-  const text = stripFences(raw);
-  try {
-    data = JSON.parse(text);
-  } catch {
-    // 容忍模型偶尔夹带说明文字:退而提取首个 {...} 再解析(温度已设 0,此为兜底)
-    const s = text.indexOf('{');
-    const e = text.lastIndexOf('}');
-    if (s < 0 || e <= s) return null;
-    try {
-      data = JSON.parse(text.slice(s, e + 1));
-    } catch {
-      return null;
-    }
-  }
+  const data = extractJsonObject(raw);
   if (!data || typeof data !== 'object') return null;
 
   const seen = new Set<string>(); // 一个标签至多归一处

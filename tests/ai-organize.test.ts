@@ -5,6 +5,7 @@ import {
   buildPruneTaskPrompt,
   parsePruneResponse,
   summarizeTaskTabs,
+  extractJsonObject,
 } from '@/core/ai/organize';
 
 const TABS = new Set(['t1', 't2', 't3']);
@@ -137,6 +138,42 @@ describe('summarizeTaskTabs', () => {
   });
 });
 
+describe('extractJsonObject(健壮提取,治「模型夹带推理/多段」)', () => {
+  it('纯 JSON', () => {
+    expect(extractJsonObject('{"a":1}')).toEqual({ a: 1 });
+  });
+  it('去 ```json 围栏', () => {
+    expect(extractJsonObject('```json\n{"a":1}\n```')).toEqual({ a: 1 });
+  });
+  it('前置推理文字里含花括号,仍取到真正的 JSON', () => {
+    const raw = '我先想想:{octok 这组}\n最终答案:\n{"newGroups":[],"assign":[]}';
+    expect(extractJsonObject(raw)).toEqual({ newGroups: [], assign: [] });
+  });
+  it('JSON 后面还有话,不影响', () => {
+    const raw = '{"newGroups":[],"assign":[{"taskId":"c1","tabIds":["t1"]}]}\n希望有用!{备注}';
+    expect(extractJsonObject(raw)).toEqual({
+      newGroups: [],
+      assign: [{ taskId: 'c1', tabIds: ['t1'] }],
+    });
+  });
+  it('字符串值内部含 } 不破坏花括号配对', () => {
+    const raw = '{"unclear":[{"tabId":"t1","reason":"含 } 符号"}]}';
+    expect(extractJsonObject(raw)).toEqual({ unclear: [{ tabId: 't1', reason: '含 } 符号' }] });
+  });
+  it('多个 JSON 段 → 取最后一个可解析的', () => {
+    const raw =
+      '{"draft":true}\n改主意了:\n{"newGroups":[{"name":"g","tabIds":["t1"]}],"assign":[]}';
+    expect(extractJsonObject(raw)).toEqual({
+      newGroups: [{ name: 'g', tabIds: ['t1'] }],
+      assign: [],
+    });
+  });
+  it('无 JSON / 截断(无闭合)→ null', () => {
+    expect(extractJsonObject('毫无 JSON')).toBeNull();
+    expect(extractJsonObject('{"newGroups":[{"name":"g","tabIds":["t1"')).toBeNull(); // 截断
+  });
+});
+
 describe('parseOrganizeResponse', () => {
   it('解析正常 JSON', () => {
     const raw =
@@ -180,6 +217,11 @@ describe('parseOrganizeResponse', () => {
     const raw =
       '好的,这是结果:\n{"newGroups":[{"name":"g","tabIds":["t1"]}],"assign":[]}\n希望有用';
     expect(parseOrganizeResponse(raw, TABS, TASKS)?.newGroups[0]?.name).toBe('g');
+  });
+  it('推理文字里带花括号也能解析(治真实失败)', () => {
+    const raw =
+      '分析:先把 {t1,t2} 归一组\n{"newGroups":[{"name":"g","tabIds":["t1","t2"]}],"assign":[]}';
+    expect(parseOrganizeResponse(raw, TABS, TASKS)?.newGroups[0]?.tabIds).toEqual(['t1', 't2']);
   });
   it('空结果 → null', () => {
     expect(parseOrganizeResponse('{"newGroups":[],"assign":[]}', TABS, TASKS)).toBeNull();

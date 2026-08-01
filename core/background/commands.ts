@@ -22,6 +22,12 @@ import {
 } from '../ai/organize';
 import type { AIProviderId, AIStatus, AIPlan } from '@/shared/ai';
 import { isAICancelled } from '@/shared/ai';
+import { logError } from '@/shared/log';
+
+/** 解析失败时把原始响应打到控制台,便于用户经 SW 控制台报出真实输出(截断/非 JSON/空等)。 */
+function logAIParseFailure(scope: string, raw: string): void {
+  logError(`ai.parseFailure:${scope}`, { len: raw.length, raw: raw.slice(0, 4000) });
+}
 
 export interface CommandContext {
   repo: Repository;
@@ -514,7 +520,10 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
         return { type: 'AI_ERROR', reason: 'network' };
       }
       const name = parseNameResponse(raw);
-      if (!name) return { type: 'AI_ERROR', reason: 'parse' };
+      if (!name) {
+        logAIParseFailure('name', raw);
+        return { type: 'AI_ERROR', reason: 'parse' };
+      }
       return { type: 'AI_NAME', name };
     }
 
@@ -586,7 +595,10 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
         new Set(loose.map((t) => t.id)),
         new Set(tasks.map((c) => c.id)),
       );
-      if (!plan) return { type: 'AI_ERROR', reason: 'parse' };
+      if (!plan) {
+        logAIParseFailure('organize', raw);
+        return { type: 'AI_ERROR', reason: 'parse' };
+      }
       return { type: 'AI_PLAN', plan, tabs: loose };
     }
 
@@ -624,7 +636,10 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
         new Set(movable.map((t) => t.id)),
         new Set(tasks.map((c) => c.id)),
       );
-      if (!plan) return { type: 'AI_ERROR', reason: 'parse' };
+      if (!plan) {
+        logAIParseFailure('organize', raw);
+        return { type: 'AI_ERROR', reason: 'parse' };
+      }
       return { type: 'AI_PLAN', plan, tabs: movable };
     }
 
@@ -655,7 +670,10 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
         return { type: 'AI_ERROR', reason: 'network' };
       }
       const pruned = parsePruneResponse(raw, new Set(movable.map((t) => t.id)));
-      if (!pruned) return { type: 'AI_ERROR', reason: 'parse' };
+      if (!pruned) {
+        logAIParseFailure('prune', raw);
+        return { type: 'AI_ERROR', reason: 'parse' };
+      }
       // 组装成 AIPlan 复用预览:踢出 → assign 到未分类;拿不准 → unclear;明显属于的不动。
       const plan: AIPlan = {
         newGroups: [],
