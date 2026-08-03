@@ -10,7 +10,7 @@
 
 <br />
 
-<img src="./.github/assets/screenshot-panel.jpg" width="880" alt="Cairn Tabs" />
+<img src="./.github/assets/screenshot-panel.ja.jpg" width="880" alt="Cairn Tabs" />
 
 <sub>タスクごとにグループ化 · アーカイブしたタスクはワンクリックで復元 · ダークモード</sub>
 
@@ -49,13 +49,13 @@ MVP のコアループ、v1.1 開発者特化機能、v1.5 AI はすべて実装
 
 <div align="center">
 
-<img src="./.github/assets/screenshot-search-ai.jpg" width="880" alt="Cairn Tabs" />
+<img src="./.github/assets/screenshot-search-ai.ja.jpg" width="880" alt="Cairn Tabs" />
 
 <sub>グローバル検索(<code>⌘⇧K</code>)はランチャーとして開きます · AI 整理は適用前に必ずプレビュー、取り消しも可能</sub>
 
 <br /><br />
 
-<img src="./.github/assets/screenshot-settings.jpg" width="880" alt="Cairn Tabs" />
+<img src="./.github/assets/screenshot-settings.ja.jpg" width="880" alt="Cairn Tabs" />
 
 <sub>すべて調整可能 — AI 設定は複数保存していつでも切り替えられます</sub>
 

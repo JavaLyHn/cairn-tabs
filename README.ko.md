@@ -10,7 +10,7 @@
 
 <br />
 
-<img src="./.github/assets/screenshot-panel.jpg" width="880" alt="Cairn Tabs" />
+<img src="./.github/assets/screenshot-panel.ko.jpg" width="880" alt="Cairn Tabs" />
 
 <sub>작업별로 그룹화 · 보관한 작업은 클릭 한 번으로 복원 · 다크 모드</sub>
 
@@ -49,13 +49,13 @@ MVP 핵심 루프, v1.1 개발자 특화 기능, v1.5 AI 기능이 모두 구현
 
 <div align="center">
 
-<img src="./.github/assets/screenshot-search-ai.jpg" width="880" alt="Cairn Tabs" />
+<img src="./.github/assets/screenshot-search-ai.ko.jpg" width="880" alt="Cairn Tabs" />
 
 <sub>전역 검색(<code>⌘⇧K</code>)은 런처로 열립니다 · AI 정리는 적용 전 미리보기, 되돌리기도 가능</sub>
 
 <br /><br />
 
-<img src="./.github/assets/screenshot-settings.jpg" width="880" alt="Cairn Tabs" />
+<img src="./.github/assets/screenshot-settings.ko.jpg" width="880" alt="Cairn Tabs" />
 
 <sub>모든 항목을 조정할 수 있고, AI 설정은 여러 개 저장해 언제든 전환할 수 있습니다</sub>
 
