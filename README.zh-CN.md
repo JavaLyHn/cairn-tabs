@@ -8,6 +8,12 @@
 
 [English](./README.md) · 简体中文 · [日本語](./README.ja.md) · [한국어](./README.ko.md)
 
+<br />
+
+<img src="./.github/assets/screenshot-panel.jpg" width="880" alt="Cairn Tabs" />
+
+<sub>标签按任务归类 · 归档的任务一键恢复 · 深色模式</sub>
+
 </div>
 
 ---
@@ -40,6 +46,20 @@ MVP 核心闭环、v1.1 程序员特化、v1.5 AI 均已实现并跑通(当前 1
   - **测试连接** —— 设置里一键「测试连接」,发一次极小请求验证 key / 地址 / 模型是否可用,即时反馈 `✓ 连接成功 · 模型 · 耗时` 或人话错误(认证失败 / 地址或模型不存在 / 连接超时 / 网络错误…)。
 
 - **多语言界面** —— 整个界面提供 English / 简体中文 / 日本語 / 한국어;默认跟随浏览器 UI 语言,也可在设置里随时切换。
+
+<div align="center">
+
+<img src="./.github/assets/screenshot-search-ai.jpg" width="880" alt="Cairn Tabs" />
+
+<sub>全局搜索(<code>⌘⇧K</code>)以启动器形式打开 · AI 整理先预览再应用,且可一键撤销</sub>
+
+<br /><br />
+
+<img src="./.github/assets/screenshot-settings.jpg" width="880" alt="Cairn Tabs" />
+
+<sub>每一项都可调 —— AI 可保存多份配置,随时切换</sub>
+
+</div>
 
 尚未实现(见设计文档 Roadmap):Firefox 适配、跨设备同步。
 

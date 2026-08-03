@@ -8,6 +8,12 @@
 
 [English](./README.md) · [简体中文](./README.zh-CN.md) · [日本語](./README.ja.md) · 한국어
 
+<br />
+
+<img src="./.github/assets/screenshot-panel.jpg" width="880" alt="Cairn Tabs" />
+
+<sub>작업별로 그룹화 · 보관한 작업은 클릭 한 번으로 복원 · 다크 모드</sub>
+
 </div>
 
 ---
@@ -40,6 +46,20 @@ MVP 핵심 루프, v1.1 개발자 특화 기능, v1.5 AI 기능이 모두 구현
   - **연결 테스트** — 설정의 원클릭 "연결 테스트"가 소규모 요청을 전송하여 키 / 엔드포인트 / 모델을 검증하며, `✓ Connected · model · Nms` 또는 평이한 언어의 오류(인증 실패 / 엔드포인트 또는 모델을 찾을 수 없음 / 타임아웃 / 네트워크 오류 등)로 즉시 피드백을 제공합니다.
 
 - **다국어 UI** — 전체 인터페이스가 English / 简体中文 / 日本語 / 한국어를 지원합니다; 기본적으로 브라우저 UI 언어를 따르며, 설정에서 언제든지 전환할 수 있습니다.
+
+<div align="center">
+
+<img src="./.github/assets/screenshot-search-ai.jpg" width="880" alt="Cairn Tabs" />
+
+<sub>전역 검색(<code>⌘⇧K</code>)은 런처로 열립니다 · AI 정리는 적용 전 미리보기, 되돌리기도 가능</sub>
+
+<br /><br />
+
+<img src="./.github/assets/screenshot-settings.jpg" width="880" alt="Cairn Tabs" />
+
+<sub>모든 항목을 조정할 수 있고, AI 설정은 여러 개 저장해 언제든 전환할 수 있습니다</sub>
+
+</div>
 
 아직 구현되지 않음(설계 문서 로드맵 참조): Firefox 지원, 크로스 디바이스 동기화.
 

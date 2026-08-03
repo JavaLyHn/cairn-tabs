@@ -8,6 +8,12 @@
 
 English · [简体中文](./README.zh-CN.md) · [日本語](./README.ja.md) · [한국어](./README.ko.md)
 
+<br />
+
+<img src="./.github/assets/screenshot-panel.jpg" width="880" alt="Cairn Tabs side panel: tabs grouped by task, the archived section, and dark mode" />
+
+<sub>Tabs grouped by task · archived tasks restored in one click · dark mode</sub>
+
 </div>
 
 ---
@@ -40,6 +46,20 @@ The MVP core loop, v1.1 developer specialization, and v1.5 AI are all implemente
   - **Test connection** — a one-click "Test connection" in settings fires a tiny request to verify the key / endpoint / model, with instant feedback `✓ Connected · model · Nms` or a plain-language error (auth failed / endpoint or model not found / timeout / network error…).
 
 - **Multilingual UI** — the whole interface ships in English, 简体中文, 日本語, and 한국어; it follows your browser's UI language by default and can be switched anytime in Settings.
+
+<div align="center">
+
+<img src="./.github/assets/screenshot-search-ai.jpg" width="880" alt="Global search launcher and the AI organize preview dialog" />
+
+<sub>Global search (<code>⌘⇧K</code>) opens as a launcher · AI organize always previews before applying, and is undoable</sub>
+
+<br /><br />
+
+<img src="./.github/assets/screenshot-settings.jpg" width="880" alt="Settings: appearance, language, auto-cluster, memory, and multiple AI configurations" />
+
+<sub>Everything is tunable — and you can keep several AI configurations and switch between them anytime</sub>
+
+</div>
 
 Not yet implemented (see the design-doc Roadmap): Firefox support, cross-device sync.
 

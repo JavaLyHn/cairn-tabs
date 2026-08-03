@@ -8,6 +8,12 @@
 
 [English](./README.md) · [简体中文](./README.zh-CN.md) · 日本語 · [한국어](./README.ko.md)
 
+<br />
+
+<img src="./.github/assets/screenshot-panel.jpg" width="880" alt="Cairn Tabs" />
+
+<sub>タスクごとにグループ化 · アーカイブしたタスクはワンクリックで復元 · ダークモード</sub>
+
 </div>
 
 ---
@@ -40,6 +46,20 @@ MVP のコアループ、v1.1 開発者特化機能、v1.5 AI はすべて実装
   - **接続テスト** — 設定のワンクリック「接続テスト」で小さなリクエストを送信してキー / エンドポイント / モデルを確認。即時フィードバック `✓ Connected · model · Nms` またはわかりやすいエラー（認証失敗 / エンドポイントまたはモデルが見つからない / タイムアウト / ネットワークエラー…）を表示。
 
 - **多言語 UI** — インターフェース全体が English / 简体中文 / 日本語 / 한국어 に対応。デフォルトではブラウザの UI 言語に従い、設定でいつでも切り替え可能。
+
+<div align="center">
+
+<img src="./.github/assets/screenshot-search-ai.jpg" width="880" alt="Cairn Tabs" />
+
+<sub>グローバル検索(<code>⌘⇧K</code>)はランチャーとして開きます · AI 整理は適用前に必ずプレビュー、取り消しも可能</sub>
+
+<br /><br />
+
+<img src="./.github/assets/screenshot-settings.jpg" width="880" alt="Cairn Tabs" />
+
+<sub>すべて調整可能 — AI 設定は複数保存していつでも切り替えられます</sub>
+
+</div>
 
 未実装（設計ドキュメントのロードマップ参照）：Firefox サポート、クロスデバイス同期。
 
