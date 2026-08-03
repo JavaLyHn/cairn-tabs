@@ -10,7 +10,7 @@
 
 <br />
 
-<img src="./.github/assets/screenshot-panel.jpg" width="880" alt="Cairn Tabs" />
+<img src="./.github/assets/screenshot-panel.zh-CN.jpg" width="880" alt="Cairn Tabs" />
 
 <sub>标签按任务归类 · 归档的任务一键恢复 · 深色模式</sub>
 
@@ -49,13 +49,13 @@ MVP 核心闭环、v1.1 程序员特化、v1.5 AI 均已实现并跑通(当前 1
 
 <div align="center">
 
-<img src="./.github/assets/screenshot-search-ai.jpg" width="880" alt="Cairn Tabs" />
+<img src="./.github/assets/screenshot-search-ai.zh-CN.jpg" width="880" alt="Cairn Tabs" />
 
 <sub>全局搜索(<code>⌘⇧K</code>)以启动器形式打开 · AI 整理先预览再应用,且可一键撤销</sub>
 
 <br /><br />
 
-<img src="./.github/assets/screenshot-settings.jpg" width="880" alt="Cairn Tabs" />
+<img src="./.github/assets/screenshot-settings.zh-CN.jpg" width="880" alt="Cairn Tabs" />
 
 <sub>每一项都可调 —— AI 可保存多份配置,随时切换</sub>
 
