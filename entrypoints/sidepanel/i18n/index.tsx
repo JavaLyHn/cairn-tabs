@@ -77,7 +77,10 @@ export function I18nProvider({
 
   // value 内联成对象字面量的话,Provider 每次重渲染都会产出新引用,
   // 令**所有** useT() 消费者跟着重渲染(即使 locale 没变)。这里连同 makeT 一起按 locale 记忆。
-  const value = useMemo<I18nValue>(() => ({ locale, t: makeT(locale), setLocale }), [locale, setLocale]);
+  const value = useMemo<I18nValue>(
+    () => ({ locale, t: makeT(locale), setLocale }),
+    [locale, setLocale],
+  );
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
