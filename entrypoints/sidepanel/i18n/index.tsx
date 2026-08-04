@@ -1,7 +1,15 @@
 // i18n 运行时:Provider + useT。文案目录 en 为类型源,其余三语强制对齐(见 spec Phase 1a)。
 // 界面语言是纯 UI 偏好,存 chrome.storage.local(不入 SW 快照,切换零闪帧)。
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { en, type Messages, type MessageKey } from './en';
 import { zhCN } from './zh-CN';
 import { ja } from './ja';
@@ -62,14 +70,16 @@ export function I18nProvider({
     document.documentElement.lang = locale;
   }, [locale]);
 
-  const setLocale = (next: Locale): void => {
+  const setLocale = useCallback((next: Locale): void => {
     setLocaleState(next);
     void chrome.storage.local.set({ [LOCALE_STORAGE_KEY]: next });
-  };
+  }, []);
 
-  const t = makeT(locale);
+  // value 内联成对象字面量的话,Provider 每次重渲染都会产出新引用,
+  // 令**所有** useT() 消费者跟着重渲染(即使 locale 没变)。这里连同 makeT 一起按 locale 记忆。
+  const value = useMemo<I18nValue>(() => ({ locale, t: makeT(locale), setLocale }), [locale, setLocale]);
 
-  return <I18nContext.Provider value={{ locale, t, setLocale }}>{children}</I18nContext.Provider>;
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
 /** 兜底值:无 Provider 时回退英文、不抛错(测试直接渲染组件、误用时都安全)。 */
