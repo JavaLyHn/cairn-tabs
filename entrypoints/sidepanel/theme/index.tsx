@@ -1,7 +1,15 @@
 // 外观运行时:ThemeProvider + useTheme。主题模式与强调色是纯 UI 偏好,存 chrome.storage.local
 // (与界面语言同机制,不入 SW 快照)。见 spec 2026-07-17。
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { logDebug } from '@/shared/log';
 import {
   type ThemeMode,
@@ -71,20 +79,23 @@ export function ThemeProvider({
     return () => mql.removeEventListener('change', onChange);
   }, [mode]);
 
-  const setMode = (m: ThemeMode): void => {
+  const setMode = useCallback((m: ThemeMode): void => {
     setModeState(m);
     saveThemeMode(m);
-  };
-  const setAccent = (pref: string): void => {
+  }, []);
+  const setAccent = useCallback((pref: string): void => {
     setAccentState(pref);
     saveAccent(pref);
-  };
+  }, []);
 
-  return (
-    <ThemeContext.Provider value={{ mode, accent, setMode, setAccent }}>
-      {children}
-    </ThemeContext.Provider>
+  // 同 I18nProvider:内联对象字面量会让每次重渲染都产出新引用,
+  // 令所有 useTheme() 消费者跟着重渲染(即使 mode/accent 没变)。
+  const value = useMemo<ThemeValue>(
+    () => ({ mode, accent, setMode, setAccent }),
+    [mode, accent, setMode, setAccent],
   );
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 /** 兜底:无 Provider 时回退默认、setter 无操作、不抛错(只包 I18nProvider 的既有组件测试安全)。 */
