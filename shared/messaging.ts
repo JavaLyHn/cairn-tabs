@@ -1,12 +1,14 @@
 // 类型安全的消息协议(见设计文档 §6)
 // UI 只发 Command;SW 是唯一写入方,处理后广播 Event。
 
-import type { Context, TabRecord, SearchResult, PortMapping, Flags } from './types';
+import type { Context, ContextColor, TabRecord, SearchResult, PortMapping, Flags } from './types';
 import type { AIPlan, AIStatus, AIProviderId, AIErrorReason } from './ai';
 
 export type Command =
   | { type: 'CREATE_CONTEXT'; name: string }
   | { type: 'RENAME_CONTEXT'; contextId: string; name: string }
+  | { type: 'SET_CONTEXT_COLOR'; contextId: string; color: ContextColor }
+  | { type: 'NEW_TAB_IN_CONTEXT'; contextId: string }
   | { type: 'DELETE_CONTEXT'; contextId: string }
   | { type: 'MOVE_TAB'; tabRecordId: string; toContextId: string }
   | { type: 'ARCHIVE_CONTEXT'; contextId: string }
@@ -83,6 +85,8 @@ export const DRAFT_CONTEXT_NAME = '新任务';
 export const COMMAND_TYPES = new Set<Command['type']>([
   'CREATE_CONTEXT',
   'RENAME_CONTEXT',
+  'SET_CONTEXT_COLOR',
+  'NEW_TAB_IN_CONTEXT',
   'DELETE_CONTEXT',
   'MOVE_TAB',
   'ARCHIVE_CONTEXT',
