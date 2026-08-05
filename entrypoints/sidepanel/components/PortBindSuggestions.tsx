@@ -62,7 +62,7 @@ export function PortBindSuggestions({ suggestions, onBind, onIgnore }: Props) {
     <div
       role="status"
       aria-live="polite"
-      className="px-2 py-1 border-b border-black/10 dark:border-white/10 bg-accent/[0.06]"
+      className="px-2 py-1 border-b border-black/6 dark:border-white/8 bg-accent/[0.06]"
     >
       {suggestions.map((s) => (
         <SuggestionRow

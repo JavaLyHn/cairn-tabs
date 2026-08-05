@@ -1,14 +1,24 @@
 @import 'tailwindcss';
 
-/* 视觉规范(见设计文档 §9):强调色默认 teal,克制。运行时可在 :root 覆盖 --color-accent
-   来换强调色(外观设置);Tailwind 的 bg-accent/text-accent 等均走 var(--color-accent)。 */
+/* 单色设计语言:界面只有灰阶。强调色即前景色本身 —— 浅色模式近黑、深色模式纯白,
+   始终是画面上对比度最高的一层。唯一的彩色是 danger 红,只用于删除与警告。
+   accent 不再可配置,故无需 JS 注入;明暗切换由下方 [data-theme] 覆盖完成。 */
 @theme {
-  --color-accent: #1d9e75;
+  --color-accent: #171a20;
+  --color-on-accent: #ffffff;
+  --color-danger: #e82127;
   --font-mono: 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
 }
 
 /* 暗色不再仅跟随系统:dark: 变体改为跟随 <html data-theme="dark">(外观设置可强制明暗)。 */
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* 深色模式下强调色反相。on-accent 随之反相,保证 bg-accent 上的文字与滑块始终可读
+   —— 否则纯白 accent 配 text-white 会白底白字。 */
+[data-theme='dark'] {
+  --color-accent: #ffffff;
+  --color-on-accent: #000000;
+}
 
 :root {
   color-scheme: light dark;
@@ -22,27 +32,33 @@ body,
 }
 
 body {
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1.6;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
   background: #ffffff;
-  color: #1a1a1a;
+  color: #171a20;
 }
 
 /* 显式主题(JS 挂载前会先设好 data-theme,故组件不会明暗闪帧) */
 [data-theme='light'] body {
   background: #ffffff;
-  color: #1a1a1a;
+  color: #171a20;
 }
 [data-theme='dark'] body {
-  background: #17181a;
-  color: #e4e4e7;
+  background: #000000;
+  color: #ffffff;
 }
 
 /* JS 接管前(冷启动空 index.html)按系统兜底,防闪白 */
 @media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --color-accent: #ffffff;
+    --color-on-accent: #000000;
+  }
   :root:not([data-theme]) body {
-    background: #17181a;
-    color: #e4e4e7;
+    background: #000000;
+    color: #ffffff;
   }
 }
 

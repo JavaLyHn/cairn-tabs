@@ -76,7 +76,7 @@ export function AiProfilesSection({ ai, onSave, onDelete, onActivate, onTest }: 
             return (
               <div
                 key={p.id}
-                className="flex items-center gap-2 px-2 py-1.5 rounded border border-black/10 dark:border-white/10"
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-black/6 dark:border-white/8"
               >
                 <button
                   onClick={() => !isActive && onActivate(p.id)}
@@ -125,7 +125,7 @@ export function AiProfilesSection({ ai, onSave, onDelete, onActivate, onTest }: 
                     if (window.confirm(t('settings.ai.deleteConfirm', { label: p.label })))
                       onDelete(p.id);
                   }}
-                  className="shrink-0 text-[11px] opacity-60 hover:opacity-100 hover:text-red-500"
+                  className="shrink-0 text-[11px] opacity-60 hover:opacity-100 hover:text-danger"
                 >
                   {t('settings.ai.actions.delete')}
                 </button>
@@ -217,9 +217,9 @@ function ProfileEditor({
   };
 
   const field =
-    'w-full px-2.5 py-1.5 text-[12px] rounded-md border border-black/15 dark:border-white/15 bg-transparent outline-none focus:border-accent focus:ring-1 focus:ring-accent/30';
+    'w-full px-2.5 py-1.5 text-[12px] rounded-lg border border-black/8 dark:border-white/10 bg-transparent outline-none focus:border-accent focus:ring-1 focus:ring-accent/30';
   const fieldLabel = 'block text-[10px] uppercase tracking-wide opacity-45 mb-1';
-  const btn = 'px-3 py-1.5 rounded-md text-[12px] whitespace-nowrap shrink-0 disabled:opacity-40';
+  const btn = 'px-3 py-1.5 rounded-lg text-[12px] whitespace-nowrap shrink-0 disabled:opacity-40';
 
   return (
     <div className="px-3 py-2.5">
@@ -241,7 +241,7 @@ function ProfileEditor({
           <button
             key={p}
             onClick={() => setProvider(p)}
-            className={`px-2.5 py-1 rounded-md text-[12px] whitespace-nowrap transition-colors ${
+            className={`px-2.5 py-1 rounded-lg text-[12px] whitespace-nowrap transition-colors ${
               provider === p
                 ? 'bg-white dark:bg-neutral-700 text-accent font-medium shadow-sm'
                 : 'opacity-55 hover:opacity-90'
@@ -326,14 +326,14 @@ function ProfileEditor({
         <button
           onClick={save}
           disabled={busy || !canSave}
-          className={`${btn} bg-accent text-white hover:opacity-90`}
+          className={`${btn} bg-accent text-on-accent hover:opacity-90`}
         >
           {t('settings.ai.save')}
         </button>
         <button
           onClick={test}
           disabled={busy || !canSave}
-          className={`${btn} border border-black/15 dark:border-white/20 hover:bg-black/5 dark:hover:bg-white/10`}
+          className={`${btn} border border-black/8 dark:border-white/12 hover:bg-black/[0.055] dark:hover:bg-white/[0.085]`}
         >
           {t('settings.ai.test')}
         </button>

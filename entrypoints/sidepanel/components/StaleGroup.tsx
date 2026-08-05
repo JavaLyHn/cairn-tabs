@@ -31,7 +31,7 @@ export function StaleGroup({
   const toggleCollapsed = () => setCollapsed((c) => !c);
 
   return (
-    <div className="mt-3 pt-2 border-t border-dashed border-black/15 dark:border-white/15 opacity-70">
+    <div className="mt-3 pt-2 border-t border-dashed border-black/8 dark:border-white/10 opacity-70">
       <div
         role="button"
         tabIndex={0}
@@ -84,8 +84,8 @@ export function StaleGroup({
             onArchiveAll();
           }}
           aria-label={t('stale.archiveAll')}
-          className="shrink-0 text-[11px] px-1.5 py-0.5 rounded opacity-70 hover:opacity-100
-                     hover:bg-black/5 dark:hover:bg-white/10"
+          className="shrink-0 text-[11px] px-1.5 py-0.5 rounded-lg opacity-70 hover:opacity-100
+                     hover:bg-black/[0.055] dark:hover:bg-white/[0.085]"
           title={t('stale.archiveAllTitle')}
         >
           {t('stale.archiveAll')}

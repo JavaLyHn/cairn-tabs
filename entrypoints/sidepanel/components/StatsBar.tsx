@@ -1,8 +1,6 @@
 import { useT } from '../i18n';
 
 interface Props {
-  openTabs: number;
-  activeContexts: number;
   stale: number;
   redundant: number;
   onMerge: () => void;
@@ -27,16 +25,13 @@ function CountText({ n, text }: { n: number; text: string }) {
   );
 }
 
-export function StatsBar({ openTabs, activeContexts, stale, redundant, onMerge }: Props) {
+export function StatsBar({ stale, redundant, onMerge }: Props) {
   const { t } = useT();
+  // 标签数/任务数是静态噪音,不常驻。只有真正需要用户处理的陈旧与重复才现身,
+  // 都没有时整条不渲染 —— 界面上不留空位。
+  if (stale === 0 && redundant === 0) return null;
   return (
-    <div className="flex items-center gap-4 px-3 py-1.5 text-[11.5px] opacity-60 hairline border-b border-black/10 dark:border-white/10">
-      <span>
-        <CountText n={openTabs} text={t('stats.tabs', { n: openTabs })} />
-      </span>
-      <span>
-        <CountText n={activeContexts} text={t('stats.tasks', { n: activeContexts })} />
-      </span>
+    <div className="flex items-center gap-4 px-3 py-1.5 text-[11.5px] opacity-60 hairline border-b border-black/6 dark:border-white/8">
       {stale > 0 && (
         <span title={t('stats.staleTitle')}>
           <CountText n={stale} text={t('stats.stale', { n: stale })} />

@@ -128,6 +128,23 @@ export async function syncGroupTitle(
   );
 }
 
+/** 改颜色后把新颜色推到原生分组(未建组则无操作)。 */
+export async function syncGroupColor(
+  repo: Repository,
+  contextId: string,
+  color: ContextColor,
+): Promise<void> {
+  const ctx = await repo.getContext(contextId);
+  if (ctx?.nativeGroupId == null) return;
+  const groupId = ctx.nativeGroupId;
+  await withSyncPaused(() =>
+    chrome.tabGroups
+      .update(groupId, { color })
+      .then(() => {})
+      .catch((e) => logDebug('syncGroupColor: 原生分组已不存在', e)),
+  );
+}
+
 // ---- 入站:原生 → Cairn Tabs ----
 
 /** tab-sync 在 onUpdated(changeInfo.groupId) 时调用:原生把标签拖进/出分组。 */

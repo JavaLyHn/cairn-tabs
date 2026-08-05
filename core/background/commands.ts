@@ -4,7 +4,12 @@ import type { Repository } from '../store/repositories';
 import type { SearchIndex } from '../search';
 import type { UndoManager, ReorgUndo, TabArchiveUndo } from './undo';
 import { pauseSync, resumeSync } from './sync-lock';
-import { ensureTabInContextGroup, groupTabsForContext, syncGroupTitle } from './group-sync';
+import {
+  ensureTabInContextGroup,
+  groupTabsForContext,
+  syncGroupTitle,
+  syncGroupColor,
+} from './group-sync';
 import { DRAFT_CONTEXT_NAME, type Command, type Event } from '@/shared/messaging';
 import { INBOX_ID, DEFAULT_FLAGS, type Flags, type TabRecord, type Context } from '@/shared/types';
 import { findDuplicateGroups } from '@/shared/dedup';
@@ -287,6 +292,38 @@ export async function handleCommand(cmd: Command, ctx: CommandContext): Promise<
       const trimmed = cmd.name.trim();
       await repo.renameContext(cmd.contextId, trimmed);
       if (trimmed) await syncGroupTitle(repo, cmd.contextId, trimmed);
+      onChange();
+      return;
+    }
+
+    case 'SET_CONTEXT_COLOR': {
+      await repo.setContextColor(cmd.contextId, cmd.color);
+      await syncGroupColor(repo, cmd.contextId, cmd.color);
+      onChange();
+      return;
+    }
+
+    case 'NEW_TAB_IN_CONTEXT': {
+      const created = await chrome.tabs.create({ active: true });
+      if (created.id == null) {
+        onChange();
+        return;
+      }
+      await ensureTabInContextGroup(repo, cmd.contextId, created.id);
+      // tabs.onCreated 与本命令并发,且归组发生在 syncPaused 内(入站同步不回写归属),
+      // 故这里显式定归属。轮询等 tab-sync 落库,上限 ~500ms;
+      // 超时则留待下次对账归位,不阻断用户操作。
+      for (let i = 0; i < 10; i++) {
+        const rec = await repo.getTabByChromeId(created.id);
+        if (rec) {
+          if (rec.contextId !== cmd.contextId) {
+            await repo.moveTab(rec.id, cmd.contextId, now);
+            await repo.pinTab(rec.id); // 人工指定归属,引擎不再改动
+          }
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 50));
+      }
       onChange();
       return;
     }

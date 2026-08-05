@@ -1,15 +1,10 @@
-import { useState, useEffect, useRef, type ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { useDialog } from '../hooks/useDialog';
-import { useT, type MessageKey } from '../i18n';
+import { useT } from '../i18n';
 import { SUPPORTED, LOCALE_NAMES, type Locale } from '../i18n/locales';
 import { useTheme } from '../theme';
-import {
-  ACCENTS,
-  accentPresetId,
-  resolveAccentHex,
-  isValidHex,
-  type ThemeMode,
-} from '../theme/theme';
+import { type ThemeMode } from '../theme/theme';
+import { GHOST_BTN } from '../ui/tokens';
 import { APP_NAME, AUTHOR, appVersion } from '@/shared/meta';
 import type { Flags } from '@/shared/types';
 import type { AIProviderId, AIStatus } from '@/shared/ai';
@@ -48,7 +43,7 @@ function Toggle({ on }: { on: boolean }) {
                   ${on ? 'bg-accent' : 'bg-black/20 dark:bg-white/25'}`}
     >
       <span
-        className={`inline-block h-3 w-3 rounded-full bg-white transition-transform
+        className={`inline-block h-3 w-3 rounded-full bg-on-accent transition-transform
                     ${on ? 'translate-x-3.5' : 'translate-x-0.5'}`}
       />
     </span>
@@ -61,8 +56,8 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
     <section className="px-3">
       <div className="px-1 pb-1.5 text-[11px] uppercase tracking-wide opacity-40">{title}</div>
       <div
-        className="rounded-xl overflow-hidden bg-black/[0.03] dark:bg-white/[0.05]
-                   border border-black/5 dark:border-white/10
+        className="rounded-lg overflow-hidden bg-black/[0.03] dark:bg-white/[0.05]
+                   border border-black/4 dark:border-white/8
                    divide-y divide-black/5 dark:divide-white/10"
       >
         {children}
@@ -88,7 +83,7 @@ function ToggleRow({
     <button
       onClick={onToggle}
       className={`w-full flex items-start gap-2 px-3 py-2.5 text-left
-                  hover:bg-black/5 dark:hover:bg-white/5
+                  hover:bg-black/[0.055] dark:hover:bg-white/[0.085]
                   ${nested ? 'bg-black/[0.02] dark:bg-white/[0.03]' : ''}`}
     >
       <div className="flex-1">
@@ -137,8 +132,8 @@ function StepperRow({
           onClick={() => set(value - step)}
           disabled={value <= min}
           aria-label={`${title} −`}
-          className="w-6 h-6 rounded-md text-[13px] leading-none border border-black/15 dark:border-white/20
-                     hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-30"
+          className="w-6 h-6 rounded-lg text-[13px] leading-none border border-black/8 dark:border-white/12
+                     hover:bg-black/[0.055] dark:hover:bg-white/[0.085] disabled:opacity-30"
         >
           −
         </button>
@@ -147,8 +142,8 @@ function StepperRow({
           onClick={() => set(value + step)}
           disabled={value >= max}
           aria-label={`${title} +`}
-          className="w-6 h-6 rounded-md text-[13px] leading-none border border-black/15 dark:border-white/20
-                     hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-30"
+          className="w-6 h-6 rounded-lg text-[13px] leading-none border border-black/8 dark:border-white/12
+                     hover:bg-black/[0.055] dark:hover:bg-white/[0.085] disabled:opacity-30"
         >
           +
         </button>
@@ -157,14 +152,11 @@ function StepperRow({
   );
 }
 
-/** 外观:主题模式分段控件 + 强调色预设/自定义。纯 UI 偏好(chrome.storage.local),即时全局生效。 */
+/** 外观:主题模式分段控件。纯 UI 偏好(chrome.storage.local),即时全局生效。
+    设计语言为单色,强调色随明暗自动反相,无需配置。 */
 function AppearanceSection() {
   const { t } = useT();
-  const { mode, accent, setMode, setAccent } = useTheme();
-  const selectedPreset = accentPresetId(accent);
-  const currentHex = resolveAccentHex(accent);
-  const [hexDraft, setHexDraft] = useState(currentHex);
-  useEffect(() => setHexDraft(currentHex), [currentHex]);
+  const { mode, setMode } = useTheme();
 
   const modes: ThemeMode[] = ['auto', 'light', 'dark'];
   const modeLabel: Record<ThemeMode, string> = {
@@ -172,96 +164,27 @@ function AppearanceSection() {
     light: t('settings.appearance.theme.light'),
     dark: t('settings.appearance.theme.dark'),
   };
-  const accentName = (id: string) => t(`settings.appearance.accent.name.${id}` as MessageKey);
-  // <input type=color> 只认 #rrggbb:把 #rgb 展开,其余原样
-  const sixHex = (h: string) =>
-    /^#[0-9a-f]{3}$/i.test(h) ? `#${h[1]}${h[1]}${h[2]}${h[2]}${h[3]}${h[3]}` : h;
-  const onHexInput = (v: string) => {
-    setHexDraft(v);
-    if (isValidHex(v)) setAccent(v.trim().toLowerCase());
-  };
 
   return (
-    <>
-      {/* 主题模式 */}
-      <div className="px-3 py-2.5">
-        <div className="text-[12.5px]">{t('settings.appearance.theme.title')}</div>
-        <div className="text-[11px] opacity-50 leading-snug mt-0.5">
-          {t('settings.appearance.theme.desc')}
-        </div>
-        <div className="inline-flex mt-2 rounded-lg p-0.5 gap-0.5 bg-black/[0.06] dark:bg-white/[0.08]">
-          {modes.map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              aria-pressed={mode === m}
-              className={`px-3 py-1 rounded-md text-[12px] ${
-                mode === m
-                  ? 'bg-white dark:bg-neutral-700 shadow-sm font-medium'
-                  : 'opacity-60 hover:opacity-100'
-              }`}
-            >
-              {modeLabel[m]}
-            </button>
-          ))}
-        </div>
+    <div className="px-3 py-2.5">
+      <div className="text-[12.5px]">{t('settings.appearance.theme.title')}</div>
+      <div className="inline-flex mt-2 rounded-lg p-0.5 gap-0.5 bg-black/[0.06] dark:bg-white/[0.08]">
+        {modes.map((m) => (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            aria-pressed={mode === m}
+            className={`px-3 py-1 rounded-lg text-[12px] ${
+              mode === m
+                ? 'bg-white dark:bg-neutral-700 shadow-sm font-medium'
+                : 'opacity-60 hover:opacity-100'
+            }`}
+          >
+            {modeLabel[m]}
+          </button>
+        ))}
       </div>
-
-      {/* 强调色 */}
-      <div className="px-3 py-2.5 bg-black/[0.02] dark:bg-white/[0.03]">
-        <div className="text-[12.5px]">{t('settings.appearance.accent.title')}</div>
-        <div className="text-[11px] opacity-50 leading-snug mt-0.5">
-          {t('settings.appearance.accent.desc')}
-        </div>
-        <div className="flex items-center gap-2.5 mt-2.5 flex-wrap">
-          {ACCENTS.map((a) => {
-            const on = selectedPreset === a.id;
-            return (
-              <button
-                key={a.id}
-                onClick={() => setAccent(a.id)}
-                aria-label={accentName(a.id)}
-                aria-pressed={on}
-                title={accentName(a.id)}
-                className={`relative w-6 h-6 rounded-full transition-transform hover:scale-110
-                            ring-offset-2 ring-offset-white dark:ring-offset-neutral-900
-                            ${on ? 'ring-2 ring-black/40 dark:ring-white/50' : ''}`}
-                style={{ backgroundColor: a.hex }}
-              >
-                {on && (
-                  <span className="absolute inset-0 m-auto w-2 h-2 rounded-full bg-white shadow" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* 自定义 hex */}
-        <div className="flex items-center gap-2 mt-3">
-          <input
-            type="color"
-            value={sixHex(currentHex)}
-            onChange={(e) => setAccent(e.target.value)}
-            aria-label={t('settings.appearance.accent.customAria')}
-            className="w-7 h-7 shrink-0 rounded-md cursor-pointer bg-transparent p-0
-                       border border-black/15 dark:border-white/20"
-          />
-          <input
-            type="text"
-            value={hexDraft}
-            onChange={(e) => onHexInput(e.target.value)}
-            spellCheck={false}
-            placeholder="#1d9e75"
-            aria-label={t('settings.appearance.accent.customAria')}
-            className="w-24 px-2 py-1 text-[12px] font-mono rounded bg-transparent outline-none
-                       border border-black/15 dark:border-white/20 focus:border-accent"
-          />
-          <span className={`text-[11px] ${selectedPreset === null ? 'text-accent' : 'opacity-45'}`}>
-            {t('settings.appearance.accent.custom')}
-          </span>
-        </div>
-      </div>
-    </>
+    </div>
   );
 }
 
@@ -298,7 +221,7 @@ export function SettingsPanel({
       className="settings-sheet absolute inset-0 z-30 flex flex-col bg-white dark:bg-neutral-900"
     >
       {/* 固定标题栏 */}
-      <header className="shrink-0 flex items-center gap-2 px-3 py-2.5 border-b border-black/10 dark:border-white/10">
+      <header className="shrink-0 flex items-center gap-2 px-3 py-2.5 border-b border-black/6 dark:border-white/8">
         <svg
           width="15"
           height="15"
@@ -316,7 +239,7 @@ export function SettingsPanel({
         <span className="flex-1 text-[13px] font-medium">{t('settings.title')}</span>
         <button
           onClick={onClose}
-          className="px-2 py-1 rounded-md text-[12px] text-accent hover:bg-black/5 dark:hover:bg-white/10"
+          className={`${GHOST_BTN} font-medium opacity-100`}
           title={t('settings.doneTitle')}
           aria-label={t('settings.doneTitle')}
         >
@@ -336,7 +259,7 @@ export function SettingsPanel({
               aria-label={t('settings.group.language')}
               value={locale}
               onChange={(e) => setLocale(e.target.value as Locale)}
-              className="text-[12px] bg-transparent border border-black/15 dark:border-white/20 rounded-md px-2 py-1 outline-none focus-visible:border-accent"
+              className="text-[12px] bg-transparent border border-black/8 dark:border-white/12 rounded-lg px-2 py-1 outline-none focus-visible:border-accent"
             >
               {SUPPORTED.map((loc) => (
                 <option key={loc} value={loc}>
@@ -429,7 +352,7 @@ export function SettingsPanel({
         <Group title={t('settings.group.data')}>
           <button
             onClick={onExportAll}
-            className="w-full text-left px-3 py-2.5 hover:bg-black/5 dark:hover:bg-white/5"
+            className="w-full text-left px-3 py-2.5 hover:bg-black/[0.055] dark:hover:bg-white/[0.085]"
           >
             <div className="text-[12.5px]">{t('settings.data.exportAll.title')}</div>
             <div className="text-[11px] opacity-50 leading-snug mt-0.5">
@@ -438,7 +361,7 @@ export function SettingsPanel({
           </button>
           <button
             onClick={() => importInputRef.current?.click()}
-            className="w-full text-left px-3 py-2.5 hover:bg-black/5 dark:hover:bg-white/5"
+            className="w-full text-left px-3 py-2.5 hover:bg-black/[0.055] dark:hover:bg-white/[0.085]"
           >
             <div className="text-[12.5px]">{t('settings.data.import')}</div>
             <div className="text-[11px] opacity-50 leading-snug mt-0.5">
