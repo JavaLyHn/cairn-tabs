@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
-import { INBOX_ID, type Context } from '@/shared/types';
+import { INBOX_ID, type Context, type ContextColor } from '@/shared/types';
 import type { Event } from '@/shared/messaging';
 import { AIPlanDialog } from './components/AIPlanDialog';
 import { formatReclaimed } from '@/shared/discard';
@@ -26,6 +26,33 @@ import { ExportDialog } from './components/ExportDialog';
 import { Signature } from './components/Signature';
 import { downloadText } from './util';
 import { useT } from './i18n';
+
+// 头部按钮:与任务菜单同一套视觉参数(圆角 lg、同款 hover 底、线框 1.8 描边)
+const HEAD_BTN =
+  'shrink-0 flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[12px] transition-colors ' +
+  'opacity-70 hover:opacity-100 hover:bg-black/[0.055] dark:hover:bg-white/[0.085]';
+const HEAD_ICON_BTN =
+  'shrink-0 flex items-center justify-center w-7 h-7 rounded-lg transition-colors ' +
+  'opacity-60 hover:opacity-100 hover:bg-black/[0.055] dark:hover:bg-white/[0.085]';
+
+function HeadIcon({ children }: { children: ReactNode }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="w-[15px] h-[15px] shrink-0 block"
+    >
+      {children}
+    </svg>
+  );
+}
+
+/** 文案里自带的 + / ✦ 前缀由图标承担,渲染时去掉避免重复。 */
+const stripMark = (s: string) => s.replace(/^[+✦]\s*/, '');
 
 /** 活跃任务的排序签名(用于判断顺序是否变化,决定是否播放过渡)。 */
 function activeOrderSig(contexts: Context[]): string {
@@ -64,7 +91,7 @@ export default function App() {
     toggleSearch();
   }, [toggleSearch]);
 
-  const { editingId, setEditingId, createContext, commitName, cancelEdit } = useDraftNaming();
+  const { editingId, createContext, commitName, cancelEdit } = useDraftNaming();
 
   // 本次会话内被忽略的端口建议
   const [ignoredPorts, setIgnoredPorts] = useState<Set<number>>(new Set());
@@ -227,7 +254,6 @@ export default function App() {
     activeContexts,
     archivedContexts,
     starredTabs,
-    openTabCount,
     archivedTabCount,
     isEmpty,
     dupMarks,
@@ -331,11 +357,13 @@ export default function App() {
     portMap,
     viewTransitionName: `ctx-${ctx.id}`,
     editing: editingId === ctx.id,
-    onStartEdit: () => setEditingId(ctx.id),
     onCommitName: (name: string) => commitName(ctx, name),
     onCancelEdit: () => cancelEdit(ctx),
     onArchive: () => archive(ctx.id),
     onArchiveAll: archiveInbox,
+    onNewTab: () => void dispatch({ type: 'NEW_TAB_IN_CONTEXT', contextId: ctx.id }),
+    onSetColor: (color: ContextColor) =>
+      void dispatch({ type: 'SET_CONTEXT_COLOR', contextId: ctx.id, color }),
     onRestore: () => restore(ctx.id),
     onExport: () => setExportTarget({ id: ctx.id, at: Date.now() }),
     onDelete: () => del(ctx.id),
@@ -358,69 +386,42 @@ export default function App() {
   });
 
   return (
-    <div className="relative flex flex-col h-full">
-      {/* 头部:搜索入口 + 新建(不再重复 Chrome 侧边栏已显示的应用名) */}
-      <header className="flex items-center gap-1.5 px-2 py-2 border-b border-black/10 dark:border-white/10">
-        <button
-          onClick={openSearch}
-          className="flex-1 flex items-center gap-2 px-2.5 py-1.5 rounded-md text-left
-                     bg-black/[0.05] dark:bg-white/[0.06] hover:bg-black/10 dark:hover:bg-white/10"
-          title={t('app.searchTitle')}
-        >
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="opacity-55 shrink-0"
-          >
-            <circle cx="11" cy="11" r="7" />
-            <path d="m21 21-4.3-4.3" />
-          </svg>
-          <span className="flex-1 opacity-60">{t('app.searchPlaceholder')}</span>
-          <span className="font-mono text-[11px] opacity-45">⌘⇧K</span>
+    <div
+      className="relative flex flex-col h-[calc(100%-8px)] m-1 rounded-2xl overflow-hidden
+                 bg-white dark:bg-neutral-950 border border-black/[0.07] dark:border-white/[0.09]"
+    >
+      {/* 头部:主操作靠左,视图与设置靠右。图标语言与任务菜单一致(线框 1.8 描边)。
+          搜索不占常驻位置,走 ⌘⇧K 快捷键唤起。 */}
+      <header className="flex items-center gap-1 px-2 py-2 border-b border-black/6 dark:border-white/8">
+        <button onClick={createContext} className={HEAD_BTN} title={t('app.newContextTitle')}>
+          <HeadIcon>
+            <path d="M12 5v14M5 12h14" />
+          </HeadIcon>
+          {stripMark(t('app.newContext'))}
         </button>
-        <button
-          onClick={createContext}
-          className="shrink-0 px-2 py-1.5 rounded-md text-[12px] opacity-70 hover:opacity-100
-                     hover:bg-black/5 dark:hover:bg-white/10"
-          title={t('app.newContextTitle')}
-          aria-label={t('app.newContextTitle')}
-        >
-          {t('app.newContext')}
-        </button>
+
         {ai.ready && (
           <button
             onClick={aiOrganizeAll}
             disabled={aiBusy}
-            className="shrink-0 px-2 py-1.5 rounded-md text-[12px] text-accent hover:bg-accent/10
-                       disabled:opacity-50"
+            className={`${HEAD_BTN} disabled:opacity-40`}
             title={t('app.aiOrganizeAllTitle')}
           >
-            {aiBusy ? t('app.aiOrganizeAllBusy') : t('app.aiOrganizeAll')}
+            <HeadIcon>
+              <path d="m12 3 1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3Z" />
+              <path d="M18.5 15.5 19.4 18l2.5.9-2.5.9-.9 2.5-.9-2.5-2.5-.9 2.5-.9.9-2.5Z" />
+            </HeadIcon>
+            {stripMark(aiBusy ? t('app.aiOrganizeAllBusy') : t('app.aiOrganizeAll'))}
           </button>
         )}
+
         <button
           onClick={() => setAllCollapsed((v) => !v)}
-          className="shrink-0 flex items-center justify-center w-7 h-7 rounded-md opacity-60 hover:opacity-100
-                     hover:bg-black/5 dark:hover:bg-white/10"
+          className={`${HEAD_ICON_BTN} ml-auto`}
           title={allCollapsed ? t('app.expandAll') : t('app.collapseAll')}
           aria-label={allCollapsed ? t('app.expandAll') : t('app.collapseAll')}
         >
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
+          <HeadIcon>
             {allCollapsed ? (
               <>
                 <path d="M7 13l5 5 5-5" />
@@ -432,38 +433,23 @@ export default function App() {
                 <path d="M7 18l5-5 5 5" />
               </>
             )}
-          </svg>
+          </HeadIcon>
         </button>
+
         <button
           onClick={() => setSettingsOpen((v) => !v)}
-          className="shrink-0 flex items-center justify-center w-7 h-7 rounded-md opacity-60 hover:opacity-100
-                     hover:bg-black/5 dark:hover:bg-white/10"
+          className={HEAD_ICON_BTN}
           title={t('app.settings')}
           aria-label={t('app.settings')}
         >
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
+          <HeadIcon>
             <circle cx="12" cy="12" r="3" />
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
+          </HeadIcon>
         </button>
       </header>
 
-      <StatsBar
-        openTabs={openTabCount}
-        activeContexts={activeContexts.length}
-        stale={staleRecords.length}
-        redundant={redundant}
-        onMerge={mergeDuplicates}
-      />
+      <StatsBar stale={staleRecords.length} redundant={redundant} onMerge={mergeDuplicates} />
 
       <PortBindSuggestions suggestions={portSuggestions} onBind={bindPort} onIgnore={ignorePort} />
 
@@ -534,7 +520,10 @@ export default function App() {
       </div>
 
       {/* 底部状态栏:归档量 + 累计回收内存(F-11) + 作者署名水印 */}
-      <footer className="flex items-center gap-2 px-3 py-1.5 text-[11px] hairline border-t border-black/10 dark:border-white/10">
+      <footer
+        className="shrink-0 flex items-center gap-2 mx-1.5 mb-1.5 px-2.5 py-1.5 text-[11px]
+                   rounded-xl bg-black/[0.07] dark:bg-white/[0.09]"
+      >
         <span className="opacity-50">
           {t('app.footer.archived')} <span className="font-mono">{archivedContexts.length}</span>{' '}
           {t('app.footer.tasks')} · <span className="font-mono">{archivedTabCount}</span>{' '}

@@ -16,7 +16,7 @@ export function EmptyState({ onNew }: Props) {
       <button
         onClick={onNew}
         aria-label={t('empty.newTask')}
-        className="mt-1 px-3 py-1 rounded-md text-[12px] text-accent hover:bg-accent/10"
+        className="mt-1 px-3 py-1 rounded-lg text-[12px] text-accent hover:bg-accent/10"
       >
         {t('empty.newTask')}
       </button>

@@ -31,7 +31,7 @@ function TabItem({
   const { t } = useT();
   return (
     <div
-      className={`group/r flex items-center gap-2 px-2 py-1 rounded hover:bg-black/5 dark:hover:bg-white/5
+      className={`group/r flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-black/[0.055] dark:hover:bg-white/[0.085]
                   ${moved ? 'border-l-2 border-accent bg-accent/5 pl-1.5' : ''} ${dim ? 'opacity-50' : ''}`}
     >
       <Favicon url={tab.url} title={tab.title} faviconUrl={tab.faviconUrl} />
@@ -142,11 +142,11 @@ export function AIPlanDialog({ plan, tabs, taskNames, sourceNames, onApply, onCl
         aria-modal="true"
         aria-label={t('aiPlan.ariaLabel')}
         tabIndex={-1}
-        className="w-[92%] max-h-full flex flex-col rounded-xl overflow-hidden shadow-2xl
-                   bg-white dark:bg-neutral-900 border border-black/10 dark:border-white/10"
+        className="w-[92%] max-h-full flex flex-col rounded-lg overflow-hidden shadow-2xl
+                   bg-white dark:bg-neutral-900 border border-black/6 dark:border-white/8"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-3 py-2 text-[12px] opacity-70 border-b border-black/10 dark:border-white/10">
+        <div className="px-3 py-2 text-[12px] opacity-70 border-b border-black/6 dark:border-white/8">
           {t('aiPlan.header')}
         </div>
 
@@ -186,7 +186,7 @@ export function AIPlanDialog({ plan, tabs, taskNames, sourceNames, onApply, onCl
                 g.name.trim() && g.tabIds.length ? (
                   <div
                     key={g._id}
-                    className="mb-2 rounded-lg border border-black/10 dark:border-white/10 p-1.5"
+                    className="mb-2 rounded-lg border border-black/6 dark:border-white/8 p-1.5"
                   >
                     <div className="flex items-center gap-1 mb-1">
                       <input
@@ -231,7 +231,7 @@ export function AIPlanDialog({ plan, tabs, taskNames, sourceNames, onApply, onCl
               {assignRows.map(({ a, i, moved, same }) => (
                 <div
                   key={a.taskId}
-                  className="mb-2 rounded-lg border border-black/10 dark:border-white/10 p-1.5"
+                  className="mb-2 rounded-lg border border-black/6 dark:border-white/8 p-1.5"
                 >
                   <div className="flex items-center gap-1 mb-1">
                     <div className="flex-1 text-[13px] font-medium px-1 py-0.5 opacity-80">
@@ -285,7 +285,7 @@ export function AIPlanDialog({ plan, tabs, taskNames, sourceNames, onApply, onCl
               <div className="text-[11px] uppercase tracking-wide opacity-40 mb-1">
                 {t('aiPlan.unclear')}
               </div>
-              <div className="rounded-lg border border-black/10 dark:border-white/10 p-1.5">
+              <div className="rounded-lg border border-black/6 dark:border-white/8 p-1.5">
                 {unclear.map((u) => {
                   const tab = byId.get(u.tabId);
                   if (!tab) return null;
@@ -313,17 +313,17 @@ export function AIPlanDialog({ plan, tabs, taskNames, sourceNames, onApply, onCl
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-3 py-2 border-t border-black/10 dark:border-white/10">
+        <div className="flex items-center justify-end gap-2 px-3 py-2 border-t border-black/6 dark:border-white/8">
           <button
             onClick={onClose}
-            className="px-2.5 py-1 rounded-md text-[12px] opacity-60 hover:opacity-100"
+            className="px-2.5 py-1 rounded-lg text-[12px] opacity-60 hover:opacity-100"
           >
             {t('aiPlan.cancel')}
           </button>
           <button
             onClick={() => onApply(finalPlan)}
             disabled={noChanges}
-            className="px-2.5 py-1 rounded-md text-[12px] bg-accent text-white hover:opacity-90 disabled:opacity-40"
+            className="px-2.5 py-1 rounded-lg text-[12px] bg-accent text-on-accent hover:opacity-90 disabled:opacity-40"
           >
             {movedCount > 0 ? t('aiPlan.applyN', { n: movedCount }) : t('aiPlan.apply')}
           </button>

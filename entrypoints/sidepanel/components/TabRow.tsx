@@ -136,8 +136,8 @@ export function TabRow({
       onKeyDown={(e) => {
         if (e.key === 'Enter') onActivate();
       }}
-      className="group/row flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer
-                 hover:bg-black/5 dark:hover:bg-white/5 select-none"
+      className="group/row flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer
+                 hover:bg-black/[0.055] dark:hover:bg-white/[0.085] select-none"
       title={asleep ? t('tabRow.asleepFullTitle', { url: tab.url }) : tab.url}
     >
       <Favicon url={tab.url} title={tab.title} faviconUrl={tab.faviconUrl} asleep={asleep} />
@@ -172,21 +172,23 @@ export function TabRow({
       {codeRef && (
         <span
           className="shrink-0 inline-flex items-center gap-1 font-mono text-[11px]
-                     px-1 py-0.5 rounded bg-accent/15 text-accent"
+                     px-1 py-0.5 rounded-lg bg-accent/15 text-accent"
           title={`${codeRef.kind === 'pr' ? 'Pull Request' : 'Issue'} #${codeRef.number} · ${codeRef.slug}`}
         >
           {codeRef.kind === 'pr' ? <PrIcon /> : <IssueIcon />}
           {codeRef.label}
         </span>
       )}
-      {port != null && (
+      {/* 端口徽章只在标题被项目名替换后才补 —— 未绑定项目名时标题里本就带着端口,
+          再显示一次是重复。 */}
+      {project != null && port != null && (
         <span className="font-mono text-[11px] opacity-45 shrink-0" title={tab.title}>
           :{port}
         </span>
       )}
       {dupState === 'redundant' && (
         <span
-          className="shrink-0 text-[10px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-500"
+          className="shrink-0 text-[10px] px-1 py-0.5 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-500"
           title={t('tabRow.duplicateTitle')}
         >
           {t('tabRow.duplicate')}
@@ -194,7 +196,7 @@ export function TabRow({
       )}
       {dupState === 'keeper' && (
         <span
-          className="shrink-0 text-[10px] px-1 py-0.5 rounded bg-accent/15 text-accent"
+          className="shrink-0 text-[10px] px-1 py-0.5 rounded-lg bg-accent/15 text-accent"
           title={t('tabRow.duplicateKeepTitle')}
         >
           {t('tabRow.duplicateKeep')}
@@ -210,7 +212,7 @@ export function TabRow({
             e.stopPropagation();
             onToggleStar();
           }}
-          className={`shrink-0 items-center justify-center w-4 h-4 rounded ${
+          className={`shrink-0 items-center justify-center w-4 h-4 rounded-lg ${
             tab.starred
               ? 'flex text-amber-400 hover:text-amber-500'
               : 'hidden group-hover/row:flex group-focus-within/row:flex opacity-45 hover:opacity-90'
@@ -227,7 +229,7 @@ export function TabRow({
           onClose();
         }}
         className="hidden group-hover/row:flex group-focus-within/row:flex items-center justify-center w-4 h-4 shrink-0
-                   rounded opacity-50 hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10"
+                   rounded-lg opacity-50 hover:opacity-100 hover:bg-black/[0.055] dark:hover:bg-white/[0.085]"
         title={closeTitle ?? t('tabRow.close')}
         aria-label={closeTitle ?? t('tabRow.close')}
       >

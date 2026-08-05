@@ -78,7 +78,7 @@ export function ExportDialog({ context, tabs, exportedAt, onFlash, onClose }: Pr
   const tab = (f: 'md' | 'json', label: string) => (
     <button
       onClick={() => setFormat(f)}
-      className={`px-2 py-0.5 rounded text-[12px] ${
+      className={`px-2 py-0.5 rounded-lg text-[12px] ${
         format === f ? 'bg-accent/15 text-accent' : 'opacity-60 hover:opacity-100'
       }`}
     >
@@ -94,11 +94,11 @@ export function ExportDialog({ context, tabs, exportedAt, onFlash, onClose }: Pr
         aria-modal="true"
         aria-label={t('export.ariaLabel')}
         tabIndex={-1}
-        className="mt-6 w-[92%] max-h-[82%] flex flex-col rounded-xl overflow-hidden shadow-2xl
-                   bg-white dark:bg-neutral-900 border border-black/10 dark:border-white/10"
+        className="mt-6 w-[92%] max-h-[82%] flex flex-col rounded-lg overflow-hidden shadow-2xl
+                   bg-white dark:bg-neutral-900 border border-black/6 dark:border-white/8"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-black/10 dark:border-white/10">
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-black/6 dark:border-white/8">
           <span className="text-[12px] opacity-70 flex-1 truncate">
             {t('export.title', { name: context.name })}
           </span>
@@ -117,26 +117,26 @@ export function ExportDialog({ context, tabs, exportedAt, onFlash, onClose }: Pr
           </div>
         )}
 
-        <div className="flex items-center justify-end gap-2 px-3 py-2 border-t border-black/10 dark:border-white/10">
+        <div className="flex items-center justify-end gap-2 px-3 py-2 border-t border-black/6 dark:border-white/8">
           <button
             onClick={onClose}
             aria-label={t('export.close')}
-            className="px-2.5 py-1 rounded-md text-[12px] opacity-60 hover:opacity-100"
+            className="px-2.5 py-1 rounded-lg text-[12px] opacity-60 hover:opacity-100"
           >
             {t('export.close')}
           </button>
           <button
             onClick={download}
             aria-label={t('export.download')}
-            className="px-2.5 py-1 rounded-md text-[12px] opacity-70 hover:opacity-100
-                       hover:bg-black/5 dark:hover:bg-white/10"
+            className="px-2.5 py-1 rounded-lg text-[12px] opacity-70 hover:opacity-100
+                       hover:bg-black/[0.055] dark:hover:bg-white/[0.085]"
           >
             {t('export.download')}
           </button>
           <button
             onClick={copy}
             aria-label={t('export.copy')}
-            className="px-2.5 py-1 rounded-md text-[12px] bg-accent text-white hover:opacity-90"
+            className="px-2.5 py-1 rounded-lg text-[12px] bg-accent text-on-accent hover:opacity-90"
           >
             {t('export.copy')}
           </button>

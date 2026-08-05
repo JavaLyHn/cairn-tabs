@@ -77,9 +77,7 @@ describe('ThemeProvider 的 context value', () => {
       return <span data-testid="t">{String(seen.length)}</span>;
     };
     const { bump } = mountWithRerender(Consumer, (c) => (
-      <ThemeProvider initialMode="dark" initialAccent="blue">
-        {c}
-      </ThemeProvider>
+      <ThemeProvider initialMode="dark">{c}</ThemeProvider>
     ));
 
     bump();

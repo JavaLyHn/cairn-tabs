@@ -103,8 +103,8 @@ export function SearchOverlay({ onClose, onActivate, onRestoreContext }: Props) 
       onClick={onClose}
     >
       <div
-        className="w-[92%] max-h-[70%] flex flex-col rounded-xl overflow-hidden shadow-2xl
-                   bg-white dark:bg-neutral-900 hairline border border-black/10 dark:border-white/10"
+        className="w-[92%] max-h-[70%] flex flex-col rounded-lg overflow-hidden shadow-2xl
+                   bg-white dark:bg-neutral-900 hairline border border-black/6 dark:border-white/8"
         onClick={(e) => e.stopPropagation()}
       >
         <input
@@ -115,7 +115,7 @@ export function SearchOverlay({ onClose, onActivate, onRestoreContext }: Props) 
           aria-label={t('search.placeholder')}
           placeholder={t('search.placeholder')}
           className="px-4 py-3 bg-transparent outline-none text-[14px]
-                     border-b border-black/10 dark:border-white/10"
+                     border-b border-black/6 dark:border-white/8"
         />
         {(items.length > 0 || q) && (
           <div role="listbox" className="overflow-y-auto py-1">
@@ -146,7 +146,7 @@ export function SearchOverlay({ onClose, onActivate, onRestoreContext }: Props) 
                 <span className="font-mono text-[11px] opacity-40 shrink-0">
                   {hostname(r.tab.url)}
                 </span>
-                <span className="shrink-0 text-[10.5px] px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 opacity-70">
+                <span className="shrink-0 text-[10.5px] px-1.5 py-0.5 rounded-lg bg-black/5 dark:bg-white/10 opacity-70">
                   {r.contextName}
                   {r.archived ? t('search.archivedSuffix') : ''}
                 </span>
@@ -154,7 +154,7 @@ export function SearchOverlay({ onClose, onActivate, onRestoreContext }: Props) 
             ))}
           </div>
         )}
-        <div className="px-4 py-1.5 text-[10.5px] opacity-40 border-t border-black/10 dark:border-white/10 font-mono">
+        <div className="px-4 py-1.5 text-[10.5px] opacity-40 border-t border-black/6 dark:border-white/8 font-mono">
           {t('search.hint')}
         </div>
       </div>

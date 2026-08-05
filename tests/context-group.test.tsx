@@ -27,7 +27,8 @@ function baseProps(over: Record<string, unknown> = {}) {
     dupMarks: new Map(),
     portMap: {},
     editing: true,
-    onStartEdit: noop,
+    onNewTab: noop,
+    onSetColor: noop,
     onCommitName: noop,
     onCancelEdit: noop,
     onArchive: noop,
@@ -44,7 +45,7 @@ function baseProps(over: Record<string, unknown> = {}) {
   };
 }
 
-describe('ContextGroup AI 改名取消', () => {
+describe('ContextGroup 菜单内 AI 命名可取消', () => {
   it('进行中按钮变「✦ 取消」且可点,点击触发 onAiCancel', async () => {
     const onAiCancel = vi.fn();
     render(
@@ -53,12 +54,11 @@ describe('ContextGroup AI 改名取消', () => {
       </I18nProvider>,
     );
 
+    fireEvent.click(screen.getByRole('button', { name: '更多' })); // 改名与 AI 命名都在菜单里
     const start = screen.getByRole('button', { name: 'AI 命名' });
-    expect(start.textContent).toContain('✦ AI');
 
     fireEvent.click(start); // 开始建议(promise 不结束 → 进行中)
     const cancelBtn = await screen.findByRole('button', { name: '取消 AI 命名' });
-    expect(cancelBtn.textContent).toContain('✦ 取消');
     expect((cancelBtn as HTMLButtonElement).disabled).toBe(false);
 
     fireEvent.click(cancelBtn); // 再点 → 取消
@@ -147,8 +147,8 @@ describe('ContextGroup 命名任务 AI 整理(净化)入口', () => {
         <ContextGroup {...baseProps({ editing: false, tabs: [movable], onAiPrune })} />
       </I18nProvider>,
     );
-    const btn = screen.getByRole('button', { name: '✦ AI 整理' });
-    fireEvent.click(btn);
+    fireEvent.click(screen.getByRole('button', { name: '更多' }));
+    fireEvent.click(screen.getByRole('button', { name: 'AI 整理' }));
     expect(onAiPrune).toHaveBeenCalledTimes(1);
   });
   it('全是★重点/无可动标签 → 不显示 AI 整理', () => {
@@ -158,11 +158,12 @@ describe('ContextGroup 命名任务 AI 整理(净化)入口', () => {
         <ContextGroup {...baseProps({ editing: false, tabs: [starred], onAiPrune: () => {} })} />
       </I18nProvider>,
     );
-    expect(screen.queryByRole('button', { name: '✦ AI 整理' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '更多' }));
+    expect(screen.queryByRole('button', { name: 'AI 整理' })).toBeNull();
   });
 });
 
-describe('ContextGroup 命名任务直接 AI 改名入口', () => {
+describe('ContextGroup 改名入口', () => {
   const tab = {
     id: 'x1',
     contextId: 'c1',
@@ -172,18 +173,20 @@ describe('ContextGroup 命名任务直接 AI 改名入口', () => {
     firstOpenedAt: 0,
     lastActiveAt: 0,
   };
-  it('命名任务(非编辑态、有标签、AI 开)显示「✦ AI 改名」,点击进入编辑', () => {
-    const onStartEdit = vi.fn();
+  it('命名任务:菜单里直接改名,回车提交 —— 不再需要先切编辑态', () => {
+    const onCommitName = vi.fn();
     render(
       <I18nProvider initialLocale="zh-CN">
-        <ContextGroup {...baseProps({ editing: false, tabs: [tab], onStartEdit })} />
+        <ContextGroup {...baseProps({ editing: false, tabs: [tab], onCommitName })} />
       </I18nProvider>,
     );
-    const btn = screen.getByRole('button', { name: 'AI 改名' });
-    fireEvent.click(btn);
-    expect(onStartEdit).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: '更多' }));
+    const input = screen.getByRole('textbox', { name: '改名' });
+    fireEvent.change(input, { target: { value: '重命名后' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onCommitName).toHaveBeenCalledWith('重命名后');
   });
-  it('未分类(inbox)不显示 AI 改名', () => {
+  it('未分类(inbox)不提供改名/换色菜单 —— 它没有这两个语义', () => {
     render(
       <I18nProvider initialLocale="zh-CN">
         <ContextGroup
@@ -196,7 +199,7 @@ describe('ContextGroup 命名任务直接 AI 改名入口', () => {
         />
       </I18nProvider>,
     );
-    expect(screen.queryByRole('button', { name: 'AI 改名' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '更多' })).toBeNull();
   });
 });
 
